@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AutoFlow</string>
+    <string name="placeholder_title">AutoFlow Foundation</string>
+    <string name="placeholder_subtitle">Phase 1: Local-first database schema and architecture established.</string>
+</resources>
