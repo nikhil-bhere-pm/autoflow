@@ -331,6 +331,40 @@ class AutoFlowParserAdapterTest {
         assertEquals(79900L, entity6.amountPaise)
     }
 
+    @Test
+    fun testPromiseGuard_doesNotDropDebitWithCashbackPromiseFooter() {
+        val msg = "Rs 450.00 debited from A/c XX1234 at ZOMATO on 24-10-26. Cashback of Rs 20 will be credited within 7 days."
+        org.junit.Assert.assertFalse("Expected msg 1 to not be blocked by promise guard", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity 1 to be parsed", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(45000L, entity.amountPaise)
+        assertEquals("ZOMATO", entity.merchantName)
+    }
+
+    @Test
+    fun testPromiseGuard_doesNotDropSpentWithRewardPointsPromiseFooter() {
+        val msg = "Spent INR 130 using Axis Bank Credit Card no. XX7997 on 24-10-26 09:59:42 IST at SWIGGY INST. Reward points will be credited within 3 days. Avl limit: INR 44673.4."
+        org.junit.Assert.assertFalse("Expected msg 2 to not be blocked by promise guard", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "AX-AXISBK-S", baseTimestamp)
+        assertNotNull("Expected entity 2 to be parsed", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(13000L, entity.amountPaise)
+        assertEquals("SWIGGY INST", entity.merchantName)
+    }
+
+    @Test
+    fun testPromiseGuard_doesNotDropDebitWithRefundPromiseFooter() {
+        val msg = "Rs 1,200.00 debited at AMAZON on 24-10-26. Refund, if applicable, will be credited within 5-7 days."
+        org.junit.Assert.assertFalse("Expected msg 3 to not be blocked by promise guard", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity 3 to be parsed", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(120000L, entity.amountPaise)
+        assertEquals("AMAZON", entity.merchantName)
+    }
+
+
 
 
 
