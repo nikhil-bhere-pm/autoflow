@@ -16,7 +16,8 @@
   - *Regression Corpus (`SmsRegressionCorpusTest.kt`):* Table-driven regression suite (`app/src/test/java/com/autoflow/app/data/adapter/SmsRegressionCorpusTest.kt`) expanded to 61 test cases covering Prompt M7 active rows N-1..N-5 (outbound debit messages with payment instrument clauses), M6 inbound money false-expense guards, M5 spend variations / parser-core limitation controls, M4 inbound transfer safety / UPI VPA extraction, M3 payee credit messages, M2 corner cases, Prompt M promise/completed pairs, Prompt 0 safety probe controls, and Prompt J narrowed-guard positive controls.
   - *Reminders & Summaries:* Blocks messages starting with `"reminder:"` or payment/mandate reminders, while allowing debits containing `"Reminder"` later in body text. Blocks monthly spend summaries, promos, card statements, and card debt repayments.
 
-- **Phase 5 (Category Engine v1, User Rules & Room v2 Migration Proof):* CategoryEngine with 4-tier resolution hierarchy: (1) user's saved merchant rule on exact normalized key, (2) built-in aliases (`"swiggy inst"`, `"instamart"` -> `Groceries`; `"makemytrip"`, `"make my trip"`, `"irctc"` -> `Travel`), (3) keyword mapper (`KeywordCategoryMapper.kt` derived from PennyWise's `SharedCategoryMapping.kt` with pure Kotlin, whole-word/phrase regex matching on normalized merchant text, mapping upstream categories to AutoFlow's 9 fixed categories), (4) fallback to `"Others"`. Room database bumped to version 2 via explicit `MIGRATION_1_2` creating `merchant_categories` table and adding `categorySource` column (`'AUTO'` vs `'USER'`). Atomic retro-updates when user corrects a category: updates target row to `USER`, upserts rule, updates other active `AUTO` rows with same normalized key, and skips `USER` or soft-deleted rows. Junk merchants never store rules. Credit card payment messages classified as `"Others"` with reviewStatus `EXCLUDED`. Room schemas v1 and v2 exported to `app/schemas/`. Pure JVM SQLite migration test (`RoomMigration1To2Test.kt`) using `sqlite-jdbc` proves data preservation across sample rows (`categorySource` defaulted to `'AUTO'`), verifies `PRAGMA table_info` for `transactions` and `merchant_categories` matches 2.json, and proves real production DAO SQL (`TransactionDao.QUERY_GET_ALL_AUTO`) and retro-update logic never return or modify `USER` or soft-deleted rows. Verified on connected Android device after database backup.
+- **Phase 5 (Category Engine v1, User Rules & Room v2 Migration Proof):** CategoryEngine with 4-tier resolution hierarchy: (1) user's saved merchant rule on exact normalized key, (2) built-in aliases (`"swiggy inst"`, `"instamart"` -> `Groceries`; `"makemytrip"`, `"make my trip"`, `"irctc"` -> `Travel`), (3) keyword mapper (`KeywordCategoryMapper.kt` derived from PennyWise's `SharedCategoryMapping.kt` with pure Kotlin, whole-word/phrase regex matching on normalized merchant text, mapping upstream categories to AutoFlow's 9 fixed categories), (4) fallback to `"Others"`. Room database bumped to version 2 via explicit `MIGRATION_1_2` creating `merchant_categories` table and adding `categorySource` column (`'AUTO'` vs `'USER'`). Atomic retro-updates when user corrects a category: updates target row to `USER`, upserts rule, updates other active `AUTO` rows with same normalized key, and skips `USER` or soft-deleted rows. Junk merchants never store rules. Credit card payment messages classified as `"Others"` with reviewStatus `EXCLUDED`. Room schemas v1 and v2 exported to `app/schemas/`. Pure JVM SQLite migration test (`RoomMigration1To2Test.kt`) using `sqlite-jdbc` proves data preservation across sample rows (`categorySource` defaulted to `'AUTO'`), verifies `PRAGMA table_info` for `transactions` and `merchant_categories` matches 2.json, and proves real production DAO SQL (`TransactionDao.QUERY_GET_ALL_AUTO`) and retro-update logic never return or modify `USER` or soft-deleted rows. Verified on connected Android device after database backup.
+- **Phase 6 (Payment Mode, Optional Note, Editable Date, Range Query & Room v3 Migration — Prompt P):** Room database bumped to version 3 via explicit `MIGRATION_2_3` (`ALTER TABLE transactions ADD COLUMN payment_mode TEXT NOT NULL DEFAULT 'UNKNOWN'`, `ALTER TABLE transactions ADD COLUMN note TEXT`, and backfill `UPDATE transactions SET payment_mode = 'CASH' WHERE source = 'MANUAL_CASH'`). Room schema `3.json` exported. Payment mode detection at SMS ingestion in `AutoFlowParserAdapter` (`CREDIT`, `UPI`, `BANK`, fallback `UNKNOWN`; manual cash entries default to `CASH`). `FinancialTransaction` domain model updated with `paymentMode: String` and `note: String?`. Typed repository update result (`UpdateTransactionResult` with `Success`, `NotFound`, `FutureDateNotAllowed`, `NoteTooLong`, `InvalidAmount`, `CannotEditSmsAmount`, `InvalidPaymentMode`); amount editable only for `MANUAL_CASH` rows (positive and `<= 10_000_000_000L` paise); transaction hash remains immutable on edit. Half-open range query `[start, end)` (`date_time >= :startTime AND date_time < :endTime`) in DAO and repository (`getTransactionsInRange`), with pure helper delegates to `SpendingStats` for 5-month spending series (net spend floored at 0) and range category breakdown. Pure JVM SQLite migration test (`RoomMigration2To3Test.kt`) proves schema preservation, defaults, manual backfill, `PRAGMA table_info` parity with `3.json`, and range query bounds on real SQLite. Tested on connected physical Android device after backup.
 
 ## 2. Money & Privacy Rules
 
@@ -88,4 +89,38 @@
   - Whole-number percentage calculation using the **Largest Remainder Method** (Hamilton/Hare–Niemeyer), guaranteeing percentages sum to exactly 100% when total spend > 0.
   - Deterministic tie-breaking: sorts by largest remainder descending, then largest spend descending, then alphabetical category name ascending.
 - **Daily Totals (`dayTotal`, `dailyTotals`):** Computes spend totals per local calendar day or across ranges, clamped at a minimum of `0L`.
+
+## 8. Mode, Note, Editable Date, Range Query & Room v3 (Prompt P)
+
+- **Room Version 3 Schema & Explicit Migration:**
+  - Added columns `payment_mode TEXT NOT NULL DEFAULT 'UNKNOWN'` and `note TEXT` (nullable) to `transactions`.
+  - Migration `MIGRATION_2_3`:
+    1. `ALTER TABLE transactions ADD COLUMN payment_mode TEXT NOT NULL DEFAULT 'UNKNOWN'`
+    2. `ALTER TABLE transactions ADD COLUMN note TEXT`
+    3. `UPDATE transactions SET payment_mode = 'CASH' WHERE source = 'MANUAL_CASH'`
+  - Verified on real SQLite via `RoomMigration2To3Test.kt`: old rows preserved intact, SMS rows default to `UNKNOWN`, manual rows backfilled to `CASH`, PRAGMA table_info matches schema `3.json`.
+  - Verified on physical test device `dfa4dd90` after database backup (`before_v3.db`, `-wal`, `-shm`). Zero runtime or Room errors.
+- **Payment Mode Detection:**
+  - Detected at transient SMS ingestion time in `AutoFlowParserAdapter.detectPaymentMode(smsBody)`:
+    1. `CREDIT`: credit card, cc, card ending/no followed by credit
+    2. `UPI`: upi, vpa, @ handle (`@[a-zA-Z0-9._-]+`)
+    3. `BANK`: debit card, neft, imps, rtgs, atm, a/c debited, debited from a/c
+    4. `UNKNOWN`: any unrecognized payment method
+  - Manual cash entries set `payment_mode = CASH`.
+  - Validated by table-driven test suite `PaymentModeDetectionTest.kt` (15 realistic test cases covering all 4 modes).
+- **Domain Model Updates:**
+  - `FinancialTransaction` includes `paymentMode: String` (defaults to `"UNKNOWN"`) and `note: String?` (defaults to `null`).
+- **Repository `updateTransaction`:**
+  - Atomic single-transaction update with typed validation results (`UpdateTransactionResult`):
+    - Rejects future dates (`dateTime > now` -> `FutureDateNotAllowed`).
+    - Note length boundary: trimmed, max 200 chars (`NoteTooLong`), whitespace-only becomes `null`.
+    - Amount edit: allowed only for manual rows (`source == MANUAL_CASH`) within `1..10_000_000_000L` paise (`InvalidAmount`). Rejected for SMS rows (`CannotEditSmsAmount`).
+    - Validates payment mode against `PaymentMode.ALL` (`InvalidPaymentMode`).
+    - Transaction hash is immutable and never changed on edit.
+    - Category rule behavior preserved: real merchant category changes upsert user rules and retro-update active `AUTO` rows, while leaving `USER` and soft-deleted rows untouched.
+- **Half-Open Range Query `[start, end)`:**
+  - `TransactionDao.QUERY_GET_IN_RANGE`: `SELECT * FROM transactions WHERE is_deleted = 0 AND date_time >= :startTime AND date_time < :endTime ORDER BY date_time DESC`.
+  - Verified in `TransactionRepositoryUpdateTest` and `RoomMigration2To3Test`: inclusive of start bound, exclusive of end bound, excludes soft-deleted rows.
+  - Exposes `fiveMonthSpendingSeries` (selected month + 4 prior, net spend floored at 0) and `categoryBreakdown` delegates via `SpendingStats`.
+
 
