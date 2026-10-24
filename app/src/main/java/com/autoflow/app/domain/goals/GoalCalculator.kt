@@ -37,8 +37,8 @@ fun calculateProgress(goal: Goal, entries: List<GoalEntry>): GoalProgress {
 
     val target = goal.targetPaise
     val relevantPaise = when (goal.kind) {
-        GoalKind.SAVINGS -> savedPaise
-        GoalKind.AVOIDANCE -> avoidedPaise
+        GoalKind.SAVE -> savedPaise
+        GoalKind.AVOID -> avoidedPaise
     }
 
     val percent = if (target <= 0L) {

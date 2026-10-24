@@ -1,75 +1,35 @@
 package com.autoflow.app.domain.goals
 
-/**
- * Monetary limit: 10,00,00,000.00 rupees (10 crore rupees).
- * 1 rupee = 100 paise.
- * 10,00,00,000.00 * 100 = 10,000,000,000 paise (10 billion paise = 10^10 paise).
- */
 const val MAX_AMOUNT_PAISE: Long = 10_000_000_000L
-
-/** Maximum goal name length: 40 characters */
-const val MAX_GOAL_NAME_LENGTH: Int = 40
-
-/** Maximum description length for AVOIDED entries: 80 characters */
+const val MAX_GOAL_NAME_LENGTH: Int = 30
 const val MAX_AVOIDED_DESCRIPTION_LENGTH: Int = 80
-
-/** Maximum note length for SET_ASIDE and USED entries: 120 characters */
 const val MAX_NOTE_LENGTH: Int = 120
-
-/** Future tolerance window: 5 minutes in milliseconds */
 const val FUTURE_TOLERANCE_MILLIS: Long = 5 * 60 * 1000L
 
-/**
- * Domain errors for goals validation and operations.
- */
 sealed interface GoalError {
-    /** Goal name is blank or empty */
     data object BlankName : GoalError
-
-    /** Goal name exceeds 40 characters */
     data class NameTooLong(val length: Int, val maxLength: Int = MAX_GOAL_NAME_LENGTH) : GoalError
-
-    /** Goal name matches an existing non-archived goal case-insensitively */
     data class DuplicateName(val name: String) : GoalError
-
-    /** Amount or target is <= 0 */
     data class BadAmount(val amountPaise: Long) : GoalError
-
-    /** Amount or target exceeds MAX_AMOUNT_PAISE */
     data class OverLimit(val amountPaise: Long, val limitPaise: Long = MAX_AMOUNT_PAISE) : GoalError
-
-    /** SET_ASIDE or USED on an AVOIDANCE goal */
-    data class WrongEntryType(val kind: GoalKind, val type: EntryType) : GoalError
-
-    /** Entry occurredAt is more than 5 minutes in the future */
-    data class FutureDate(val occurredAt: Long, val maxAllowedAt: Long) : GoalError
-
-    /** Referenced goal ID was not found */
     data class GoalNotFound(val goalId: Long) : GoalError
-
-    /** Referenced entry ID was not found */
     data class EntryNotFound(val entryId: Long) : GoalError
-
-    /** Description is required for AVOIDED entries */
-    data object DescriptionRequired : GoalError
-
-    /** Description exceeds 80 characters for AVOIDED entries */
-    data class DescriptionTooLong(val length: Int, val maxLength: Int = MAX_AVOIDED_DESCRIPTION_LENGTH) : GoalError
-
-    /** Note exceeds 120 characters for SET_ASIDE or USED entries */
-    data class NoteTooLong(val length: Int, val maxLength: Int = MAX_NOTE_LENGTH) : GoalError
-
-    /** Saved amount would drop below zero */
+    data class ExpenseNotFound(val transactionId: Long) : GoalError
+    data class WrongGoalKind(val kind: GoalKind, val message: String = "Entry type not allowed for goal kind") : GoalError
+    data class WrongEntryType(val kind: GoalKind, val type: EntryType) : GoalError
     data class InsufficientBalance(val availablePaise: Long, val requestedPaise: Long) : GoalError
-
-    /** Amount linked to goal exceeds the expense transaction amount */
-    data class AmountExceedsExpense(val amountPaise: Long, val expenseAmountPaise: Long) : GoalError
+    data class AmountExceedsExpense(
+        val amountPaise: Long,
+        val expenseAmountPaise: Long,
+        val remainingLinkablePaise: Long = expenseAmountPaise
+    ) : GoalError
+    data object ExpenseLocked : GoalError
+    data class FutureDate(val occurredAt: Long, val maxAllowedAt: Long) : GoalError
+    data object DescriptionRequired : GoalError
+    data class DescriptionTooLong(val length: Int, val maxLength: Int = MAX_AVOIDED_DESCRIPTION_LENGTH) : GoalError
+    data class NoteTooLong(val length: Int, val maxLength: Int = MAX_NOTE_LENGTH) : GoalError
 }
 
-
-/**
- * Sealed result type for domain operations.
- */
 sealed class GoalResult<out T> {
     data class Success<out T>(val data: T) : GoalResult<T>() {
         val value: T get() = data
@@ -88,5 +48,3 @@ sealed class GoalResult<out T> {
         is Error -> throw IllegalStateException("GoalResult was Error: $error")
     }
 }
-
-typealias Result<T> = GoalResult<T>

@@ -34,8 +34,8 @@ class GoalsService(
         if (trimmedName.isEmpty()) {
             return GoalResult.Error(GoalError.BlankName)
         }
-        if (trimmedName.length > MAX_GOAL_NAME_LENGTH) {
-            return GoalResult.Error(GoalError.NameTooLong(trimmedName.length, MAX_GOAL_NAME_LENGTH))
+        if (trimmedName.length > 40) {
+            return GoalResult.Error(GoalError.NameTooLong(trimmedName.length, 40))
         }
 
         if (targetPaise <= 0L) {

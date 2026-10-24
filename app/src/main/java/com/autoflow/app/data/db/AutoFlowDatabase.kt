@@ -8,14 +8,13 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.autoflow.app.data.db.dao.CustomCategoryDao
-import com.autoflow.app.data.db.dao.GoalContributionDao
 import com.autoflow.app.data.db.dao.GoalDao
 import com.autoflow.app.data.db.dao.MerchantCategoryDao
 import com.autoflow.app.data.db.dao.RefundMatchDao
 import com.autoflow.app.data.db.dao.TransactionDao
 import com.autoflow.app.data.db.entity.CustomCategoryEntity
-import com.autoflow.app.data.db.entity.GoalContributionEntity
 import com.autoflow.app.data.db.entity.GoalEntity
+import com.autoflow.app.data.db.entity.GoalEntryEntity
 import com.autoflow.app.data.db.entity.MerchantCategoryEntity
 import com.autoflow.app.data.db.entity.RefundMatchEntity
 import com.autoflow.app.data.db.entity.TransactionEntity
@@ -25,11 +24,11 @@ import com.autoflow.app.data.db.entity.TransactionEntity
         TransactionEntity::class,
         RefundMatchEntity::class,
         GoalEntity::class,
-        GoalContributionEntity::class,
+        GoalEntryEntity::class,
         MerchantCategoryEntity::class,
         CustomCategoryEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(AutoFlowTypeConverters::class)
@@ -38,7 +37,6 @@ abstract class AutoFlowDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun refundMatchDao(): RefundMatchDao
     abstract fun goalDao(): GoalDao
-    abstract fun goalContributionDao(): GoalContributionDao
     abstract fun merchantCategoryDao(): MerchantCategoryDao
     abstract fun customCategoryDao(): CustomCategoryDao
 
@@ -99,6 +97,46 @@ abstract class AutoFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5_SQL: List<String> = listOf(
+            "DROP TABLE IF EXISTS `goal_contributions`",
+            "DROP TABLE IF EXISTS `goals`",
+            """
+            CREATE TABLE IF NOT EXISTS `goals` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `name_key` TEXT NOT NULL,
+                `kind` TEXT NOT NULL,
+                `target_paise` INTEGER NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_name_key` ON `goals` (`name_key`)",
+            """
+            CREATE TABLE IF NOT EXISTS `goal_entries` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `goal_id` INTEGER NOT NULL,
+                `type` TEXT NOT NULL,
+                `amount_paise` INTEGER NOT NULL,
+                `note` TEXT,
+                `occurred_at` INTEGER NOT NULL,
+                `linked_transaction_id` INTEGER,
+                `is_deleted` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                FOREIGN KEY(`goal_id`) REFERENCES `goals`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+            "CREATE INDEX IF NOT EXISTS `index_goal_entries_goal_id` ON `goal_entries` (`goal_id`)",
+            "CREATE INDEX IF NOT EXISTS `index_goal_entries_linked_transaction_id` ON `goal_entries` (`linked_transaction_id`)"
+        )
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_4_5_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
         fun getDatabase(context: Context): AutoFlowDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -106,7 +144,7 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                     AutoFlowDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

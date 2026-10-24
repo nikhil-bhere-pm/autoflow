@@ -502,3 +502,54 @@
     - `settings_privacy_off.png`: Settings screen Privacy section showing SMS access "Off" badge in amber with right chevron.
     - `permission_help_screen.png`: Permission Help screen with 3 numbered cards, "Open app settings" and "Allow SMS access" buttons.
     - Database integrity verified after test runs (94,208 bytes, % 4096 == 0).
+
+## 18. Goals Data Layer (Room Version 5) — Prompt G1 (October 25, 2026)
+- **Worktree & Scope:**
+  - Work executed strictly within worktree `..\autoflow-g1` on branch `goals-data` branched from `ui-firstrun`.
+  - Database + repository + tests only. Zero UI screens, zero navigation modifications, zero phone/adb commands (JVM-only).
+  - Existing tables (`transactions`, `refund_matches`, `merchant_categories`, `custom_categories`) completely untouched.
+  - `parser-core` completely untouched.
+- **Room Version 5 Schema (`schemas/5.json`):**
+  - Room version bumped from 4 to 5 (`version = 5`, `exportSchema = true`).
+  - `goals` table:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL)
+    - `name` (TEXT NOT NULL, 1-30 chars trimmed)
+    - `name_key` (TEXT NOT NULL, normalized lowercase)
+    - `kind` (TEXT NOT NULL, 'SAVE' or 'AVOID')
+    - `target_paise` (INTEGER NOT NULL, > 0)
+    - `created_at` (INTEGER NOT NULL)
+    - `updated_at` (INTEGER NOT NULL)
+    - Unique index `index_goals_name_key` on (`name_key`).
+  - `goal_entries` table:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL)
+    - `goal_id` (INTEGER NOT NULL, FK -> `goals(id)` ON DELETE CASCADE)
+    - `type` (TEXT NOT NULL: 'SET_ASIDE', 'AVOIDED', 'USED')
+    - `amount_paise` (INTEGER NOT NULL, > 0)
+    - `note` (TEXT NULLABLE)
+    - `occurred_at` (INTEGER NOT NULL)
+    - `linked_transaction_id` (INTEGER NULLABLE, plain column)
+    - `is_deleted` (INTEGER NOT NULL DEFAULT 0)
+    - `created_at` (INTEGER NOT NULL)
+    - `updated_at` (INTEGER NOT NULL)
+    - Indices: `index_goal_entries_goal_id` on (`goal_id`), `index_goal_entries_linked_transaction_id` on (`linked_transaction_id`).
+- **Database Migration (`MIGRATION_4_5`):**
+  - Explicit `Migration(4, 5)` executing `MIGRATION_4_5_SQL`: drops draft legacy `goal_contributions` and `goals` tables (verified to contain 0 rows in production backup `v4_pre_ui6.db`), and creates v5 `goals` and `goal_entries` tables and indices.
+  - No fallback to destructive migration.
+  - Verified on real SQLite with real backup copy (`RoomMigration4To5Test.kt`): all 5 existing transactions remain 100% byte-for-byte identical; table PRAGMA columns match `5.json`.
+- **Goals Repository (`GoalRepository` / `DefaultGoalRepository`):**
+  - Fully implements domain rules and validation:
+    - Available balance on SAVE goal = `sum(SET_ASIDE) - sum(USED)`. Balance never drops below zero. Every write that would cause negative balance is rejected with `GoalError.InsufficientBalance`.
+    - Three ways to use money: `useLinkExpense` (amount capped by available and remaining linkable expense amount; multiple links supported), `useNewExpense` (atomic all-or-nothing execution via `runInTransaction`), `useTakeOut` (no linked expense).
+    - Entry editing: linked expense is locked; amount bounded by expense limit and available balance; moving across goals validates both source and destination goals.
+    - Soft delete (`is_deleted = 1`) and undelete (`is_deleted = 0`): deleting SET_ASIDE or restoring USED validated against negative balance.
+    - Remove used ("Give money back"): soft-deletes USED entry and leaves linked expense untouched.
+    - Exposes `isLinkedExpenseRemoved = true` when linked transaction is soft-deleted.
+    - Integer percentage calculation (0-100%).
+    - Complete separation: Goal operations never alter `transactions` spending totals or category series.
+- **Verification & Mutation Proofs:**
+  - 292 unit tests passing (up from 264 baseline, +28 tests).
+  - 3 mutation proofs executed against production code (`DefaultGoalRepository.kt`), caught with RED, reverted to empty git diff:
+    1. Bypassed available balance check in `useTakeOut` -> caught by `availableBalance_cannotDropBelowZero`.
+    2. Bypassed remaining linkable expense cap in `useLinkExpense` -> caught by `useLinkExpense_multipleLinksOnSameExpense_upToExpenseAmount`.
+    3. Leaked avoided spending into `savedPaise` in `observeGoals` -> caught by `addAvoided_onSaveGoal_doesNotAffectSavedOrAvailable`.
+

@@ -2,9 +2,15 @@ package com.autoflow.app.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "goals")
+@Entity(
+    tableName = "goals",
+    indices = [
+        Index(value = ["name_key"], unique = true)
+    ]
+)
 data class GoalEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0L,
@@ -12,25 +18,25 @@ data class GoalEntity(
     @ColumnInfo(name = "name")
     val name: String,
 
-    @ColumnInfo(name = "target_amount_paise")
-    val targetAmountPaise: Long,
+    @ColumnInfo(name = "name_key")
+    val nameKey: String,
 
-    @ColumnInfo(name = "target_date")
-    val targetDate: Long,
+    @ColumnInfo(name = "kind")
+    val kind: String,
 
-    @ColumnInfo(name = "color_hex")
-    val colorHex: String = "#6200EE",
-
-    @ColumnInfo(name = "is_archived")
-    val isArchived: Int = 0,
+    @ColumnInfo(name = "target_paise")
+    val targetPaise: Long,
 
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+
+    @ColumnInfo(name = "updated_at")
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     init {
         require(name.isNotBlank()) { "Goal name cannot be blank" }
-        require(targetAmountPaise > 0) {
-            "Goal target amount in paise must be strictly positive: $targetAmountPaise"
-        }
+        require(name.trim().length <= 30) { "Goal name cannot exceed 30 characters" }
+        require(targetPaise > 0) { "Goal target in paise must be strictly positive: $targetPaise" }
+        require(kind == "SAVE" || kind == "AVOID") { "Goal kind must be SAVE or AVOID: $kind" }
     }
 }

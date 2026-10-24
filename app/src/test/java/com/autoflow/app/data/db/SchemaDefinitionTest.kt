@@ -1,7 +1,7 @@
 package com.autoflow.app.data.db
 
-import com.autoflow.app.data.db.entity.GoalContributionEntity
 import com.autoflow.app.data.db.entity.GoalEntity
+import com.autoflow.app.data.db.entity.GoalEntryEntity
 import com.autoflow.app.data.db.entity.RefundMatchEntity
 import com.autoflow.app.data.db.entity.TransactionEntity
 import com.autoflow.app.data.model.MatchStatus
@@ -114,8 +114,9 @@ class SchemaDefinitionTest {
         try {
             GoalEntity(
                 name = "",
-                targetAmountPaise = 100000L,
-                targetDate = 2000000000000L
+                nameKey = "",
+                kind = "SAVE",
+                targetPaise = 100000L
             )
             fail("Expected blank name failure")
         } catch (e: IllegalArgumentException) {
@@ -125,12 +126,52 @@ class SchemaDefinitionTest {
         try {
             GoalEntity(
                 name = "Car",
-                targetAmountPaise = 0L,
-                targetDate = 2000000000000L
+                nameKey = "car",
+                kind = "SAVE",
+                targetPaise = 0L
             )
             fail("Expected target amount failure")
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message?.contains("strictly positive") == true)
+        }
+
+        try {
+            GoalEntity(
+                name = "a".repeat(31),
+                nameKey = "a".repeat(31),
+                kind = "SAVE",
+                targetPaise = 100000L
+            )
+            fail("Expected name length failure")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("cannot exceed 30 characters") == true)
+        }
+    }
+
+    @Test
+    fun testGoalEntryEntity_invariants() {
+        try {
+            GoalEntryEntity(
+                goalId = 1L,
+                type = "SET_ASIDE",
+                amountPaise = 0L,
+                occurredAt = 1000L
+            )
+            fail("Expected strictly positive amount failure")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("strictly positive") == true)
+        }
+
+        try {
+            GoalEntryEntity(
+                goalId = 1L,
+                type = "INVALID",
+                amountPaise = 1000L,
+                occurredAt = 1000L
+            )
+            fail("Expected invalid type failure")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("Invalid entry type") == true)
         }
     }
 

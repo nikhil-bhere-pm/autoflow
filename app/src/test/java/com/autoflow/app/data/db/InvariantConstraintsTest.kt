@@ -1,12 +1,11 @@
 package com.autoflow.app.data.db
 
-import com.autoflow.app.data.db.entity.GoalContributionEntity
+import com.autoflow.app.data.db.entity.GoalEntryEntity
 import com.autoflow.app.data.db.entity.RefundMatchEntity
 import com.autoflow.app.data.db.entity.TransactionEntity
 import com.autoflow.app.data.model.MatchStatus
 import com.autoflow.app.data.model.RecordType
 import com.autoflow.app.data.model.ReviewStatus
-import com.autoflow.app.data.model.SavingsType
 import com.autoflow.app.data.model.TransactionSource
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -58,39 +57,39 @@ class InvariantConstraintsTest {
 
     @Test
     fun testGoalIsolation_actualSavingsAndAvoidedSpendingRemainStrictlySeparated() {
-        val contributions = listOf(
-            GoalContributionEntity(
+        val entries = listOf(
+            GoalEntryEntity(
                 id = 1L,
                 goalId = 1L,
-                savingsType = SavingsType.ACTUAL_SAVED,
+                type = "SET_ASIDE",
                 amountPaise = 500000L, // ₹5,000
-                date = 1700000000000L,
+                occurredAt = 1700000000000L,
                 note = "Cash saved"
             ),
-            GoalContributionEntity(
+            GoalEntryEntity(
                 id = 2L,
                 goalId = 1L,
-                savingsType = SavingsType.AVOIDED_PURCHASE,
+                type = "AVOIDED",
                 amountPaise = 120000L, // ₹1,200
-                date = 1700000100000L,
+                occurredAt = 1700000100000L,
                 note = "Skipped impulse buy"
             ),
-            GoalContributionEntity(
+            GoalEntryEntity(
                 id = 3L,
                 goalId = 1L,
-                savingsType = SavingsType.ACTUAL_SAVED,
+                type = "SET_ASIDE",
                 amountPaise = 200000L, // ₹2,000
-                date = 1700000200000L,
+                occurredAt = 1700000200000L,
                 note = "Bank deposit"
             )
         )
 
-        val actualSavedTotal = contributions
-            .filter { it.savingsType == SavingsType.ACTUAL_SAVED }
+        val actualSavedTotal = entries
+            .filter { it.type == "SET_ASIDE" }
             .sumOf { it.amountPaise }
 
-        val avoidedSpendingTotal = contributions
-            .filter { it.savingsType == SavingsType.AVOIDED_PURCHASE }
+        val avoidedSpendingTotal = entries
+            .filter { it.type == "AVOIDED" }
             .sumOf { it.amountPaise }
 
         assertEquals(700000L, actualSavedTotal) // ₹7,000
