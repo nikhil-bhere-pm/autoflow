@@ -81,7 +81,7 @@ object AutoFlowParserAdapter {
     )
 
     private val fallbackMerchantRegex = Regex(
-        """\b(?:at|from)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|$)""",
+        """\b(?:at|from|with)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|\s+for\b|\s+credited\b|\s+debited\b|\s+reversed\b|\s+refunded\b|\s+to\b|$)""",
         RegexOption.IGNORE_CASE
     )
 
@@ -92,11 +92,22 @@ object AutoFlowParserAdapter {
 
     private fun isPromiseMessage(lower: String): Boolean {
         if (!promisePhraseRegex.containsMatchIn(lower)) return false
+        val textWithoutPromises = promisePhraseRegex.replace(lower, " ")
+        val hasCompletedRefund = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
+        if (hasCompletedRefund) return false
+
+        // Failed/declined/cancelled gate must NOT be bypassed by hasCompletedSpend
+        val isFailed = failedDebitRegex.containsMatchIn(lower) ||
+            lower.contains("no amount has been debited") ||
+            lower.contains("not debited") ||
+            lower.contains("could not be processed") ||
+            lower.contains("was declined")
+        if (isFailed) return true
+
         // Legitimate purchases with promise-style footers (cashback, reward points, refund if applicable) must not be dropped
         if (hasCompletedSpend(lower)) return false
-        val textWithoutPromises = promisePhraseRegex.replace(lower, " ")
-        val hasCompletedWord = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
-        return !hasCompletedWord
+
+        return true
     }
 
     /**
@@ -210,6 +221,10 @@ object AutoFlowParserAdapter {
         return false
     }
 
+    private val advisoryWarningSanitizationRegex = Regex(
+        """(?i)\b(?:never|do\s+not|don't)\s+(?:share|disclose|reveal)\b[^.]*?\b(?:otp|one[- ]time[- ]password|cvv|pin)\b[^.]*?(?=[.]|$)"""
+    )
+
     /**
      * Parses an incoming SMS message in-memory and adapts it directly to an AutoFlow [TransactionEntity].
      *
@@ -224,7 +239,8 @@ object AutoFlowParserAdapter {
         if (isNonTransactionMessage(smsBody)) {
             return null
         }
-        val parsed = BankParserFactory.parse(smsBody, sender, timestamp) ?: return null
+        val sanitizedBody = advisoryWarningSanitizationRegex.replace(smsBody, " ")
+        val parsed = BankParserFactory.parse(sanitizedBody, sender, timestamp) ?: return null
         return adapt(parsed, smsBody, timestamp)
     }
 
@@ -315,19 +331,34 @@ object AutoFlowParserAdapter {
         )
     }
 
+    private val accountFragmentRegex = Regex("""(?:\*+|xx)\d+|\b(?:a/c|account)\b""", RegexOption.IGNORE_CASE)
+
     private fun isRefundSignal(parsed: ParsedTransaction, message: String): Boolean {
         val lowerMessage = message.lowercase()
+        val hasRefundKeyword = REFUND_KEYWORDS.any { lowerMessage.contains(it) }
+        if (!hasRefundKeyword) {
+            return false
+        }
+
+        val textWithoutPromises = promisePhraseRegex.replace(lowerMessage, " ")
+        val hasCompletedRefund = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
+        if (hasCompletedRefund) {
+            return true
+        }
+
         if (hasCompletedSpend(lowerMessage)) {
             return false
         }
-        return REFUND_KEYWORDS.any { lowerMessage.contains(it) }
+
+        return true
     }
 
     private fun isJunkMerchant(merchant: String): Boolean {
         val lower = merchant.trim().lowercase()
         if (xxDigitsRegex.containsMatchIn(lower)) return true
         if (junkMerchantPrefixes.any { lower.startsWith(it) }) return true
-        if (lower.contains(" for ")) return true
+        if (lower.contains(" for ") || lower.contains(" from ")) return true
+        if (accountFragmentRegex.containsMatchIn(lower)) return true
         return false
     }
 

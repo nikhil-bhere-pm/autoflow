@@ -364,6 +364,40 @@ class AutoFlowParserAdapterTest {
         assertEquals("AMAZON", entity.merchantName)
     }
 
+    @Test
+    fun testPromptM2_rowE_refundWithPaidMention_ingestedAsRefund() {
+        val msg = "Rs 799.00 refunded to your card XX1234 for the order paid on 12-Oct at MYNTRA."
+        org.junit.Assert.assertFalse("Expected msg e to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity e to be parsed", entity)
+        assertEquals(RecordType.REFUND, entity!!.recordType)
+        assertEquals(79900L, entity.amountPaise)
+        assertEquals("MYNTRA", entity.merchantName)
+    }
+
+    @Test
+    fun testPromptM2_rowF_refundWithDebitedEarlier_ingestedAsRefund() {
+        val msg = "Refund of Rs. 350.00 credited to HDFC Bank A/C *1234 from ZOMATO on 23-10-24 for the amount debited earlier."
+        org.junit.Assert.assertFalse("Expected msg f to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity f to be parsed", entity)
+        assertEquals(RecordType.REFUND, entity!!.recordType)
+        assertEquals(35000L, entity.amountPaise)
+        assertEquals("ZOMATO", entity.merchantName)
+    }
+
+    @Test
+    fun testPromptM2_rowG_reversalWithDebitedEarlier_ingestedAsRefund() {
+        val msg = "Refund credited: Rs 250.00 for your cancelled ride with SWIGGY. Amount debited earlier is reversed."
+        org.junit.Assert.assertFalse("Expected msg g to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity g to be parsed", entity)
+        assertEquals(RecordType.REFUND, entity!!.recordType)
+        assertEquals(25000L, entity.amountPaise)
+        assertEquals("SWIGGY", entity.merchantName)
+    }
+
+
 
 
 
