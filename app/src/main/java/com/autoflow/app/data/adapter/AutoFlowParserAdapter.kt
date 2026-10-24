@@ -63,16 +63,31 @@ object AutoFlowParserAdapter {
     private val failedDebitRegex = Regex(
         """\b(?:has failed|failed|declined|unsuccessful|cancelled|canceled|voided)\b"""
     )
-    private val refundKeywordRegex = Regex(
-        """\b(?:refund|refunded|reversal|reversed|returned|chargeback|money back)\b"""
+    private val promisePhraseRegex = Regex(
+        """\b(?:will\s+(?:be|get)\s+(?:reversed|refunded|credited|initiated|processed)|refund\s+(?:(?:has\s+been|is)\s+)?initiated|if\s+debited|will\s+(?:reflect|credit|reverse)|within\s+\d+(?:-\d+)?\s*(?:working|business)?\s*days)\b"""
     )
-    private val promisedRefundRegex = Regex(
-        """\b(?:will be (?:reversed|refunded|initiated|credited)|if debited|within\s+\d+(?:-\d+)?\s*(?:working\s+)?days)\b"""
+    private val completedRefundWordRegex = Regex(
+        """\b(?:refunded|reversed|credited|returned|chargeback)\b"""
     )
+
+    private val xxDigitsRegex = Regex("""xx\d+""", RegexOption.IGNORE_CASE)
+    private val junkMerchantPrefixes = listOf("your", "a/c", "account", "card")
+
+    private val fallbackMerchantRegex = Regex(
+        """\b(?:at|from)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|$)""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private fun isPromiseMessage(lower: String): Boolean {
+        if (!promisePhraseRegex.containsMatchIn(lower)) return false
+        val textWithoutPromises = promisePhraseRegex.replace(lower, " ")
+        val hasCompletedWord = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
+        return !hasCompletedWord
+    }
 
     /**
      * Conservative phrase-based guard rejecting non-transaction messages
-     * (OTP codes, failed/declined debits without completed refund, reminders/mandates, promos, card bills, and payment received on card).
+     * (OTP codes, promised refunds/reversals, failed/declined debits without completed refund, reminders/mandates, promos, card bills, and payment received on card).
      */
     fun isNonTransactionMessage(message: String): Boolean {
         val lower = message.lowercase()
@@ -82,10 +97,12 @@ object AutoFlowParserAdapter {
         // Do NOT block on bare "OTP" or fraud warnings ("do not share" / "never share" / "never disclose").
         if (hasOtpCode(lower)) return true
 
-        // 2. Failed / Declined / Cancelled / Negated debits
-        // The refund-word exemption in the failed/declined guard must apply only when the message reports
-        // a COMPLETED refund/reversal. A message that only promises one ("will be reversed", "will be refunded",
-        // "will be initiated", "if debited", "within N days") must NOT count as a refund and stays ignored.
+        // 2. Global Promise Guard
+        // Messages promising a future refund/reversal without a completed refund word must be ignored.
+        if (isPromiseMessage(lower)) return true
+
+        // 3. Failed / Declined / Cancelled / Negated debits
+        // Block failed/declined debits unless they report a completed refund/reversal.
         val isFailedOrDeclined = failedDebitRegex.containsMatchIn(lower) ||
             lower.contains("no amount has been debited") ||
             lower.contains("not debited") ||
@@ -93,14 +110,14 @@ object AutoFlowParserAdapter {
             lower.contains("was declined")
 
         if (isFailedOrDeclined) {
-            val hasRefundWord = refundKeywordRegex.containsMatchIn(lower)
-            val isPromisedRefund = promisedRefundRegex.containsMatchIn(lower)
-            if (!hasRefundWord || isPromisedRefund) {
+            val textWithoutPromises = promisePhraseRegex.replace(lower, " ")
+            val hasCompletedRefund = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
+            if (!hasCompletedRefund) {
                 return true
             }
         }
 
-        // 3. Credit limit / card limit updates
+        // 4. Credit limit / card limit updates
         // Block only when "credit limit" is followed within ~20-35 characters by "is now", "increased to",
         // "enhanced to", "revised to", or "has been increased/enhanced/revised". Never block "Avl limit" or "Available credit limit".
         if (creditLimitUpdateRegex.containsMatchIn(lower)) return true
@@ -241,10 +258,10 @@ object AutoFlowParserAdapter {
         if (amountPaise <= 0L) return null
 
         // 4. Clean merchant name and evaluate uncertainty
-        val cleanedMerchant = cleanMerchant(parsed.merchant)
+        val cleanedMerchant = cleanMerchant(parsed.merchant, smsBodySnippet)
         val uncertaintyReasons = mutableSetOf<UncertaintyReason>()
 
-        if (cleanedMerchant == null || GENERIC_MERCHANT_PLACEHOLDERS.contains(cleanedMerchant.lowercase())) {
+        if (cleanedMerchant == "Unknown Merchant" || GENERIC_MERCHANT_PLACEHOLDERS.contains(cleanedMerchant.lowercase())) {
             uncertaintyReasons.add(UncertaintyReason.UNKNOWN_MERCHANT)
         }
 
@@ -272,7 +289,7 @@ object AutoFlowParserAdapter {
             amountPaise = amountPaise,
             recordType = recordType,
             dateTime = if (parsed.timestamp > 0) parsed.timestamp else fallbackTimestamp,
-            merchantName = cleanedMerchant ?: "Unknown Merchant",
+            merchantName = cleanedMerchant,
             category = "Others",
             accountNumber = parsed.accountLast4,
             bankName = parsed.bankName.ifBlank { null },
@@ -289,9 +306,32 @@ object AutoFlowParserAdapter {
         return REFUND_KEYWORDS.any { lowerMessage.contains(it) }
     }
 
-    private fun cleanMerchant(merchant: String?): String? {
-        if (merchant.isNullOrBlank()) return null
-        val trimmed = merchant.trim()
-        return trimmed.ifBlank { null }
+    private fun isJunkMerchant(merchant: String): Boolean {
+        val lower = merchant.trim().lowercase()
+        if (xxDigitsRegex.containsMatchIn(lower)) return true
+        if (junkMerchantPrefixes.any { lower.startsWith(it) }) return true
+        if (lower.contains(" for ")) return true
+        return false
+    }
+
+    private fun extractFallbackMerchant(smsBody: String): String? {
+        for (match in fallbackMerchantRegex.findAll(smsBody)) {
+            val candidate = match.groupValues[1].trim()
+            if (candidate.length in 2..30 &&
+                !isJunkMerchant(candidate) &&
+                candidate.all { it.isLetterOrDigit() || it == '&' || it == ' ' }
+            ) {
+                return candidate
+            }
+        }
+        return null
+    }
+
+    private fun cleanMerchant(merchant: String?, smsBody: String): String {
+        if (!merchant.isNullOrBlank() && !isJunkMerchant(merchant)) {
+            return merchant.trim()
+        }
+        val fallback = extractFallbackMerchant(smsBody)
+        return fallback ?: "Unknown Merchant"
     }
 }

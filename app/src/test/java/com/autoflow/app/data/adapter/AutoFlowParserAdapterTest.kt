@@ -284,6 +284,54 @@ class AutoFlowParserAdapterTest {
         assertTrue("Expected merchant to contain ZOMATO", entity.merchantName.contains("ZOMATO", ignoreCase = true))
     }
 
+    @Test
+    fun testPromptM_promiseMessages_ignored() {
+        // 1. "Refund has been initiated for your cancelled order of Rs 799.00."
+        val msg1 = "Refund has been initiated for your cancelled order of Rs 799.00."
+        assertTrue("Expected Promise 1 to be non-transaction", AutoFlowParserAdapter.isNonTransactionMessage(msg1))
+        assertNull("Expected Promise 1 to return null", AutoFlowParserAdapter.parseAndAdapt(msg1, "VM-HDFCBK", baseTimestamp))
+
+        // 2. "Rs 500.00 will get reversed to your account if debited."
+        val msg2 = "Rs 500.00 will get reversed to your account if debited."
+        assertTrue("Expected Promise 2 to be non-transaction", AutoFlowParserAdapter.isNonTransactionMessage(msg2))
+        assertNull("Expected Promise 2 to return null", AutoFlowParserAdapter.parseAndAdapt(msg2, "VM-HDFCBK", baseTimestamp))
+
+        // 3. "Rs 799.00 will be credited back to your card XX1234."
+        val msg3 = "Rs 799.00 will be credited back to your card XX1234."
+        assertTrue("Expected Promise 3 to be non-transaction", AutoFlowParserAdapter.isNonTransactionMessage(msg3))
+        assertNull("Expected Promise 3 to return null", AutoFlowParserAdapter.parseAndAdapt(msg3, "VM-HDFCBK", baseTimestamp))
+    }
+
+    @Test
+    fun testPromptM_completedRefunds_ingested() {
+        // 4 & 7. "Rs 799.00 refunded to your card XX1234 for order at MYNTRA."
+        val msgE = "Rs 799.00 refunded to your card XX1234 for order at MYNTRA."
+        org.junit.Assert.assertFalse("Expected msgE to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msgE))
+        val entityE = AutoFlowParserAdapter.parseAndAdapt(msgE, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entityE to be parsed", entityE)
+        assertEquals(RecordType.REFUND, entityE!!.recordType)
+        assertEquals(79900L, entityE.amountPaise)
+        assertEquals("MYNTRA", entityE.merchantName)
+
+        // 5 & 8. "Rs 250.00 reversed to A/c XX1234 for failed UPI txn at SWIGGY. Ref 123456789."
+        val msgF = "Rs 250.00 reversed to A/c XX1234 for failed UPI txn at SWIGGY. Ref 123456789."
+        org.junit.Assert.assertFalse("Expected msgF to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msgF))
+        val entityF = AutoFlowParserAdapter.parseAndAdapt(msgF, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entityF to be parsed", entityF)
+        assertEquals(RecordType.REFUND, entityF!!.recordType)
+        assertEquals(25000L, entityF.amountPaise)
+        assertEquals("SWIGGY", entityF.merchantName)
+
+        // 6. "Rs 799.00 refunded to your card XX1234 and will reflect within 3 days."
+        val msg6 = "Rs 799.00 refunded to your card XX1234 and will reflect within 3 days."
+        org.junit.Assert.assertFalse("Expected msg6 to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg6))
+        val entity6 = AutoFlowParserAdapter.parseAndAdapt(msg6, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity6 to be parsed", entity6)
+        assertEquals(RecordType.REFUND, entity6!!.recordType)
+        assertEquals(79900L, entity6.amountPaise)
+    }
+
+
 
 
     private fun createParsed(
