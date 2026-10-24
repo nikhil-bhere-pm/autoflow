@@ -145,17 +145,39 @@ data class AutoFlowColors(
     val catOthers: Color,
     val catUnknown: Color
 ) {
-    fun forCategory(category: String?): Color = when (category?.trim()?.lowercase()) {
-        "food" -> catFood
-        "groceries" -> catGroceries
-        "transport" -> catTransport
-        "shopping" -> catShopping
-        "bills" -> catBills
-        "entertainment" -> catEntertainment
-        "health" -> catHealth
-        "travel" -> catTravel
-        "others" -> catOthers
+    fun forColorKey(colorKey: String?): Color = when (colorKey?.trim()?.uppercase()) {
+        "ORANGE" -> catFood
+        "GREEN" -> catGroceries
+        "BLUE" -> catTransport
+        "PINK" -> catShopping
+        "GOLD" -> catBills
+        "PURPLE" -> catEntertainment
+        "TEAL" -> catTravel
+        "RED" -> catHealth
         else -> catUnknown
+    }
+
+    fun forCategory(category: String?): Color {
+        val norm = category?.trim()?.lowercase() ?: return catUnknown
+        return when (norm) {
+            "food" -> catFood
+            "groceries" -> catGroceries
+            "transport" -> catTransport
+            "shopping" -> catShopping
+            "bills" -> catBills
+            "entertainment" -> catEntertainment
+            "health" -> catHealth
+            "travel" -> catTravel
+            "others" -> catOthers
+            else -> {
+                val colorKey = com.autoflow.app.presentation.ui.components.CategoryThemeRegistry.getColorKey(norm)
+                if (colorKey != null) {
+                    forColorKey(colorKey)
+                } else {
+                    catUnknown
+                }
+            }
+        }
     }
 
     fun categoryTileBackground(category: String?): Color {

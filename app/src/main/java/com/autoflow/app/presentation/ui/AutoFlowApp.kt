@@ -19,6 +19,10 @@ sealed class Screen {
         val fromCategories: Boolean = false
     ) : Screen()
     data object AddCash : Screen()
+    data object Settings : Screen()
+    data object MyCategories : Screen()
+    data object AddCategory : Screen()
+    data class EditCategory(val categoryName: String) : Screen()
 }
 
 @Composable
@@ -30,6 +34,9 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     val reviewTransactions by viewModel.reviewTransactions.collectAsState()
     val unreviewedCount by viewModel.unreviewedCount.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    val allCategoryItems by viewModel.allCategoryItems.collectAsState()
+    val customCategoriesWithCounts by viewModel.customCategoriesWithCounts.collectAsState()
+    val themeMode by viewModel.themeMode.collectAsState()
 
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = when (val s = currentScreen) {
@@ -43,6 +50,10 @@ fun AutoFlowApp(viewModel: MainViewModel) {
             is Screen.AddCash -> Screen.Home
             is Screen.Review -> Screen.Home
             is Screen.Categories -> Screen.Home
+            is Screen.Settings -> Screen.Home
+            is Screen.MyCategories -> Screen.Settings
+            is Screen.AddCategory -> Screen.MyCategories
+            is Screen.EditCategory -> Screen.MyCategories
             Screen.Home -> Screen.Home
         }
     }
@@ -56,7 +67,8 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = false) },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
                 onNavigateToReview = { currentScreen = Screen.Review },
-                onNavigateToCategories = { currentScreen = Screen.Categories }
+                onNavigateToCategories = { currentScreen = Screen.Categories },
+                onNavigateToSettings = { currentScreen = Screen.Settings }
             )
         }
 
@@ -123,6 +135,54 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                     currentScreen = Screen.Home
                 },
                 categories = categories
+            )
+        }
+
+        is Screen.Settings -> {
+            SettingsScreen(
+                currentThemeMode = themeMode,
+                onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) },
+                onNavigateToMyCategories = { currentScreen = Screen.MyCategories },
+                onNavigateBack = { currentScreen = Screen.Home }
+            )
+        }
+
+        is Screen.MyCategories -> {
+            MyCategoriesScreen(
+                customCategories = customCategoriesWithCounts,
+                onAddCategory = { currentScreen = Screen.AddCategory },
+                onEditCategory = { name -> currentScreen = Screen.EditCategory(name) },
+                onNavigateBack = { currentScreen = Screen.Settings }
+            )
+        }
+
+        is Screen.AddCategory -> {
+            AddEditCategoryScreen(
+                initialCategory = null,
+                onSave = { name, iconKey, colorKey ->
+                    viewModel.addCategory(name, iconKey, colorKey)
+                },
+                onDelete = null,
+                onNavigateBack = { currentScreen = Screen.MyCategories }
+            )
+        }
+
+        is Screen.EditCategory -> {
+            val targetCategory = allCategoryItems.find { it.name.equals(screen.categoryName, ignoreCase = true) }
+            AddEditCategoryScreen(
+                initialCategory = targetCategory,
+                onSave = { newName, iconKey, colorKey ->
+                    viewModel.updateCategory(
+                        currentName = screen.categoryName,
+                        newName = newName,
+                        iconKey = iconKey,
+                        colorKey = colorKey
+                    )
+                },
+                onDelete = { name ->
+                    viewModel.deleteCategory(name)
+                },
+                onNavigateBack = { currentScreen = Screen.MyCategories }
             )
         }
     }

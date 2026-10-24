@@ -135,6 +135,22 @@ class ThemeContrastTest {
             checkPair("Light", "$cat on 11% tile", hex, tileBg)
         }
 
+        // Test Light Custom Category Palette Colors (8 color keys)
+        val lightPaletteColors = listOf(
+            "ORANGE" to "#B83A0B",
+            "GREEN" to "#047857",
+            "BLUE" to "#1D4ED8",
+            "PINK" to "#BE185D",
+            "GOLD" to "#8F5B05",
+            "PURPLE" to "#6D28D9",
+            "TEAL" to "#0F766E",
+            "RED" to "#B91C1C"
+        )
+        for ((key, hex) in lightPaletteColors) {
+            val tileBg = blendHex(hex, lightSheet, 0.11)
+            checkPair("Light", "Palette $key on 11% tile", hex, tileBg)
+        }
+
         // Test Dark Theme Core Pairs
         checkPair("Dark", "ink on bg", darkInk, darkBg)
         checkPair("Dark", "ink on sheet", darkInk, darkSheet)
@@ -151,6 +167,22 @@ class ThemeContrastTest {
             checkPair("Dark", "$cat on 11% tile", hex, tileBg)
         }
 
+        // Test Dark Custom Category Palette Colors (8 color keys)
+        val darkPaletteColors = listOf(
+            "ORANGE" to "#FDBA74",
+            "GREEN" to "#6EE7B7",
+            "BLUE" to "#93C5FD",
+            "PINK" to "#F9A8D4",
+            "GOLD" to "#FDE047",
+            "PURPLE" to "#C4B5FD",
+            "TEAL" to "#5EEAD4",
+            "RED" to "#FCA5A5"
+        )
+        for ((key, hex) in darkPaletteColors) {
+            val tileBg = blendHex(hex, darkSheet, 0.11)
+            checkPair("Dark", "Palette $key on 11% tile", hex, tileBg)
+        }
+
         println("=========================================================================")
         println(String.format("%-28s | %-6s | %-8s | %-6s", "Pair", "Theme", "Ratio", "Status"))
         println("-------------------------------------------------------------------------")
@@ -160,8 +192,8 @@ class ThemeContrastTest {
         }
         println("=========================================================================")
 
-        // Assert ALL 36 pairs pass the 4.5:1 threshold with no exceptions allowed
-        assertEquals(36, results.size)
+        // Assert ALL 52 pairs pass the 4.5:1 threshold with no exceptions allowed
+        assertEquals(52, results.size)
         for (r in results) {
             assertTrue("Expected ${r.pair} in ${r.theme} to pass >= 4.5, was ${r.ratio}", r.passesTextThreshold)
         }

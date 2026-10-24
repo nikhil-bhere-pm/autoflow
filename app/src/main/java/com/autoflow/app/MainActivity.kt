@@ -7,7 +7,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.autoflow.app.presentation.theme.AppThemeMode
 import com.autoflow.app.presentation.theme.AutoFlowTheme
+import com.autoflow.app.presentation.theme.SharedPreferencesThemePreferences
 import com.autoflow.app.presentation.ui.AutoFlowApp
 import com.autoflow.app.presentation.viewmodel.MainViewModel
 
@@ -20,7 +25,8 @@ class MainActivity : ComponentActivity() {
                 @Suppress("UNCHECKED_CAST")
                 return MainViewModel(
                     transactionRepository = app.transactionRepository,
-                    categoryRepository = app.categoryRepository
+                    categoryRepository = app.categoryRepository,
+                    themePreferences = SharedPreferencesThemePreferences.fromContext(app)
                 ) as T
             }
         }
@@ -30,7 +36,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AutoFlowTheme {
+            val themeMode by viewModel.themeMode.collectAsState()
+            val isDark = when (themeMode) {
+                AppThemeMode.LIGHT -> false
+                AppThemeMode.DARK -> true
+                AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+            AutoFlowTheme(darkTheme = isDark) {
                 AutoFlowApp(viewModel = viewModel)
             }
         }

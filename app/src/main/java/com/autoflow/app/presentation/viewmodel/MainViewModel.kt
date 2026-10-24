@@ -27,9 +27,16 @@ import java.util.UUID
 class MainViewModel(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: com.autoflow.app.data.repository.CategoryRepository? = null,
+    private val themePreferences: com.autoflow.app.presentation.theme.ThemePreferences = InMemoryThemePreferences(),
     private val timeProvider: () -> Instant = { Instant.now() },
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
+
+    val themeMode: StateFlow<com.autoflow.app.presentation.theme.AppThemeMode> = themePreferences.themeMode
+
+    fun setThemeMode(mode: com.autoflow.app.presentation.theme.AppThemeMode) {
+        themePreferences.setThemeMode(mode)
+    }
 
     private val _periodFilter = MutableStateFlow<PeriodFilter>(PeriodFilter.Predefined(StatsPeriod.THIS_MONTH))
     val periodFilter: StateFlow<PeriodFilter> = _periodFilter.asStateFlow()
@@ -61,17 +68,77 @@ class MainViewModel(
             )
         )
 
-    val categories: StateFlow<List<String>> =
+    val allCategoryItems: StateFlow<List<com.autoflow.app.domain.category.CategoryItem>> =
         if (categoryRepository != null) {
-            categoryRepository.getAllCategories().map { list -> list.map { it.name } }
+            categoryRepository.getAllCategories()
+                .map { list ->
+                    com.autoflow.app.presentation.ui.components.CategoryThemeRegistry.updateCategories(list)
+                    list
+                }
                 .stateIn(
                     scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
-                    initialValue = com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
+                    started = SharingStarted.Eagerly,
+                    initialValue = com.autoflow.app.domain.category.BUILT_IN_CATEGORIES.map {
+                        com.autoflow.app.domain.category.CategoryItem(name = it, isBuiltIn = true)
+                    }
                 )
         } else {
-            MutableStateFlow(com.autoflow.app.domain.category.BUILT_IN_CATEGORIES).asStateFlow()
+            MutableStateFlow(com.autoflow.app.domain.category.BUILT_IN_CATEGORIES.map {
+                com.autoflow.app.domain.category.CategoryItem(name = it, isBuiltIn = true)
+            }).asStateFlow()
         }
+
+    val categories: StateFlow<List<String>> =
+        allCategoryItems.map { list -> list.map { it.name } }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
+            )
+
+    val customCategoriesWithCounts: StateFlow<List<CustomCategoryRowUiModel>> =
+        combine(allCategoryItems, transactions) { items, txs ->
+            items.filter { it.isCustom }.map { item ->
+                val count = txs.count { it.category.equals(item.name, ignoreCase = true) }
+                CustomCategoryRowUiModel(
+                    category = item,
+                    transactionCount = count
+                )
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    suspend fun addCategory(
+        name: String,
+        iconKey: String,
+        colorKey: String
+    ): com.autoflow.app.domain.category.CategoryOperationResult {
+        val repo = categoryRepository ?: return com.autoflow.app.domain.category.CategoryOperationResult.CategoryNotFound
+        return repo.addCategory(name = name, iconKey = iconKey, colorKey = colorKey)
+    }
+
+    suspend fun updateCategory(
+        currentName: String,
+        newName: String,
+        iconKey: String,
+        colorKey: String
+    ): com.autoflow.app.domain.category.CategoryOperationResult {
+        val repo = categoryRepository ?: return com.autoflow.app.domain.category.CategoryOperationResult.CategoryNotFound
+        return repo.updateCategory(
+            currentName = currentName,
+            newName = newName,
+            iconKey = iconKey,
+            colorKey = colorKey
+        )
+    }
+
+    suspend fun deleteCategory(name: String): com.autoflow.app.domain.category.CategoryOperationResult {
+        val repo = categoryRepository ?: return com.autoflow.app.domain.category.CategoryOperationResult.CategoryNotFound
+        return repo.deleteCategory(name = name)
+    }
 
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()

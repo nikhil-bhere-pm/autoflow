@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -99,7 +100,8 @@ fun HomeScreen(
     onNavigateToAddCash: () -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToReview: () -> Unit = {},
-    onNavigateToCategories: () -> Unit = {}
+    onNavigateToCategories: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -124,9 +126,17 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
         topBar = {
-            // Top Bar with title only (settings icon omitted because settings screen is not built yet)
             AFTopBar(
                 title = "AutoFlow",
+                navigationIcon = {
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = colors.ink
+                        )
+                    }
+                },
                 showDivider = true
             )
         },

@@ -403,3 +403,55 @@
     - `categories_light.png`: Categories tab with ring chart and breakdown in Light mode.
     - `category_detail_list.png`: Groceries detail transaction list without payment-mode badges.
     - `categories_empty.png`: Friendly empty state when selecting "Sep 2026" period.
+
+## 16. Settings & Custom Categories UI (Prompt UI-5)
+
+- **Architecture & Screen Composition (`SettingsScreen.kt`, `MyCategoriesScreen.kt`, `AddEditCategoryScreen.kt`):**
+  - **Settings Entrypoint:** Added settings gear icon on the top-left of Home screen's `AFTopBar`, routing to `SettingsScreen`.
+  - **Appearance Section:** Three-way segmented switch (System, Light, Dark) implemented with `AFSegmented`. Persisted synchronously across app launches via `SharedPreferencesThemePreferences` (stored in `"autoflow_settings"`, key `"app_theme_mode"`). Observed reactively by `MainViewModel.themeMode` and applied at `AutoFlowTheme` in `MainActivity`.
+  - **Privacy Section:** SMS access On/Off state reflecting `RECEIVE_SMS` permission. Off state displays friendly explanation and button opening application details in system settings.
+  - **Categories Section:** Row navigation to "My categories" screen.
+  - **My Categories Screen (`MyCategoriesScreen.kt`):**
+    - Usage banner: "N of 30 used".
+    - Custom category rows: Displays custom icon tile, category name, transaction count ("N transactions"), and tap chevron.
+    - Empty state: Friendly card shown when 0 custom categories exist ("No custom categories yet").
+    - Action: "Add category" button at bottom.
+  - **Add / Edit Category Screen (`AddEditCategoryScreen.kt`):**
+    - Live Preview Card: Displays live tile with chosen icon and color, category name, and key labels.
+    - Category Name Field: Max 20 characters, validated against allowed character set (`[a-zA-Z0-9 &'-]`), reserved names, and duplicates. Repository validation errors mapped to plain words ("A category with this name already exists", "Category name is required", etc.).
+    - 12 Icon Grid: Vector drawables for `PAW`, `HOME`, `GIFT`, `BOOK`, `COFFEE`, `TOOL`, `LEAF`, `MUSIC`, `PHONE`, `WALLET`, `BAG`, `CALENDAR`.
+    - 8 Color Grid: Palette chips for `ORANGE`, `GREEN`, `BLUE`, `PINK`, `GOLD`, `PURPLE`, `TEAL`, `RED`.
+    - Save Button: Validates and calls `MainViewModel.addCategory` or `updateCategory`.
+    - Delete Action: In edit mode, top bar displays trash icon opening confirmation dialog ("Its transactions will move to Others and its merchant rules will be removed"). Deletion calls `CategoryRepository.deleteCategory`, atomically reassigning transactions and clearing rules.
+- **Dynamic Category Theme Mapping (`CategoryThemeRegistry.kt`):**
+  - Reactive registry updated automatically whenever `MainViewModel.customCategories` updates.
+  - In `AFCategoryIcons.kt`, `forCategory(name)` checks `CategoryThemeRegistry` for custom icon before falling back to `R.drawable.ic_cat_unknown`.
+  - In `Theme.kt`, `forCategory(name)` checks `CategoryThemeRegistry` for custom color palette before falling back to `catUnknown`.
+  - Replaces neutral fallback across Categories tab, Home transaction rows, Review chips, and Edit screen with the custom category's chosen icon and color.
+- **Color Palette & Accessibility Proof (`ThemeContrastTest.kt`):**
+  - Added all 8 custom category color keys to `Theme.kt` with Light and Dark variants.
+  - All 8 colors verified in `ThemeContrastTest` against 11% tile background on sheet background.
+  - Test expanded from 36 pairs to 52 pairs; 100% pass WCAG AA >= 4.5:1 (ratios between 4.88:1 and 12.87:1).
+- **Unit Testing (`SettingsUiTest.kt`):**
+  - Verified appearance persistence via `InMemoryThemePreferences`.
+  - Verified plain words validation messages for all `CategoryOperationResult` error cases.
+  - Verified dynamic color and icon resolution via `CategoryThemeRegistry`.
+  - Verified Add, Update, and atomic Delete flows using `FakeCustomCategoryDao` and `FakeTransactionDao`.
+- **Data & Schema Isolation Proof:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified 100% empty.
+  - Zero hardcoded colors outside `Theme.kt`.
+- **Physical Device & Visual Verification (Device `dfa4dd90`):**
+  - Phone database backed up to `..\backups\v4_pre_ui5.db` (94,208 bytes, % 4096 == 0) prior to test data creation.
+  - Captured artifacts:
+    - `home_settings_icon.png`: Settings gear icon on top-left of Home screen.
+    - `settings_screen.png`: Settings screen in Light theme.
+    - `settings_dark_theme.png`: Settings screen in Dark theme switched via segmented control.
+    - `my_categories_empty.png`: My Categories empty state ("0 of 30 used").
+    - `add_category_screen.png`: Add category screen with live preview and pickers.
+    - `add_category_filled.png`: Add category screen with "Gaming", GIFT icon, and PURPLE color selected.
+    - `my_categories_list.png`: My Categories list with "Gaming" and "Pet Care" ("2 of 30 used").
+    - `edit_category_screen.png`: Edit category screen for "Gaming".
+    - `delete_category_dialog.png`: Confirmation dialog for deleting "Gaming".
+    - `my_categories_after_delete.png`: My Categories list after deleting "Gaming", showing "Pet Care" ("1 of 30 used").
+    - `categories_custom_category.png`: Categories tab ring chart and breakdown list displaying "Pet Care" with ORANGE ring slice/tile and PAW icon.
+  - Phone database restored from `v4_pre_ui5.db` and verified (94,208 bytes, % 4096 == 0).
