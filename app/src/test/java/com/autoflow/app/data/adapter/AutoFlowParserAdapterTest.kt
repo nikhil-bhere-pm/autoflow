@@ -514,6 +514,67 @@ class AutoFlowParserAdapterTest {
         assertEquals(64000L, entity.amountPaise)
     }
 
+    @Test
+    fun testPromptM6_inboundMoneyMustNotBecomeExpense() {
+        val senders = listOf("VM-HDFCBK", "ICICIB", "SBIINB")
+
+        // Row a: Paid by RAMESH via UPI -> null
+        val msgA = "Rs 500.00 credited to A/c XX1234 on 24-10-26. Paid by RAMESH via UPI."
+        for (sender in senders) {
+            val resultA = AutoFlowParserAdapter.parseAndAdapt(msgA, sender, baseTimestamp)
+            assertNull("Row a with sender $sender must not be ingested as EXPENSE", resultA)
+        }
+
+        // Row b: Salary credited, Paid by ACME CORP LTD -> null
+        val msgB = "Salary of Rs 52,000.00 credited to A/c XX1234 on 24-10-26. Paid by ACME CORP LTD."
+        for (sender in senders) {
+            val resultB = AutoFlowParserAdapter.parseAndAdapt(msgB, sender, baseTimestamp)
+            assertNull("Row b with sender $sender must not be ingested as EXPENSE", resultB)
+        }
+
+        // Row c: Cashback credited to wallet -> REFUND (amount 5000 paise)
+        val msgC = "Cashback of Rs 50.00 credited to your wallet. Use it on your next purchase."
+        for (sender in senders) {
+            val resultC = AutoFlowParserAdapter.parseAndAdapt(msgC, sender, baseTimestamp)
+            assertNotNull("Row c with sender $sender should be ingested as REFUND", resultC)
+            assertEquals(RecordType.REFUND, resultC!!.recordType)
+            assertEquals(5000L, resultC.amountPaise)
+        }
+
+        // Row d: used for bill payments -> null
+        val msgD = "Rs 200.00 credited to your account. Amount can be used for bill payments."
+        for (sender in senders) {
+            val resultD = AutoFlowParserAdapter.parseAndAdapt(msgD, sender, baseTimestamp)
+            assertNull("Row d with sender $sender must not be ingested as EXPENSE", resultD)
+        }
+
+        // Row e: Sent by ACME LTD -> null
+        val msgE = "Rs 10,000.00 credited to A/c XX1234 on 24-10-26 by NEFT. Sent by ACME LTD."
+        for (sender in senders) {
+            val resultE = AutoFlowParserAdapter.parseAndAdapt(msgE, sender, baseTimestamp)
+            assertNull("Row e with sender $sender must not be ingested as EXPENSE", resultE)
+        }
+
+        // Controls c1, c2, c3 must stay EXPENSE
+        val msgC1 = "Debit alert: Rs 1,000.00 transferred to RAMESH KUMAR; amount credited successfully. Ref 123."
+        val resultC1 = AutoFlowParserAdapter.parseAndAdapt(msgC1, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Control c1 must be ingested as EXPENSE", resultC1)
+        assertEquals(RecordType.EXPENSE, resultC1!!.recordType)
+        assertEquals(100000L, resultC1.amountPaise)
+
+        val msgC2 = "Rs 640.00 debited from A/c XX1234 on 24-10-26 at SWIGGY via UPI."
+        val resultC2 = AutoFlowParserAdapter.parseAndAdapt(msgC2, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Control c2 must be ingested as EXPENSE", resultC2)
+        assertEquals(RecordType.EXPENSE, resultC2!!.recordType)
+        assertEquals(64000L, resultC2.amountPaise)
+
+        val msgC3 = "Your a/c XX1234 is debited by INR 90.00 on 24-10-26."
+        val resultC3 = AutoFlowParserAdapter.parseAndAdapt(msgC3, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Control c3 must be ingested as EXPENSE", resultC3)
+        assertEquals(RecordType.EXPENSE, resultC3!!.recordType)
+        assertEquals(9000L, resultC3.amountPaise)
+    }
+
     private fun createParsed(
         amount: BigDecimal,
         type: TransactionType,

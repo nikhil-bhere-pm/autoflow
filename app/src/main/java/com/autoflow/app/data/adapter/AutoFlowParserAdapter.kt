@@ -83,12 +83,16 @@ object AutoFlowParserAdapter {
         """\b(?:debited|debit\s+alert|debit\s+card|spent|paid|sent(?:\s+to)?|transferred\s+to\s+(?!(?:your\b|a/c\b|account\b|bank\s+account\b))|withdrawn|purchase|charged|deducted|used|dr\.?)\b""",
         RegexOption.IGNORE_CASE
     )
+    private val strongOutboundSpendRegex = Regex(
+        """\b(?:debit\s+alert|debited|spent|withdrawn|sent\s+to|paid\s+to|transferred\s+to\s+(?!(?:your\b|a/c\b|account\b|bank\s+account\b))|dr\.?)\b""",
+        RegexOption.IGNORE_CASE
+    )
     private val uncompletedDebitPhrasesRegex = Regex(
         """\b(?:if\s+debited|will\s+be\s+debited|scheduled\s+to\s+be\s+debited|not\s+debited|no\s+amount\s+has\s+been\s+debited)\b"""
     )
 
     private val inboundTransferRegex = Regex(
-        """\b(?:transferred\s+to\s+(?:your\b|a/c\b|account\b|bank\s+account\b)|credit\s+alert|payout)\b""",
+        """\b(?:transferred\s+to\s+(?:your\b|a/c\b|account\b|bank\s+account\b)|credit\s+alert|payout|paid\s+by|sent\s+by|salary\s+of)\b""",
         RegexOption.IGNORE_CASE
     )
 
@@ -104,6 +108,11 @@ object AutoFlowParserAdapter {
     private fun hasCompletedSpend(lower: String): Boolean {
         val textWithoutUncompleted = uncompletedDebitPhrasesRegex.replace(lower, " ")
         return completedSpendStatementRegex.containsMatchIn(textWithoutUncompleted)
+    }
+
+    private fun hasStrongOutboundSpend(lower: String): Boolean {
+        val textWithoutUncompleted = uncompletedDebitPhrasesRegex.replace(lower, " ")
+        return strongOutboundSpendRegex.containsMatchIn(textWithoutUncompleted)
     }
 
     private fun isPromiseMessage(lower: String): Boolean {
@@ -298,9 +307,9 @@ object AutoFlowParserAdapter {
                 // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
                 RecordType.EXPENSE
             }
-            // Ordinary income (salary, external deposits) without refund keywords is ignored unless outbound spend occurred
+            // Ordinary income (salary, external deposits) without refund keywords is ignored unless strong outbound spend occurred
             parsed.type == TransactionType.INCOME -> {
-                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
+                if (hasStrongOutboundSpend(smsBodySnippet.lowercase()) && !isInboundTransfer(smsBodySnippet)) {
                     RecordType.EXPENSE
                 } else {
                     return null
@@ -376,7 +385,7 @@ object AutoFlowParserAdapter {
             return true
         }
 
-        if (hasCompletedSpend(lowerMessage)) {
+        if (hasStrongOutboundSpend(lowerMessage)) {
             return false
         }
 

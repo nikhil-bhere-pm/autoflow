@@ -450,12 +450,48 @@ class SmsRegressionCorpusTest {
             expectedResult = ExpectedResult.INGEST,
             expectedType = RecordType.EXPENSE,
             expectedAmountPaise = 9000L
+        ),
+
+        // ==========================================
+        // Prompt M6: Rows a..e
+        // ==========================================
+        TestCase(
+            id = "M6-a",
+            message = "Rs 500.00 credited to A/c XX1234 on 24-10-26. Paid by RAMESH via UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M6-b",
+            message = "Salary of Rs 52,000.00 credited to A/c XX1234 on 24-10-26. Paid by ACME CORP LTD.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M6-c",
+            message = "Cashback of Rs 50.00 credited to your wallet. Use it on your next purchase.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.REFUND,
+            expectedAmountPaise = 5000L
+        ),
+        TestCase(
+            id = "M6-d",
+            message = "Rs 200.00 credited to your account. Amount can be used for bill payments.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M6-e",
+            message = "Rs 10,000.00 credited to A/c XX1234 on 24-10-26 by NEFT. Sent by ACME LTD.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 51 test cases", 51, corpus.size)
+        assertEquals("Corpus must have exactly 56 test cases", 56, corpus.size)
     }
 
     @Test
