@@ -17,6 +17,7 @@ interface IngestionPipeline {
 
 sealed interface IngestionResult {
     data class Success(val transactionId: Long) : IngestionResult
-    data class DuplicateIgnored(val existingHash: String) : IngestionResult
+    data class DuplicateIgnored(val existingHash: String, val reason: String = "Exact hash duplicate") : IngestionResult
+    data class SoftDeletedIgnored(val existingHash: String) : IngestionResult
     data class Error(val message: String) : IngestionResult
 }

@@ -33,7 +33,7 @@ interface TransactionDao {
           AND record_type = :recordType 
           AND amount_paise = :amountPaise 
           AND date_time BETWEEN :minDateTime AND :maxDateTime 
-          AND is_deleted = 0 
+        ORDER BY is_deleted DESC, id DESC 
         LIMIT 1
     """)
     suspend fun findDuplicateCandidate(
@@ -43,6 +43,29 @@ interface TransactionDao {
         minDateTime: Long,
         maxDateTime: Long
     ): TransactionEntity?
+
+    @Query("""
+        SELECT * FROM transactions 
+        WHERE record_type = 'EXPENSE' 
+          AND is_deleted = 0 
+          AND reference = :reference 
+        ORDER BY date_time DESC
+    """)
+    suspend fun findExpensesByReference(reference: String): List<TransactionEntity>
+
+    @Query("""
+        SELECT * FROM transactions 
+        WHERE record_type = 'EXPENSE' 
+          AND is_deleted = 0 
+          AND merchant_name = :merchantName 
+          AND date_time BETWEEN :minDateTime AND :maxDateTime 
+        ORDER BY date_time DESC
+    """)
+    suspend fun findExpensesByMerchant(
+        merchantName: String,
+        minDateTime: Long,
+        maxDateTime: Long
+    ): List<TransactionEntity>
 
     @Query("""
         SELECT * FROM transactions 

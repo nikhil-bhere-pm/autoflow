@@ -14,6 +14,10 @@ class AutoFlowApplication : Application() {
         TransactionRepository(database.transactionDao())
     }
 
+    val ingestionPipeline: com.autoflow.app.ingestion.IngestionPipeline by lazy {
+        com.autoflow.app.ingestion.DefaultIngestionPipeline(database)
+    }
+
     override fun onCreate() {
         super.onCreate()
     }

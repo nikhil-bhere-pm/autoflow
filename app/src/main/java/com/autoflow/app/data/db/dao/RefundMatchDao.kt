@@ -25,6 +25,16 @@ interface RefundMatchDao {
     """)
     suspend fun getTotalAllocatedPaiseForExpense(expenseId: Long): Long
 
+    @Query("SELECT * FROM refund_matches WHERE refund_transaction_id = :refundTxId")
+    suspend fun getMatchesListForRefund(refundTxId: Long): List<RefundMatchEntity>
+
+    @Query("""
+        SELECT COALESCE(SUM(allocated_amount_paise), 0) 
+        FROM refund_matches 
+        WHERE refund_transaction_id = :refundTxId
+    """)
+    suspend fun getTotalAllocatedPaiseForRefund(refundTxId: Long): Long
+
     @Query("DELETE FROM refund_matches WHERE id = :id")
     suspend fun deleteById(id: Long)
 }
