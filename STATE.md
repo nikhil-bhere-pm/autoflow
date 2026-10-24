@@ -100,17 +100,17 @@
     3. `UPDATE transactions SET payment_mode = 'CASH' WHERE source = 'MANUAL_CASH'`
   - Verified on real SQLite via `RoomMigration2To3Test.kt`: old rows preserved intact, SMS rows default to `UNKNOWN`, manual rows backfilled to `CASH`, PRAGMA table_info matches schema `3.json`.
   - Verified on physical test device `dfa4dd90` after database backup (`before_v3.db`, `-wal`, `-shm`). Zero runtime or Room errors.
-- **Payment Mode Detection:**
+- **Payment Mode Detection & Support Email Disambiguation (Prompt P2):**
   - Detected at transient SMS ingestion time in `AutoFlowParserAdapter.detectPaymentMode(smsBody)`:
     1. `CREDIT`: credit card, cc, card ending/no followed by credit
-    2. `UPI`: upi, vpa, @ handle (`@[a-zA-Z0-9._-]+`)
+    2. `UPI`: upi, vpa, @ handle (`@[a-zA-Z0-9_-]+(?![a-zA-Z0-9_.-]*\.[a-zA-Z0-9])`). Gated so that tokens containing dots after the `@` (such as bank customer support email addresses `cardservices@hdfcbank.net`) are NEVER misidentified as UPI handles.
     3. `BANK`: debit card, neft, imps, rtgs, atm, a/c debited, debited from a/c
     4. `UNKNOWN`: any unrecognized payment method
   - Manual cash entries set `payment_mode = CASH`.
-  - Validated by table-driven test suite `PaymentModeDetectionTest.kt` (15 realistic test cases covering all 4 modes).
+  - Validated by table-driven test suite `PaymentModeDetectionTest.kt` (20 realistic test cases covering all 4 modes, support email endings, and handle variations).
 - **Domain Model Updates:**
   - `FinancialTransaction` includes `paymentMode: String` (defaults to `"UNKNOWN"`) and `note: String?` (defaults to `null`).
-- **Repository `updateTransaction`:**
+- **Repository `updateTransaction` & Atomicity:**
   - Atomic single-transaction update with typed validation results (`UpdateTransactionResult`):
     - Rejects future dates (`dateTime > now` -> `FutureDateNotAllowed`).
     - Note length boundary: trimmed, max 200 chars (`NoteTooLong`), whitespace-only becomes `null`.
@@ -118,9 +118,16 @@
     - Validates payment mode against `PaymentMode.ALL` (`InvalidPaymentMode`).
     - Transaction hash is immutable and never changed on edit.
     - Category rule behavior preserved: real merchant category changes upsert user rules and retro-update active `AUTO` rows, while leaving `USER` and soft-deleted rows untouched.
+  - Atomicity verified both on real SQLite (`RoomMigration2To3Test.kt`) and repository level (`TransactionRepositoryUpdateTest.kt`): failure in Step 2 completely rolls back Step 1.
 - **Half-Open Range Query `[start, end)`:**
   - `TransactionDao.QUERY_GET_IN_RANGE`: `SELECT * FROM transactions WHERE is_deleted = 0 AND date_time >= :startTime AND date_time < :endTime ORDER BY date_time DESC`.
-  - Verified in `TransactionRepositoryUpdateTest` and `RoomMigration2To3Test`: inclusive of start bound, exclusive of end bound, excludes soft-deleted rows.
+  - Verified on real SQLite in `RoomMigration2To3Test`: inclusive of start bound, exclusive of end bound, excludes soft-deleted rows. Mutation of production SQL from `<` to `<=` proved red on real SQLite.
   - Exposes `fiveMonthSpendingSeries` (selected month + 4 prior, net spend floored at 0) and `categoryBreakdown` delegates via `SpendingStats`.
+- **Live Device Database Verification (Prompt P2):**
+  - Inspected live physical device database (`live_after_v3.db`) with `sqlite-jdbc`:
+    - `PRAGMA user_version = 3`.
+    - `payment_mode`: 3 `CASH`, 2 `UNKNOWN`.
+    - `source` x `payment_mode`: 3 `MANUAL_CASH` -> `CASH`, 2 `SMS_AUTO` -> `UNKNOWN`. Total 5 rows intact.
+
 
 
