@@ -209,6 +209,46 @@ class AutoFlowParserAdapterTest {
         assertTrue(reasons.contains(UncertaintyReason.UNMATCHED_REFUND))
     }
 
+    @Test
+    fun testIsNonTransactionMessage_identifiesAllNonFinancialAlerts() {
+        val nonTransactions = listOf(
+            "123456 is the OTP for your transaction of Rs.1,500.00 at AMAZON. Do not share it with anyone.",
+            "Your credit limit on Axis Bank Card no. XX1234 is now Rs.2,50,000. Avail exciting benefits today.",
+            "Spent INR 15,000 on your Axis Card this month. Pay now to avoid late fees.",
+            "Your payment of Rs.350.00 to SWIGGY has failed. No amount has been debited from A/c XX1234.",
+            "Rs.499.00 will be debited from A/c XX1234 on 28-10-26 for NETFLIX subscription.",
+            "Get flat Rs.200 off! Spend Rs.1,000 on your Card this weekend. T&C apply.",
+            "Total Amount Due on your Axis Card XX1234 is Rs.8,450.50. Pay by 10-Nov-2026.",
+            "Payment of Rs.5,000.00 received towards your Axis Bank Card XX1234. Thank you."
+        )
+
+        for (msg in nonTransactions) {
+            assertTrue("Expected isNonTransactionMessage to be true for: $msg", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+            assertNull("Expected parseAndAdapt to return null for: $msg", AutoFlowParserAdapter.parseAndAdapt(msg, "AXISBK", baseTimestamp))
+        }
+    }
+
+    @Test
+    fun testIsNonTransactionMessage_doesNotFlagLegitimateTransactions() {
+        val legitimateTransactions = listOf(
+            "Spent INR 130 \nusing Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at \nSWIGGY INST. \nAvl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+            "Sent Rs. 450.00 from HDFC Bank A/C *1234 to SWIGGY on 23-10-24 via UPI Ref 429712345678. Bal Rs 10550.",
+            "INR 2000.00 debited from A/c no. XX589034 on AXIS BANK L 04-11-2025 16:06:39 IST. Avl bal: INR 98919.81. Not you? SMS BLOCKCARD XX0192 to +919951860002 - Axis Bank",
+            "INR 1028.00 debited from A/c no. XX312225 on RESTAURANT XY 02-12-2025 20:38:23 IST. Avl bal: INR 10000.00. Not you? SMS BLOCKCARD XX0023 to +919951860002 - Axis Bank",
+            "INR 209.00 debited from A/c no. XX312225 on BURGRILL 04-12-2025 13:13:27 IST. Avl bal: INR 12000.00. Not you? SMS BLOCKCARD XX0023 to +919951860002 - Axis Bank",
+            "Spent INR 89.50 \nAxis Bank Card no. XX9876 \n24-10-26 08:30:00 IST \nSTARBUCKS \nAvl Limit: INR 50000.00 \nNot you? SMS BLOCK 9876 to 919951860002",
+            "Refund of Rs. 350.00 credited to HDFC Bank A/C *1234 from ZOMATO on 23-10-24 via UPI Ref 429799998888. Bal Rs 10900.",
+            "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 4870.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+            "INR 220.00 debited from A/c no. XX1234 to SWIGGY via UPI. Bal INR 4300.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+            "Spent INR 500 using Axis Bank Credit Card no. XX1234 on 24-10-26 15:00:00 IST at BIGBASKET. Avl limit: INR 35000.0. Not you? SMS BLOCK 1234 to +919951860002."
+        )
+
+        for (msg in legitimateTransactions) {
+            org.junit.Assert.assertFalse("Expected isNonTransactionMessage to be false for: $msg", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        }
+    }
+
+
     private fun createParsed(
         amount: BigDecimal,
         type: TransactionType,

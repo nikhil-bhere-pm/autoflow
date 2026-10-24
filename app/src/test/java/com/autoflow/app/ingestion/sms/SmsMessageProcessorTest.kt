@@ -198,4 +198,75 @@ class SmsMessageProcessorTest {
         assertTrue(gibberishResult is ProcessSmsResult.Ignored)
         assertEquals(0, transactionDao.items.size)
     }
+
+    @Test
+    fun testNegativeGuards_allNonTransactionClasses_ignored() = runTest {
+        val negativeCases = listOf(
+            // 1. OTP mentioning an amount
+            "VK-HDFCBK" to "123456 is the OTP for your transaction of Rs.1,500.00 at AMAZON. Do not share it with anyone.",
+            // 2. Credit limit update
+            "AX-AXISBK" to "Your credit limit on Axis Bank Card no. XX1234 is now Rs.2,50,000. Avail exciting benefits today.",
+            // 3. Period spend summary
+            "AX-AXISBK" to "Spent INR 15,000 on your Axis Card this month. Pay now to avoid late fees.",
+            // 4. Failed or declined payment
+            "AX-AXISBK" to "Your payment of Rs.350.00 to SWIGGY has failed. No amount has been debited from A/c XX1234.",
+            // 5. Upcoming debit or mandate
+            "VK-HDFCBK" to "Rs.499.00 will be debited from A/c XX1234 on 28-10-26 for NETFLIX subscription.",
+            // 6. Promo or offer
+            "VK-HDFCBK" to "Get flat Rs.200 off! Spend Rs.1,000 on your Card this weekend. T&C apply.",
+            // 7. Card statement / bill generated
+            "AX-AXISBK" to "Total Amount Due on your Axis Card XX1234 is Rs.8,450.50. Pay by 10-Nov-2026.",
+            // 8. Payment received on card
+            "AX-AXISBK" to "Payment of Rs.5,000.00 received towards your Axis Bank Card XX1234. Thank you."
+        )
+
+        for ((sender, message) in negativeCases) {
+            val result = processor.processMessage(
+                sender = sender,
+                body = message,
+                timestamp = 1700000000000L
+            )
+            assertTrue("Expected message to be ignored: $message, but got: $result", result is ProcessSmsResult.Ignored)
+        }
+        assertEquals("Zero transactions should be created from non-transaction messages", 0, transactionDao.items.size)
+    }
+
+    @Test
+    fun testPositiveControls_atLeast10Scenarios_ingested() = runTest {
+        val positiveCases = listOf(
+            // 1. Swiggy credit-card multiline fixture
+            "AX-AXISBK-S" to "Spent INR 130 \nusing Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at \nSWIGGY INST. \nAvl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+            // 2. Plain UPI debit
+            "VM-HDFCBK" to "Sent Rs. 450.00 from HDFC Bank A/C *1234 to SWIGGY on 23-10-24 via UPI Ref 429712345678. Bal Rs 10550.",
+            // 3. ATM withdrawal
+            "AX-AXISBK" to "INR 2000.00 debited from A/c no. XX589034 on AXIS BANK L 04-11-2025 16:06:39 IST. Avl bal: INR 98919.81. Not you? SMS BLOCKCARD XX0192 to +919951860002 - Axis Bank",
+            // 4. POS / Restaurant spend on debit card
+            "AX-AXISBK" to "INR 1028.00 debited from A/c no. XX312225 on RESTAURANT XY 02-12-2025 20:38:23 IST. Avl bal: INR 10000.00. Not you? SMS BLOCKCARD XX0023 to +919951860002 - Axis Bank",
+            // 5. Debit-card spend
+            "AX-AXISBK" to "INR 209.00 debited from A/c no. XX312225 on BURGRILL 04-12-2025 13:13:27 IST. Avl bal: INR 12000.00. Not you? SMS BLOCKCARD XX0023 to +919951860002 - Axis Bank",
+            // 6. Decimal card spend
+            "AX-AXISBK" to "Spent INR 89.50 \nAxis Bank Card no. XX9876 \n24-10-26 08:30:00 IST \nSTARBUCKS \nAvl Limit: INR 50000.00 \nNot you? SMS BLOCK 9876 to 919951860002",
+            // 7. Refund
+            "VM-HDFCBK" to "Refund of Rs. 350.00 credited to HDFC Bank A/C *1234 from ZOMATO on 23-10-24 via UPI Ref 429799998888. Bal Rs 10900.",
+            // 8. Debit with Avl Bal
+            "AX-AXISBK" to "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 4870.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+            // 9. UPI debit to merchant
+            "AX-AXISBK" to "INR 220.00 debited from A/c no. XX1234 to SWIGGY via UPI. Bal INR 4300.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+            // 10. Axis credit card single line
+            "AX-AXISBK-S" to "Spent INR 500 using Axis Bank Credit Card no. XX1234 on 24-10-26 15:00:00 IST at BIGBASKET. Avl limit: INR 35000.0. Not you? SMS BLOCK 1234 to +919951860002."
+        )
+
+        var expectedCount = 0
+        for ((sender, message) in positiveCases) {
+            val result = processor.processMessage(
+                sender = sender,
+                body = message,
+                timestamp = 1700000000000L + expectedCount * 1000L
+            )
+            assertTrue("Expected message to be successfully ingested: $message, but got: $result", result is ProcessSmsResult.Success)
+            expectedCount++
+            assertEquals(expectedCount, transactionDao.items.size)
+        }
+    }
 }
+

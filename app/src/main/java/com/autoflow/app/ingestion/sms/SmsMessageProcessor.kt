@@ -41,6 +41,10 @@ class SmsMessageProcessor(
             return ProcessSmsResult.Ignored("Empty message body")
         }
 
+        if (parserAdapter.isNonTransactionMessage(trimmedBody)) {
+            return ProcessSmsResult.Ignored("Non-transaction message (OTP/promo/alert/declined)")
+        }
+
         // 1. In-memory parse & domain adaptation
         // The raw body is discarded as soon as parsing completes.
         val entity = try {
