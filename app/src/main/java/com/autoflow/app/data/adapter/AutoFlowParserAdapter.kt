@@ -31,7 +31,8 @@ object AutoFlowParserAdapter {
         "cashback",
         "returned",
         "chargeback",
-        "money back"
+        "money back",
+        "credited back"
     )
 
     private val GENERIC_MERCHANT_PLACEHOLDERS = setOf(
@@ -64,24 +65,29 @@ object AutoFlowParserAdapter {
         """\b(?:has failed|failed|declined|unsuccessful|cancelled|canceled|voided)\b"""
     )
     private val promisePhraseRegex = Regex(
-        """\b(?:will\s+(?:be|get)\s+(?:reversed|refunded|credited|initiated|processed)|refund\s+(?:(?:has\s+been|is)\s+)?initiated|if\s+debited|will\s+(?:reflect|credit|reverse)|within\s+\d+(?:-\d+)?\s*(?:working|business)?\s*days)\b"""
+        """\b(?:will\s+(?:be|get)\s+(?:reversed|refunded|credited|initiated|processed)|refund\s+(?:(?:has\s+been|is)\s+)?initiated|if\s+debited|refund,?\s*if\s+applicable|will\s+(?:reflect|credit|reverse)|within\s+\d+(?:-\d+)?\s*(?:working|business)?\s*days)\b"""
+    )
+    private val completedRefundActionRegex = Regex(
+        """\b(?:refunded|reversed|chargeback|returned|credited\s+back)\b""",
+        RegexOption.IGNORE_CASE
     )
     private val completedRefundWordRegex = Regex(
-        """\b(?:refunded|reversed|credited|returned|chargeback)\b"""
+        """\b(?:refunded|refund\s+of|reversed|reversal|chargeback|returned|credited\s+back)\b""",
+        RegexOption.IGNORE_CASE
     )
 
     private val xxDigitsRegex = Regex("""xx\d+""", RegexOption.IGNORE_CASE)
     private val junkMerchantPrefixes = listOf("your", "a/c", "account", "card")
 
     private val completedSpendStatementRegex = Regex(
-        """\b(?:debited|spent|paid|sent to|withdrawn|purchase)\b"""
+        """\b(?:debited|debit\s+alert|spent|paid|sent to|transferred to|withdrawn|purchase)\b"""
     )
     private val uncompletedDebitPhrasesRegex = Regex(
         """\b(?:if\s+debited|will\s+be\s+debited|scheduled\s+to\s+be\s+debited|not\s+debited|no\s+amount\s+has\s+been\s+debited)\b"""
     )
 
     private val fallbackMerchantRegex = Regex(
-        """\b(?:at|from|with)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|\s+for\b|\s+credited\b|\s+debited\b|\s+reversed\b|\s+refunded\b|\s+to\b|$)""",
+        """\b(?:at|from|with|transferred\s+to|paid\s+to)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|\s+for\b|\s+credited\b|\s+debited\b|\s+reversed\b|\s+refunded\b|\s+to\b|;|$)""",
         RegexOption.IGNORE_CASE
     )
 
@@ -93,7 +99,7 @@ object AutoFlowParserAdapter {
     private fun isPromiseMessage(lower: String): Boolean {
         if (!promisePhraseRegex.containsMatchIn(lower)) return false
         val textWithoutPromises = promisePhraseRegex.replace(lower, " ")
-        val hasCompletedRefund = completedRefundWordRegex.containsMatchIn(textWithoutPromises)
+        val hasCompletedRefund = completedRefundActionRegex.containsMatchIn(textWithoutPromises)
         if (hasCompletedRefund) return false
 
         // Failed/declined/cancelled gate must NOT be bypassed by hasCompletedSpend
@@ -274,8 +280,14 @@ object AutoFlowParserAdapter {
                 // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
                 RecordType.EXPENSE
             }
-            // Ordinary income (salary, external deposits) without refund keywords is ignored
-            parsed.type == TransactionType.INCOME -> return null
+            // Ordinary income (salary, external deposits) without refund keywords is ignored unless outbound spend occurred
+            parsed.type == TransactionType.INCOME -> {
+                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
+                    RecordType.EXPENSE
+                } else {
+                    return null
+                }
+            }
             else -> return null
         }
 

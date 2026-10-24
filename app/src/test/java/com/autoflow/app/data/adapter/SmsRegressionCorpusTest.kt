@@ -233,12 +233,111 @@ class SmsRegressionCorpusTest {
             expectedType = RecordType.EXPENSE,
             expectedAmountPaise = 200000L,
             expectedMerchant = null // ATM cash withdrawal
+        ),
+
+        // ==========================================
+        // Prompt M3: Rows 1..8
+        // ==========================================
+        TestCase(
+            id = "M3-1",
+            message = "ICICI Bank Acct XX564 debited for Rs 160.00 on 24-Oct-26; ZOMATO credited. UPI:300463525123.",
+            sender = "ICICIB",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 16000L,
+            expectedMerchant = "ZOMATO"
+        ),
+        TestCase(
+            id = "M3-2",
+            message = "Rs.500.00 debited from A/c XX1234 on 24-10-26 and credited to VPA swiggy@upi (UPI Ref No 123456789012).",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 50000L
+        ),
+        TestCase(
+            id = "M3-3",
+            message = "Sent Rs.250.00 from HDFC Bank A/c XX1234 to ZEPTO@upi on 24/10/26. UPI Ref 123456789012. Amount credited to beneficiary.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 25000L
+        ),
+        TestCase(
+            id = "M3-4",
+            message = "Debit alert: Rs 1,000.00 transferred to RAMESH KUMAR; amount credited successfully. Ref 123.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 100000L,
+            expectedMerchant = "RAMESH KUMAR"
+        ),
+        TestCase(
+            id = "M3-5",
+            message = "Rs 450.00 debited at ZOMATO. Cashback of Rs 20 credited to your wallet.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 45000L,
+            expectedMerchant = "ZOMATO"
+        ),
+        TestCase(
+            id = "M3-6",
+            message = "Rs 1,200.00 debited at AMAZON on 24-10-26. Refund, if applicable, will be credited within 5-7 days.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 120000L,
+            expectedMerchant = "AMAZON"
+        ),
+        TestCase(
+            id = "M3-7",
+            message = "Rs 250.00 reversed to A/c XX1234 for the UPI txn debited on 22-10-26 at SWIGGY. Ref 123456789.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.REFUND,
+            expectedAmountPaise = 25000L,
+            expectedMerchant = "SWIGGY"
+        ),
+        TestCase(
+            id = "M3-8",
+            message = "Rs 799.00 refunded to your card XX1234 for the order paid on 12-Oct at MYNTRA.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.REFUND,
+            expectedAmountPaise = 79900L,
+            expectedMerchant = "MYNTRA"
+        ),
+
+        // ==========================================
+        // Prompt 0 (Safety Probe Remaining Cases)
+        // ==========================================
+        TestCase(
+            id = "P0-Amazon",
+            message = "Rs 1,200.00 debited at AMAZON on 24-10-26. Refund, if applicable, will be credited within 5-7 days.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 120000L,
+            expectedMerchant = "AMAZON"
+        ),
+        TestCase(
+            id = "P0-FailedDebit",
+            message = "Your UPI txn of Rs 500.00 failed. If debited, the amount will be reversed within 3-5 working days.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "P0-FutureCredit",
+            message = "Rs 799.00 will be credited back to your card XX1234.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 24 test cases", 24, corpus.size)
+        assertEquals("Corpus must have exactly 35 test cases", 35, corpus.size)
     }
 
     @Test

@@ -397,10 +397,26 @@ class AutoFlowParserAdapterTest {
         assertEquals("SWIGGY", entity.merchantName)
     }
 
+    @Test
+    fun testPromptM3_message4_debitAlertTransferredTo_ingestedAsExpense() {
+        val msg = "Debit alert: Rs 1,000.00 transferred to RAMESH KUMAR; amount credited successfully. Ref 123."
+        org.junit.Assert.assertFalse("Expected msg 4 to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity 4 to be parsed", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(100000L, entity.amountPaise)
+    }
 
-
-
-
+    @Test
+    fun testPromptM3_message5_debitWithCashbackCredited_ingestedAsExpense() {
+        val msg = "Rs 450.00 debited at ZOMATO. Cashback of Rs 20 credited to your wallet."
+        org.junit.Assert.assertFalse("Expected msg 5 to not be blocked", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity 5 to be parsed", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(45000L, entity.amountPaise)
+        assertEquals("ZOMATO", entity.merchantName)
+    }
 
     private fun createParsed(
         amount: BigDecimal,
