@@ -158,15 +158,33 @@ class RoomMigration4To5Test {
         val jdbcUrl = "jdbc:sqlite:${tempDb.absolutePath}"
         val conn = DriverManager.getConnection(jdbcUrl)
 
-        // Verify pre-migration state: exactly 5 transactions
+        // Verify pre-migration state: exactly 5 transactions, and old goal tables contain exactly 0 rows
         val preMigrationTxs = readAllTransactions(conn)
         assertEquals("Pre-migration backup must contain exactly 5 transactions", 5, preMigrationTxs.size)
 
-        // Execute MIGRATION_4_5_SQL
+        var preGoalsCount = -1
+        var preContribCount = -1
         conn.createStatement().use { stmt ->
-            for (sql in AutoFlowDatabase.MIGRATION_4_5_SQL) {
-                stmt.execute(sql)
+            stmt.executeQuery("SELECT COUNT(*) FROM goals").use { rs ->
+                if (rs.next()) preGoalsCount = rs.getInt(1)
             }
+            stmt.executeQuery("SELECT COUNT(*) FROM goal_contributions").use { rs ->
+                if (rs.next()) preContribCount = rs.getInt(1)
+            }
+        }
+        assertEquals("Old draft goals table must have 0 rows in backup", 0, preGoalsCount)
+        assertEquals("Old draft goal_contributions table must have 0 rows in backup", 0, preContribCount)
+
+        // Execute migration with safeguard
+        conn.createStatement().use { stmt ->
+            AutoFlowDatabase.executeMigration4To5(
+                execSql = { sql -> stmt.execute(sql) },
+                queryCount = { tableName ->
+                    stmt.executeQuery("SELECT COUNT(*) FROM `$tableName`").use { rs ->
+                        if (rs.next()) rs.getInt(1) else 0
+                    }
+                }
+            )
         }
 
         // Verify post-migration state: all 5 transactions must remain byte-for-byte identical
@@ -188,6 +206,62 @@ class RoomMigration4To5Test {
 
         conn.close()
         tempDb.delete()
+    }
+
+    @Test
+    fun testRoomMigration4To5_failsIfOldGoalTablesContainRows() {
+        val fileV4 = findSchemaFile(4)
+        val v4CreateStatements = extractCreateStatements(fileV4.readText())
+
+        // Case 1: goals table contains rows
+        val conn1 = DriverManager.getConnection("jdbc:sqlite::memory:")
+        conn1.createStatement().use { stmt ->
+            for (sql in v4CreateStatements) {
+                stmt.execute(sql)
+            }
+            stmt.execute(
+                "INSERT INTO goals (id, name, target_amount_paise, target_date, color_hex, is_archived, created_at) VALUES (1, 'Old Car', 5000000, 1700000000000, '#6200EE', 0, 1700000000000)"
+            )
+            try {
+                AutoFlowDatabase.executeMigration4To5(
+                    execSql = { sql -> stmt.execute(sql) },
+                    queryCount = { tableName ->
+                        stmt.executeQuery("SELECT COUNT(*) FROM `$tableName`").use { rs ->
+                            if (rs.next()) rs.getInt(1) else 0
+                        }
+                    }
+                )
+                org.junit.Assert.fail("Expected IllegalStateException when goals table is not empty")
+            } catch (e: IllegalStateException) {
+                assertTrue(e.message?.contains("Refusing to drop non-empty table") == true)
+            }
+        }
+        conn1.close()
+
+        // Case 2: goal_contributions table contains rows
+        val conn2 = DriverManager.getConnection("jdbc:sqlite::memory:")
+        conn2.createStatement().use { stmt ->
+            for (sql in v4CreateStatements) {
+                stmt.execute(sql)
+            }
+            stmt.execute(
+                "INSERT INTO goal_contributions (id, goal_id, savings_type, amount_paise, date, note, created_at) VALUES (1, 1, 'ACTUAL_SAVED', 10000, 1700000000000, 'test', 1700000000000)"
+            )
+            try {
+                AutoFlowDatabase.executeMigration4To5(
+                    execSql = { sql -> stmt.execute(sql) },
+                    queryCount = { tableName ->
+                        stmt.executeQuery("SELECT COUNT(*) FROM `$tableName`").use { rs ->
+                            if (rs.next()) rs.getInt(1) else 0
+                        }
+                    }
+                )
+                org.junit.Assert.fail("Expected IllegalStateException when goal_contributions table is not empty")
+            } catch (e: IllegalStateException) {
+                assertTrue(e.message?.contains("Refusing to drop non-empty table") == true)
+            }
+        }
+        conn2.close()
     }
 
     @Test

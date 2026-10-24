@@ -131,9 +131,32 @@ abstract class AutoFlowDatabase : RoomDatabase() {
             "CREATE INDEX IF NOT EXISTS `index_goal_entries_linked_transaction_id` ON `goal_entries` (`linked_transaction_id`)"
         )
 
+        fun executeMigration4To5(execSql: (String) -> Unit, queryCount: (String) -> Int) {
+            val goalsCount = queryCount("goals")
+            if (goalsCount > 0) {
+                throw IllegalStateException("Migration 4->5 aborted: 'goals' table contains $goalsCount row(s). Refusing to drop non-empty table.")
+            }
+            val contribCount = queryCount("goal_contributions")
+            if (contribCount > 0) {
+                throw IllegalStateException("Migration 4->5 aborted: 'goal_contributions' table contains $contribCount row(s). Refusing to drop non-empty table.")
+            }
+            MIGRATION_4_5_SQL.forEach { execSql(it) }
+        }
+
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                MIGRATION_4_5_SQL.forEach { db.execSQL(it) }
+                executeMigration4To5(
+                    execSql = { db.execSQL(it) },
+                    queryCount = { tableName ->
+                        var count = 0
+                        val cursor = db.query("SELECT COUNT(*) FROM `$tableName`")
+                        if (cursor.moveToFirst()) {
+                            count = cursor.getInt(0)
+                        }
+                        cursor.close()
+                        count
+                    }
+                )
             }
         }
 
