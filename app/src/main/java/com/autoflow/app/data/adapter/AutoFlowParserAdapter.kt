@@ -100,6 +100,10 @@ object AutoFlowParserAdapter {
         return inboundTransferRegex.containsMatchIn(message)
     }
 
+    private fun shouldDropAsInbound(message: String): Boolean {
+        return isInboundTransfer(message) && !hasStrongOutboundSpend(message.lowercase())
+    }
+
     private val fallbackMerchantRegex = Regex(
         """\b(?:at|from|with|transferred\s+to|paid\s+to)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|\s+for\b|\s+credited\b|\s+debited\b|\s+reversed\b|\s+refunded\b|\s+to\b|;|$)""",
         RegexOption.IGNORE_CASE
@@ -291,7 +295,7 @@ object AutoFlowParserAdapter {
         val recordType = when {
             isRefund -> RecordType.REFUND
             parsed.type == TransactionType.EXPENSE || parsed.type == TransactionType.CREDIT -> {
-                if (isInboundTransfer(smsBodySnippet)) {
+                if (shouldDropAsInbound(smsBodySnippet)) {
                     return null
                 }
                 RecordType.EXPENSE
@@ -301,7 +305,7 @@ object AutoFlowParserAdapter {
                 if (parsed.fromAccount != null && parsed.toAccount != null && parsed.fromAccount == parsed.toAccount) {
                     return null
                 }
-                if (isInboundTransfer(smsBodySnippet)) {
+                if (shouldDropAsInbound(smsBodySnippet)) {
                     return null
                 }
                 // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
@@ -309,7 +313,7 @@ object AutoFlowParserAdapter {
             }
             // Ordinary income (salary, external deposits) without refund keywords is ignored unless strong outbound spend occurred
             parsed.type == TransactionType.INCOME -> {
-                if (hasStrongOutboundSpend(smsBodySnippet.lowercase()) && !isInboundTransfer(smsBodySnippet)) {
+                if (hasStrongOutboundSpend(smsBodySnippet.lowercase()) && !shouldDropAsInbound(smsBodySnippet)) {
                     RecordType.EXPENSE
                 } else {
                     return null

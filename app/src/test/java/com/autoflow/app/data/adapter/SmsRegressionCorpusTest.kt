@@ -491,9 +491,8 @@ class SmsRegressionCorpusTest {
         ),
 
         // ==========================================
-        // Prompt N2: Rows N-1..N-3 (Expected EXPENSE)
-        // Known failures: Dropped by M6 inboundTransferRegex ('paid by' / 'sent by')
-        // As instructed in Prompt N2: "If any FAILS, do NOT fix it; mark it as a known failure with a comment."
+        // Prompt N2 & M7: Rows N-1..N-5 (Expected EXPENSE)
+        // Outbound debit messages with payment instrument clauses ("Paid by", "Sent by")
         // ==========================================
         TestCase(
             id = "N-1",
@@ -502,9 +501,7 @@ class SmsRegressionCorpusTest {
             expectedResult = ExpectedResult.INGEST,
             expectedType = RecordType.EXPENSE,
             expectedAmountPaise = 45000L,
-            expectedMerchant = "ZOMATO",
-            isKnownFailure = true,
-            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Paid by'."
+            expectedMerchant = "ZOMATO"
         ),
         TestCase(
             id = "N-2",
@@ -512,10 +509,7 @@ class SmsRegressionCorpusTest {
             sender = "VM-HDFCBK",
             expectedResult = ExpectedResult.INGEST,
             expectedType = RecordType.EXPENSE,
-            expectedAmountPaise = 32000L,
-            expectedMerchant = "UBER",
-            isKnownFailure = true,
-            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Sent by'."
+            expectedAmountPaise = 32000L
         ),
         TestCase(
             id = "N-3",
@@ -524,32 +518,29 @@ class SmsRegressionCorpusTest {
             expectedResult = ExpectedResult.INGEST,
             expectedType = RecordType.EXPENSE,
             expectedAmountPaise = 120000L,
-            expectedMerchant = "AMAZON",
-            isKnownFailure = true,
-            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Paid by'."
+            expectedMerchant = "AMAZON"
+        ),
+        TestCase(
+            id = "N-4",
+            message = "Rs 640.00 debited from A/c XX1234 on 24-10-26. Paid by UPI to SWIGGY.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 64000L
+        ),
+        TestCase(
+            id = "N-5",
+            message = "Debit alert: Rs 250.00 spent. Sent by you via UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 25000L
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 59 test cases", 59, corpus.size)
-    }
-
-    @Test
-    fun testPromptN2_probeReport_N1_N2_N3() {
-        // Probe and document exact behavior for Prompt N2 Part 1b
-        val cases = listOf(
-            Triple("N-1", "Rs 450.00 debited from A/c XX1234 on 24-10-26 at ZOMATO. Paid by UPI.", 45000L),
-            Triple("N-2", "Rs 320.00 debited from A/c XX1234 on 24-10-26 for UBER ride. Sent by you via UPI.", 32000L),
-            Triple("N-3", "Rs 1,200.00 debited from A/c XX1234 on 24-10-26 at AMAZON. Paid by HDFC Bank Debit Card.", 120000L)
-        )
-        for ((id, msg, _) in cases) {
-            val isNonTx = AutoFlowParserAdapter.isNonTransactionMessage(msg)
-            val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
-            // Documenting: isNonTx is false (guard passes), but entity is null because inboundTransferRegex matches "Paid by" / "Sent by"
-            assertFalse("$id is not a non-transaction alert", isNonTx)
-            assertNull("$id is currently dropped by M6 inboundTransferRegex", entity)
-        }
+        assertEquals("Corpus must have exactly 61 test cases", 61, corpus.size)
     }
 
     @Test

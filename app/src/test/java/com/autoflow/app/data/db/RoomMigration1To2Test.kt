@@ -273,20 +273,110 @@ class RoomMigration1To2Test {
             }
         }
 
-        // 8. Test DAO queries on migrated database using raw JDBC:
-        // Query (a): getAllAutoCategorizedTransactions()
-        // SELECT * FROM transactions WHERE is_deleted = 0 AND categorySource = 'AUTO'
+        // 8. Add a row with categorySource = 'USER' and a soft-deleted AUTO row to test retro-update protection
+        val insertV2TxSql = """
+            INSERT INTO transactions (
+                id, amount_paise, record_type, date_time, merchant_name, category,
+                categorySource, account_number, bank_name, reference, transaction_hash,
+                source, review_status, uncertainty_bits, created_at, updated_at, is_deleted
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """.trimIndent()
+
+        migratedConn.prepareStatement(insertV2TxSql).use { stmt ->
+            // tx4: USER row (user manually categorized Starbucks as Transport)
+            stmt.setLong(1, 4L)
+            stmt.setLong(2, 40000L)
+            stmt.setString(3, "EXPENSE")
+            stmt.setLong(4, 1700000003000L)
+            stmt.setString(5, "Starbucks")
+            stmt.setString(6, "Transport")
+            stmt.setString(7, "USER")
+            stmt.setString(8, "XX1234")
+            stmt.setString(9, "HDFC")
+            stmt.setString(10, "REF456")
+            stmt.setString(11, "HASH4")
+            stmt.setString(12, "SMS_AUTO")
+            stmt.setString(13, "CONFIRMED")
+            stmt.setInt(14, 0)
+            stmt.setLong(15, 1700000003000L)
+            stmt.setLong(16, 1700000003000L)
+            stmt.setInt(17, 0)
+            stmt.executeUpdate()
+
+            // tx5: soft-deleted AUTO row (deleted Starbucks expense)
+            stmt.setLong(1, 5L)
+            stmt.setLong(2, 30000L)
+            stmt.setString(3, "EXPENSE")
+            stmt.setLong(4, 1700000004000L)
+            stmt.setString(5, "Starbucks")
+            stmt.setString(6, "Others")
+            stmt.setString(7, "AUTO")
+            stmt.setString(8, "XX1234")
+            stmt.setString(9, "HDFC")
+            stmt.setString(10, "REF789")
+            stmt.setString(11, "HASH5")
+            stmt.setString(12, "SMS_AUTO")
+            stmt.setString(13, "CONFIRMED")
+            stmt.setInt(14, 0)
+            stmt.setLong(15, 1700000004000L)
+            stmt.setLong(16, 1700000004000L)
+            stmt.setInt(17, 1)
+            stmt.executeUpdate()
+        }
+
+        // 9. Test real DAO queries on migrated database using TransactionDao.QUERY_GET_ALL_AUTO:
+        // Assert: getAllAutoCategorizedTransactions query never returns USER rows or soft-deleted rows
+        val autoCategorizedRows = mutableListOf<Long>()
         migratedConn.createStatement().use { stmt ->
-            stmt.executeQuery("SELECT * FROM transactions WHERE is_deleted = 0 AND categorySource = 'AUTO'").use { rs ->
-                val returnedIds = mutableListOf<Long>()
+            stmt.executeQuery(com.autoflow.app.data.db.dao.TransactionDao.QUERY_GET_ALL_AUTO).use { rs ->
                 while (rs.next()) {
-                    returnedIds.add(rs.getLong("id"))
+                    autoCategorizedRows.add(rs.getLong("id"))
                 }
-                assertEquals("Must return only non-deleted AUTO transactions", listOf(1L, 2L), returnedIds)
+            }
+        }
+        assertEquals("Must return only active AUTO rows (tx1 and tx2)", listOf(1L, 2L), autoCategorizedRows)
+        assertTrue("Must NOT return USER row (tx4)", !autoCategorizedRows.contains(4L))
+        assertTrue("Must NOT return soft-deleted rows (tx3, tx5)", !autoCategorizedRows.contains(3L) && !autoCategorizedRows.contains(5L))
+
+        // Simulate retro-update logic: update matching auto rows to 'Food'
+        val updateSql = "UPDATE transactions SET category = ?, updated_at = ? WHERE id = ?"
+        migratedConn.prepareStatement(updateSql).use { stmt ->
+            for (id in autoCategorizedRows) {
+                if (id != 1L) { // tx2 is the other Starbucks row
+                    stmt.setString(1, "Food")
+                    stmt.setLong(2, 1700000009000L)
+                    stmt.setLong(3, id)
+                    stmt.executeUpdate()
+                }
             }
         }
 
-        // Query (b): upsert SQL for MerchantCategoryDao
+        // Assert: USER row and deleted rows were NEVER modified
+        migratedConn.createStatement().use { stmt ->
+            stmt.executeQuery("SELECT id, category, categorySource, is_deleted FROM transactions ORDER BY id ASC").use { rs ->
+                val rows = mutableMapOf<Long, Triple<String, String, Int>>()
+                while (rs.next()) {
+                    rows[rs.getLong("id")] = Triple(
+                        rs.getString("category"),
+                        rs.getString("categorySource"),
+                        rs.getInt("is_deleted")
+                    )
+                }
+
+                // tx1: Food / AUTO / 0
+                assertEquals(Triple("Food", "AUTO", 0), rows[1L])
+                // tx2: retro-updated to Food / AUTO / 0
+                assertEquals(Triple("Food", "AUTO", 0), rows[2L])
+                // tx3: soft-deleted row untouched
+                assertEquals(Triple("Others", "AUTO", 1), rows[3L])
+                // tx4: USER row strictly UNTOUCHED (still Transport / USER / 0)
+                assertEquals(Triple("Transport", "USER", 0), rows[4L])
+                // tx5: soft-deleted row strictly UNTOUCHED (still Others / AUTO / 1)
+                assertEquals(Triple("Others", "AUTO", 1), rows[5L])
+            }
+        }
+
+        // 10. Query (b): upsert SQL for MerchantCategoryDao
         // INSERT OR REPLACE INTO merchant_categories (merchantKey, category, updatedAt) VALUES (?, ?, ?)
         val upsertSql = "INSERT OR REPLACE INTO merchant_categories (merchantKey, category, updatedAt) VALUES (?, ?, ?)"
         migratedConn.prepareStatement(upsertSql).use { stmt ->

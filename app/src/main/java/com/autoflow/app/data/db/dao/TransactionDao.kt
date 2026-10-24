@@ -100,10 +100,14 @@ interface TransactionDao {
     @Query("UPDATE transactions SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, updatedAt: Long = System.currentTimeMillis())
 
-    @Query("""
-        SELECT * FROM transactions 
-        WHERE is_deleted = 0 
-          AND categorySource = 'AUTO'
-    """)
+    companion object {
+        const val QUERY_GET_ALL_AUTO = """
+            SELECT * FROM transactions 
+            WHERE is_deleted = 0 
+              AND categorySource = 'AUTO'
+        """
+    }
+
+    @Query(QUERY_GET_ALL_AUTO)
     suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity>
 }
