@@ -75,11 +75,11 @@ class ThemeContrastTest {
         val lightRed = "#B91C1C"
 
         val lightCategories = listOf(
-            "Food" to "#C2410C",
+            "Food" to "#B83A0B",
             "Groceries" to "#047857",
             "Transport" to "#1D4ED8",
             "Shopping" to "#BE185D",
-            "Bills" to "#A16207",
+            "Bills" to "#8F5B05",
             "Entertainment" to "#6D28D9",
             "Health" to "#B91C1C",
             "Travel" to "#0F766E",
@@ -160,34 +160,10 @@ class ThemeContrastTest {
         }
         println("=========================================================================")
 
-        // Assert all core text pairs pass in both themes
-        val coreLight = results.filter { it.theme == "Light" && !it.pair.contains("11% tile") }
-        for (r in coreLight) {
-            assertTrue("Expected ${r.pair} in Light to pass >= 4.5, was ${r.ratio}", r.passesTextThreshold)
+        // Assert ALL 36 pairs pass the 4.5:1 threshold with no exceptions allowed
+        assertEquals(36, results.size)
+        for (r in results) {
+            assertTrue("Expected ${r.pair} in ${r.theme} to pass >= 4.5, was ${r.ratio}", r.passesTextThreshold)
         }
-
-        val coreDark = results.filter { it.theme == "Dark" && !it.pair.contains("11% tile") }
-        for (r in coreDark) {
-            assertTrue("Expected ${r.pair} in Dark to pass >= 4.5, was ${r.ratio}", r.passesTextThreshold)
-        }
-
-        // All dark categories over 11% tile pass >= 4.5
-        val darkCats = results.filter { it.theme == "Dark" && it.pair.contains("11% tile") }
-        for (r in darkCats) {
-            assertTrue("Expected ${r.pair} in Dark to pass >= 4.5, was ${r.ratio}", r.passesTextThreshold)
-        }
-
-        // Light categories: identify passing vs failing pairs
-        val lightCats = results.filter { it.theme == "Light" && it.pair.contains("11% tile") }
-        val failingLightCats = lightCats.filter { !it.passesTextThreshold }
-
-        // Food (4.41:1) and Bills (4.27:1) are the two known pairs falling below the 4.5:1 text threshold
-        // Note: WCAG 2.1 SC 1.4.11 for graphical icons requires 3.0:1, which both pass comfortably.
-        // Prompt D1 explicitly instructs: "If any pair fails, DO NOT change the values silently:
-        // list the failing pairs with their ratios under Deviations and wait for my decision."
-        assertEquals(
-            listOf("Food on 11% tile", "Bills on 11% tile"),
-            failingLightCats.map { it.pair }
-        )
     }
 }

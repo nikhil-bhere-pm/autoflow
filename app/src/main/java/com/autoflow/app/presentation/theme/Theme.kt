@@ -10,9 +10,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -68,11 +70,11 @@ private val LightBar = Color(0xFF0D9E71)
 private val LightTrack = Color(0xFFE2E8F0)
 
 // Light category tokens
-private val LightCatFood = Color(0xFFC2410C)
+private val LightCatFood = Color(0xFFB83A0B)
 private val LightCatGroceries = Color(0xFF047857)
 private val LightCatTransport = Color(0xFF1D4ED8)
 private val LightCatShopping = Color(0xFFBE185D)
-private val LightCatBills = Color(0xFFA16207)
+private val LightCatBills = Color(0xFF8F5B05)
 private val LightCatEntertainment = Color(0xFF6D28D9)
 private val LightCatHealth = Color(0xFFB91C1C)
 private val LightCatTravel = Color(0xFF0F766E)
@@ -295,12 +297,33 @@ private val MaterialDarkColorScheme = darkColorScheme(
 // TYPOGRAPHY (Plus Jakarta Sans, bundled resources, weights 400..800)
 // ============================================================================
 
+@OptIn(ExperimentalTextApi::class)
 val PlusJakartaSans = FontFamily(
-    Font(R.font.plus_jakarta_sans, FontWeight.W400),
-    Font(R.font.plus_jakarta_sans, FontWeight.W500),
-    Font(R.font.plus_jakarta_sans, FontWeight.W600),
-    Font(R.font.plus_jakarta_sans, FontWeight.W700),
-    Font(R.font.plus_jakarta_sans, FontWeight.W800)
+    Font(
+        R.font.plus_jakarta_sans,
+        weight = FontWeight.W400,
+        variationSettings = FontVariation.Settings(FontVariation.weight(400))
+    ),
+    Font(
+        R.font.plus_jakarta_sans,
+        weight = FontWeight.W500,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500))
+    ),
+    Font(
+        R.font.plus_jakarta_sans,
+        weight = FontWeight.W600,
+        variationSettings = FontVariation.Settings(FontVariation.weight(600))
+    ),
+    Font(
+        R.font.plus_jakarta_sans,
+        weight = FontWeight.W700,
+        variationSettings = FontVariation.Settings(FontVariation.weight(700))
+    ),
+    Font(
+        R.font.plus_jakarta_sans,
+        weight = FontWeight.W800,
+        variationSettings = FontVariation.Settings(FontVariation.weight(800))
+    )
 )
 
 val AppTypography = Typography(
