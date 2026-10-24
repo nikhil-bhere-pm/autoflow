@@ -353,7 +353,53 @@
   - Captured artifacts:
     - `home_review_banner.png`: Home screen with amber "2 need a check" banner and Review tab badge count 2.
     - `review_items_dark.png`: Review screen displaying pending items in Dark theme.
-    - `review_items_light.png`: Review screen displaying pending items in Light theme.
-    - `review_after_food_confirmed.png`: Review screen after confirming Swiggy to Food (count decremented to 1).
-    - `review_empty.png`: "All caught up" empty state when all review items are cleared.
+## 15. Categories Tab & Spend Ring Chart (Prompt UI-4)
 
+- **Screen Architecture & AF Component Migration (`CategoriesScreen.kt`, `AFRingChart.kt`, `AFPeriodPill.kt`, `CategoriesUiState.kt`):**
+  - Added "Categories" tab to `AFBottomNav` across Home, Review, and Categories screens.
+  - Built using Theme.kt tokens and AF components (`AFTopBar`, `AFBottomNav`, `AFTransactionRow`).
+  - **Shared Period Pill (`AFPeriodPill.kt`):**
+    - Extracted period selector from `HomeScreen.kt` into reusable component shared between Home and Categories tabs.
+    - Supports `This month` (default), `Today`, `This week`, and past 5 calendar months in dropdown menu.
+    - Future months strictly excluded/non-selectable.
+  - **Ring Chart Hero (`AFRingChart.kt`):**
+    - Dynamic donut/ring chart with arc slices mapped proportionally to category spend.
+    - Category colors mapped via `AutoFlowTheme.colors.forCategory(category)`.
+    - Inner center summary displays top category name, formatted spend (integer paise in INR), and percentage of total spend.
+  - **Category Breakdown List:**
+    - Sorted descending by net spend.
+    - Each row displays category icon tile, category name, formatted net spend in ₹, and percentage of total spend.
+    - Tapping a row opens `CategoryDetailScreen` listing that category's transactions for the selected period.
+  - **Category Detail Drilldown (`CategoryDetailScreen`):**
+    - Top bar: back arrow, category icon, and category name title.
+    - Transaction rows rendered via `AFTransactionRow` (title, subtitle, amount, category icon tile; NO payment-mode badge).
+    - Tapping a transaction opens `EditTransactionScreen`; saving or back returns cleanly to the category detail list, and top bar back returns to the Categories tab.
+  - **Empty State:**
+    - When selected period has zero spend, ring chart is hidden and friendly empty state card is displayed ("No spending in this period").
+  - **Custom Categories Fallback:**
+    - Custom categories appear with their spend; neutral fallback used for icon (`R.drawable.ic_cat_unknown`) and color (`AutoFlowTheme.colors.catUnknown`).
+- **Refunds as Adjustments Rule:**
+  - Refunds are adjustments that reduce the specific category's spend:
+    `netPaise = (expensePaise - refundPaise).coerceAtLeast(0L)`.
+  - Categories with zero or net negative spend are excluded from the ring chart and list.
+- **Pure JVM Unit Testing (`CategoriesUiTest.kt`):**
+  - 5 comprehensive tests:
+    1. `testCategoryTotalsAndPercentageRounding`: verifies exact paise arithmetic, descending sort, and percentage calculations.
+    2. `testRefundsReduceCategorySpend`: verifies refunds adjust and reduce the specific category's spend.
+    3. `testPeriodTransitionUpdatesState`: verifies changing period updates category breakdown and totals.
+    4. `testEmptyPeriodYieldsEmptyCategories`: verifies empty state when no expenses exist in the period.
+    5. `testCustomCategoryFallbackHandling`: verifies custom categories with non-standard names map to fallback tokens and aggregate correctly.
+  - RED test phase demonstrated prior to implementation (`Unresolved reference 'CategoriesUiState'`), followed by GREEN test phase after implementing `CategoriesUiState.kt`.
+- **Data & Schema Isolation Proof:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified 100% empty.
+  - Data queried via existing `TransactionRepository.getAllActiveTransactions()` Flow; zero DB schema or query changes.
+  - Production database backed up to `..\backups\v4_pre_ui4.db` (94,208 bytes, % 4096 == 0).
+  - Zero hardcoded colors outside `Theme.kt`.
+- **Physical Device & Visual Verification (Device `dfa4dd90`):**
+  - Installed debug APK and verified live behavior on physical device in both Dark and Light modes.
+  - Verified navigation from Categories tab -> Category Detail list -> Edit transaction -> back to Detail -> back to Categories.
+  - Captured artifacts:
+    - `categories_dark.png`: Categories tab with ring chart and breakdown in Dark mode.
+    - `categories_light.png`: Categories tab with ring chart and breakdown in Light mode.
+    - `category_detail_list.png`: Groceries detail transaction list without payment-mode badges.
+    - `categories_empty.png`: Friendly empty state when selecting "Sep 2026" period.
