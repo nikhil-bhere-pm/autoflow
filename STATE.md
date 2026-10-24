@@ -174,3 +174,39 @@
 - **Physical Device & Logcat Verification:**
   - Debug APK compiled (`assembleDebug`) and installed on test device `dfa4dd90` (`adb install -r`).
   - App launched into foreground (`am start -n com.autoflow.app/.MainActivity`); 30-second logcat monitored with zero application errors, zero font crashes, zero Room crashes, and zero SMS leakage.
+
+## 11. Custom Categories: Add, Rename, Delete & Room v4 (Prompt C1)
+
+- **Room Version 4 Migration & Schema Parity (`RoomMigration3To4Test.kt`):**
+  - Added table `custom_categories` (`name_key TEXT PRIMARY KEY NOT NULL`, `name TEXT NOT NULL`, `icon_key TEXT NOT NULL`, `color_key TEXT NOT NULL`, `created_at INTEGER NOT NULL`).
+  - Room migration `MIGRATION_3_4` registered in `AutoFlowDatabase` with SQL constant `MIGRATION_3_4_SQL`.
+  - Schema `4.json` generated and committed. Verified on real SQLite via `RoomMigration3To4Test`: column types, nullability, and primary key parity against reference schema; existing transactions and merchant rules preserved intact; new table initialized empty.
+- **Normalization & Validation Rules (`CategoryModels.kt`):**
+  - Name normalization: trim, collapse repeated spaces, lowercase with `Locale.ROOT`.
+  - Stored name: as typed with leading/trailing whitespace trimmed and inner spaces collapsed.
+  - Length constraint: 1 to 20 characters after trimming (`NameBlank`, `NameTooLong`).
+  - Character set constraint: letters, digits, spaces, `&`, `-`, `'` only (`NameInvalidCharacters`).
+  - Built-in / Reserved collisions: rejected with `NameNotUnique` if normalized key matches any of `Food`, `Groceries`, `Transport`, `Shopping`, `Bills`, `Entertainment`, `Health`, `Travel`, `Others`, `Unknown`, `Refund`, `Cash`, `Not counted`.
+  - Custom category collision: rejected with `NameNotUnique` if another custom category shares the same normalized key. Case/spacing-only rename of the same category is permitted.
+  - Icons & Colors: icon must be one of `PAW`, `HOME`, `GIFT`, `BOOK`, `COFFEE`, `TOOL`, `LEAF`, `MUSIC`, `PHONE`, `WALLET`, `BAG`, `CALENDAR` (`InvalidIcon`); color must be one of `ORANGE`, `GREEN`, `BLUE`, `PINK`, `GOLD`, `PURPLE`, `TEAL`, `RED` (`InvalidColor`).
+  - Capacity: hard limit of 30 custom categories (`TooManyCategories`).
+  - Read-only built-ins: attempting to rename or delete a built-in category fails with `BuiltInCategoryReadOnly`.
+  - Non-existent category operations return `CategoryNotFound`.
+- **Registry & Atomic Operations (`CategoryRepository.kt`):**
+  - `getAllCategories()`: Flow emitting all 9 built-ins in fixed order followed by custom categories ordered by `created_at` ASC.
+  - `addCategory(name, iconKey, colorKey)`: Validates rules, performs atomic insert, maps primary-key race conditions to `NameNotUnique`.
+  - `updateCategory(currentName, newName, iconKey, colorKey)`: Atomic single transaction updates `custom_categories`, all `transactions` (including soft-deleted), and all `merchant_categories`.
+  - `countTransactionsInCategory(name)`: Counts non-deleted active transactions in the category.
+  - `deleteCategory(name)`: Atomic single transaction reassigns all `transactions` (including soft-deleted) to `"Others"` with `categorySource = 'AUTO'`, deletes associated `merchant_categories`, and removes the `custom_categories` record.
+  - Tested on real SQLite with real JDBC transaction rollback proofs and production mutation proofs.
+- **Integration with Existing Logic:**
+  - `TransactionRepository.updateTransaction` accepts custom categories and rejects non-existent categories with `UpdateTransactionResult.CategoryNotFound`.
+  - `categoryBreakdown` and `fiveMonthSpendingSeries` dynamically group and aggregate any category name, proven by unit tests.
+- **Live Device Migration & Database Verification:**
+  - Debug APK installed on physical device `dfa4dd90` via `adb install -r`.
+  - Pre-install (`..\backups\v3_pre_c1.db`) vs post-install (`..\backups\v4_after.db`) inspected via sqlite-jdbc:
+    - `PRAGMA user_version`: 3 -> 4.
+    - Transaction count before install: 5; after install: 5 (matched 100%).
+    - Payment mode breakdown: 3 `CASH`, 2 `UNKNOWN` preserved unchanged.
+    - `custom_categories` count: 0.
+  - Clean 30-second error logcat with zero Room, SQLite, or application errors.
