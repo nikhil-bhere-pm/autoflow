@@ -1,11 +1,31 @@
 *.iml
 .gradle
-/local.properties
-/.idea/
-.DS_Store
+**/.gradle/
+**/build/
+build/
 /build
 /app/build
+/local.properties
+local.properties
+/.idea/
+.DS_Store
 /captures
 .externalNativeBuild
 .cxx
-local.properties
+
+# Database & SQLite files
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+ondevice_autoflow.db
+ondevice_*.db
+
+# Keystore & Signing
+*.jks
+*.keystore
+
+# Exported files & Context summary
+*.sms
+AUTOFLOW_CONTEXT_SUMMARY.md

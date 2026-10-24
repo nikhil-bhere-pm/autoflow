@@ -26,3 +26,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "autoflow-app"
 include(":app")
+include(":parser-core")

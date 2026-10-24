@@ -1,0 +1,9 @@
+AutoFlow incorporates components from the PennyWise AI Tracker project.
+
+Upstream Repository: https://github.com/sarim2000/pennywiseai-tracker
+Upstream Commit: db4692d4f26c20685d00280efbb936aca1cfcb2d
+Upstream License: GNU Affero General Public License v3.0 (GNU AGPL-3.0)
+Copyright (C) sarim2000 and the PennyWise contributors.
+
+The parser-core module is imported under the terms of the GNU AGPL-3.0.
+A copy of the GNU AGPL-3.0 is provided in the LICENSE file in the root directory.

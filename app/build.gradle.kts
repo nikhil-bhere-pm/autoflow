@@ -41,6 +41,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -57,6 +61,9 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Parser Core (AGPL-3.0)
+    implementation(project(":parser-core"))
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
