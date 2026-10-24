@@ -21,11 +21,14 @@ data class GoalEntity(
     @ColumnInfo(name = "name_key")
     val nameKey: String,
 
-    @ColumnInfo(name = "kind")
-    val kind: String,
-
     @ColumnInfo(name = "target_paise")
     val targetPaise: Long,
+
+    @ColumnInfo(name = "deadline_at")
+    val deadlineAt: Long? = null,
+
+    @ColumnInfo(name = "is_deleted", defaultValue = "0")
+    val isDeleted: Int = 0,
 
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
@@ -37,6 +40,5 @@ data class GoalEntity(
         require(name.isNotBlank()) { "Goal name cannot be blank" }
         require(name.trim().length <= 30) { "Goal name cannot exceed 30 characters" }
         require(targetPaise > 0) { "Goal target in paise must be strictly positive: $targetPaise" }
-        require(kind == "SAVE" || kind == "AVOID") { "Goal kind must be SAVE or AVOID: $kind" }
     }
 }

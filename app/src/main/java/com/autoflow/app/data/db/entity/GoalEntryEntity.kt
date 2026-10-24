@@ -17,8 +17,7 @@ import androidx.room.PrimaryKey
         )
     ],
     indices = [
-        Index(value = ["goal_id"]),
-        Index(value = ["linked_transaction_id"])
+        Index(value = ["goal_id"])
     ]
 )
 data class GoalEntryEntity(
@@ -28,20 +27,14 @@ data class GoalEntryEntity(
     @ColumnInfo(name = "goal_id")
     val goalId: Long,
 
-    @ColumnInfo(name = "type")
-    val type: String,
-
     @ColumnInfo(name = "amount_paise")
     val amountPaise: Long,
 
     @ColumnInfo(name = "note")
-    val note: String? = null,
+    val note: String,
 
     @ColumnInfo(name = "occurred_at")
     val occurredAt: Long,
-
-    @ColumnInfo(name = "linked_transaction_id")
-    val linkedTransactionId: Long? = null,
 
     @ColumnInfo(name = "is_deleted", defaultValue = "0")
     val isDeleted: Int = 0,
@@ -54,6 +47,6 @@ data class GoalEntryEntity(
 ) {
     init {
         require(amountPaise > 0) { "Entry amount in paise must be strictly positive: $amountPaise" }
-        require(type == "SET_ASIDE" || type == "AVOIDED" || type == "USED") { "Invalid entry type: $type" }
+        require(note.isNotBlank()) { "Entry note cannot be blank" }
     }
 }

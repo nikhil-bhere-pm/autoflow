@@ -34,9 +34,7 @@ class AutoFlowApplication : Application() {
 
     val goalRepository: GoalRepository by lazy {
         DefaultGoalRepository(
-            goalDao = database.goalDao(),
-            transactionDao = database.transactionDao(),
-            runInTransaction = { block -> database.withTransaction { block() } }
+            goalDao = database.goalDao()
         )
     }
 

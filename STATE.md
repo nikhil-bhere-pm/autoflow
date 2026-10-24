@@ -553,3 +553,73 @@
     2. Bypassed remaining linkable expense cap in `useLinkExpense` -> caught by `useLinkExpense_multipleLinksOnSameExpense_upToExpenseAmount`.
     3. Leaked avoided spending into `savedPaise` in `observeGoals` -> caught by `addAvoided_onSaveGoal_doesNotAffectSavedOrAvailable`.
 
+## 19. Goals Data Layer, "Saved" Motivation Jar Version (Room Version 6) — Task G1c (October 25, 2026)
+
+- **Worktree & Scope:**
+  - Work executed strictly within worktree `..\autoflow-g1c` on branch `goals-simple` branched from `master` (`54c7c0d`).
+  - Data layer, Room database, DAO, repository, and JVM SQLite tests only. No UI, no phone, zero ADB commands.
+  - Spending queries, transaction records, and `parser-core` completely untouched.
+  - Zero raw SMS stored/logged. No AI/ML. No income, budget, balance or email.
+
+- **Motivation Jar Conceptual Model:**
+  - Goals represent a motivation jar rather than real money.
+  - A goal has a name, target, and optional deadline.
+  - Users record entries ("how they saved" + amount). The jar total is strictly `sum(non-deleted entries)`.
+  - Replaces earlier set-aside/avoided/used design; all old concepts, linking to expenses, `kind`, and `type` are completely removed.
+
+- **Room Version 6 Schema (`schemas/6.json`):**
+  - Room version bumped from 5 to 6 (`version = 6`, `exportSchema = true`).
+  - `goals` table:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL)
+    - `name` (TEXT NOT NULL, 1-30 chars trimmed)
+    - `name_key` (TEXT NOT NULL, UNIQUE index `index_goals_name_key`)
+    - `target_paise` (INTEGER NOT NULL, > 0)
+    - `deadline_at` (INTEGER, nullable)
+    - `is_deleted` (INTEGER NOT NULL DEFAULT 0)
+    - `created_at` (INTEGER NOT NULL)
+    - `updated_at` (INTEGER NOT NULL)
+    - (`kind` column removed)
+  - `goal_entries` table:
+    - `id` (INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL)
+    - `goal_id` (INTEGER NOT NULL, FK -> `goals(id)` ON DELETE CASCADE)
+    - `amount_paise` (INTEGER NOT NULL, > 0)
+    - `note` (TEXT NOT NULL, required, never blank)
+    - `occurred_at` (INTEGER NOT NULL)
+    - `is_deleted` (INTEGER NOT NULL DEFAULT 0)
+    - `created_at` (INTEGER NOT NULL)
+    - `updated_at` (INTEGER NOT NULL)
+    - Index: `index_goal_entries_goal_id` on (`goal_id`)
+    - (`type` and `linked_transaction_id` columns and indexes removed)
+
+- **Explicit Database Migration (`MIGRATION_5_6`):**
+  - Rebuilds both tables non-destructively:
+    1. Creates `goals_new`
+    2. Copies goals (`id, name, name_key, target_paise, NULL, 0, created_at, updated_at`)
+    3. Creates `goal_entries_new` referencing `goals_new(id)` with `ON DELETE CASCADE`
+    4. Copies entries where `type IN ('SET_ASIDE', 'AVOIDED')`, converting blank/null notes to `'Saved'`. Drops old `USED` entries.
+    5. Drops old `goal_entries` and `goals`.
+    6. Renames `goals_new` -> `goals` and `goal_entries_new` -> `goal_entries`.
+    7. Recreates indices `index_goals_name_key` and `index_goal_entries_goal_id`.
+  - Foreign key and index definitions match `6.json` schema exactly.
+  - Verified on real SQLite with `RoomMigration5To6Test.kt`.
+
+- **Repository (`GoalRepository` / `DefaultGoalRepository`):**
+  - All operations return typed `GoalResult` (no exceptions for expected failures):
+    - `createGoal(name, targetPaise, deadlineAt?, now)`: validates name 1..30 chars, case/space-collapsed uniqueness (`name_key`), target > 0, deadline not before today.
+    - `updateGoal(id, name, targetPaise, deadlineAt?, now)`: validates name, uniqueness among other goals, target > 0, unchanged old deadline allowed, new/changed past deadline rejected, rejected on deleted goals.
+    - `deleteGoal(id, now)`: soft delete (`is_deleted = 1`), updates `name_key` to unique tombstone (`deleted_${id}_${UUID.randomUUID()}`), name immediately reusable, entries kept.
+    - `undeleteGoal(id, now)`: restores original `name_key`. If taken meanwhile by another active goal, returns typed `GoalError.NameTaken(name)` and changes nothing.
+    - `addSaved(goalId, amountPaise, note, occurredAt, now)`: validates positive amount, non-blank note (<= 100 chars), rejected on deleted goal (`GoalDeleted`).
+    - `editEntry(id, amountPaise, note, occurredAt, now)`: validates amount, non-blank note, returns `EntryNotFound` if missing.
+    - `deleteEntry(id, now)` / `undeleteEntry(id, now)`: soft delete/restore (`is_deleted` 1 / 0).
+    - `observeGoalsWithTotals()`: emits Flow of `GoalWithTotals` where `totalPaise = sum(non-deleted entries)` and `reached = totalPaise >= targetPaise`. Deleted goals never appear.
+    - `observeEntries(goalId)`: emits non-deleted entries, newest first (`occurred_at DESC, id DESC`).
+  - Separation: Goal operations never alter `transactions` spending totals or records.
+
+- **Verification & Mutation Proofs:**
+  - 3 mutation proofs executed against production code:
+    1. Break total calculation in `observeGoalsWithTotals` -> caught RED by `observeGoalsWithTotals_sumsNonDeletedEntries_andCalculatesReached`, restored GREEN.
+    2. Break immediate name reuse in `deleteGoal` -> caught RED by `deleteGoal_softDeletes_andAllowsImmediateNameReuse`, restored GREEN.
+    3. Break migration copy in `MIGRATION_5_6_SQL` (dropping SET_ASIDE) -> caught RED by `testMigration5To6_dataPreservationAndRebuild`, restored GREEN.
+
+

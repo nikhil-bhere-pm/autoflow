@@ -2,90 +2,43 @@ package com.autoflow.app.domain.goals
 
 import java.util.Locale
 
-enum class GoalKind {
-    SAVE,
-    AVOID;
-
-    companion object {
-        @JvmField val SAVINGS = SAVE
-        @JvmField val AVOIDANCE = AVOID
-    }
-}
-
-enum class EntryType {
-    SET_ASIDE,
-    AVOIDED,
-    USED
-}
-
 data class Goal(
     val id: Long,
     val name: String,
-    val nameKey: String = name.trim().lowercase(Locale.ROOT),
-    val kind: GoalKind,
+    val nameKey: String = normalizeGoalNameKey(name),
     val targetPaise: Long,
+    val deadlineAt: Long? = null,
+    val isDeleted: Boolean = false,
     val createdAt: Long,
-    val updatedAt: Long = createdAt,
-    val archivedAt: Long? = null
+    val updatedAt: Long = createdAt
 )
 
 data class GoalEntry(
     val id: Long,
     val goalId: Long,
-    val type: EntryType,
     val amountPaise: Long,
-    val note: String? = null,
+    val note: String,
     val occurredAt: Long,
-    val linkedTransactionId: Long? = null,
     val isDeleted: Boolean = false,
     val createdAt: Long = occurredAt,
-    val updatedAt: Long = occurredAt,
-    val deletedAt: Long? = if (isDeleted) updatedAt else null
+    val updatedAt: Long = occurredAt
 )
 
 data class GoalWithTotals(
-    val id: Long,
-    val name: String,
-    val kind: GoalKind,
-    val targetPaise: Long,
-    val savedPaise: Long,
-    val avoidedPaise: Long,
-    val usedPaise: Long,
-    val availablePaise: Long,
-    val percent: Int
-)
-
-data class LinkedExpenseInfo(
-    val transactionId: Long,
-    val merchantName: String,
-    val dateTime: Long,
-    val amountPaise: Long,
-    val isDeleted: Boolean = false
-)
-
-data class GoalEntryWithDetails(
-    val entry: GoalEntry,
-    val linkedExpense: LinkedExpenseInfo? = null,
-    val isLinkedExpenseRemoved: Boolean = false
-)
-
-data class GoalWithEntries(
     val goal: Goal,
-    val totals: GoalWithTotals,
-    val entries: List<GoalEntryWithDetails>
-)
+    val totalPaise: Long,
+    val reached: Boolean
+) {
+    val id: Long get() = goal.id
+    val name: String get() = goal.name
+    val targetPaise: Long get() = goal.targetPaise
+    val deadlineAt: Long? get() = goal.deadlineAt
+    val isDeleted: Boolean get() = goal.isDeleted
+    val percent: Int get() = if (targetPaise > 0L) {
+        ((totalPaise * 100L) / targetPaise).coerceIn(0L, 100L).toInt()
+    } else 0
+}
 
-data class GoalProgress(
-    val goalId: Long,
-    val setAsidePaise: Long,
-    val avoidedPaise: Long,
-    val percent: Int,
-    val isReached: Boolean,
-    val usedPaise: Long = 0L,
-    val savedPaise: Long = (setAsidePaise - usedPaise).coerceAtLeast(0L)
-)
-
-data class GoalWithProgress(
-    val goal: Goal,
-    val progress: GoalProgress
-)
+fun normalizeGoalNameKey(name: String): String {
+    return name.trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
+}

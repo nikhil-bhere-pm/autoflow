@@ -115,7 +115,6 @@ class SchemaDefinitionTest {
             GoalEntity(
                 name = "",
                 nameKey = "",
-                kind = "SAVE",
                 targetPaise = 100000L
             )
             fail("Expected blank name failure")
@@ -127,7 +126,6 @@ class SchemaDefinitionTest {
             GoalEntity(
                 name = "Car",
                 nameKey = "car",
-                kind = "SAVE",
                 targetPaise = 0L
             )
             fail("Expected target amount failure")
@@ -139,7 +137,6 @@ class SchemaDefinitionTest {
             GoalEntity(
                 name = "a".repeat(31),
                 nameKey = "a".repeat(31),
-                kind = "SAVE",
                 targetPaise = 100000L
             )
             fail("Expected name length failure")
@@ -153,8 +150,8 @@ class SchemaDefinitionTest {
         try {
             GoalEntryEntity(
                 goalId = 1L,
-                type = "SET_ASIDE",
                 amountPaise = 0L,
+                note = "Saved",
                 occurredAt = 1000L
             )
             fail("Expected strictly positive amount failure")
@@ -165,13 +162,13 @@ class SchemaDefinitionTest {
         try {
             GoalEntryEntity(
                 goalId = 1L,
-                type = "INVALID",
                 amountPaise = 1000L,
+                note = "   ",
                 occurredAt = 1000L
             )
-            fail("Expected invalid type failure")
+            fail("Expected blank note failure")
         } catch (e: IllegalArgumentException) {
-            assertTrue(e.message?.contains("Invalid entry type") == true)
+            assertTrue(e.message?.contains("Entry note cannot be blank") == true)
         }
     }
 

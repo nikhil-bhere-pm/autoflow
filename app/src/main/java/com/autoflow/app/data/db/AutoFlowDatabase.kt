@@ -28,7 +28,7 @@ import com.autoflow.app.data.db.entity.TransactionEntity
         MerchantCategoryEntity::class,
         CustomCategoryEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 @TypeConverters(AutoFlowTypeConverters::class)
@@ -160,6 +160,57 @@ abstract class AutoFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6_SQL: List<String> = listOf(
+            """
+            CREATE TABLE IF NOT EXISTS `goals_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `name` TEXT NOT NULL,
+                `name_key` TEXT NOT NULL,
+                `target_paise` INTEGER NOT NULL,
+                `deadline_at` INTEGER,
+                `is_deleted` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO `goals_new` (`id`, `name`, `name_key`, `target_paise`, `deadline_at`, `is_deleted`, `created_at`, `updated_at`)
+            SELECT `id`, `name`, `name_key`, `target_paise`, NULL, 0, `created_at`, `updated_at`
+            FROM `goals`
+            """.trimIndent(),
+            """
+            CREATE TABLE IF NOT EXISTS `goal_entries_new` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `goal_id` INTEGER NOT NULL,
+                `amount_paise` INTEGER NOT NULL,
+                `note` TEXT NOT NULL,
+                `occurred_at` INTEGER NOT NULL,
+                `is_deleted` INTEGER NOT NULL DEFAULT 0,
+                `created_at` INTEGER NOT NULL,
+                `updated_at` INTEGER NOT NULL,
+                FOREIGN KEY(`goal_id`) REFERENCES `goals_new`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO `goal_entries_new` (`id`, `goal_id`, `amount_paise`, `note`, `occurred_at`, `is_deleted`, `created_at`, `updated_at`)
+            SELECT `id`, `goal_id`, `amount_paise`, CASE WHEN `note` IS NULL OR trim(`note`) = '' THEN 'Saved' ELSE trim(`note`) END, `occurred_at`, `is_deleted`, `created_at`, `updated_at`
+            FROM `goal_entries`
+            WHERE `type` IN ('SET_ASIDE', 'AVOIDED')
+            """.trimIndent(),
+            "DROP TABLE `goal_entries`",
+            "DROP TABLE `goals`",
+            "ALTER TABLE `goals_new` RENAME TO `goals`",
+            "ALTER TABLE `goal_entries_new` RENAME TO `goal_entries`",
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_name_key` ON `goals` (`name_key`)",
+            "CREATE INDEX IF NOT EXISTS `index_goal_entries_goal_id` ON `goal_entries` (`goal_id`)"
+        )
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_5_6_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
         fun getDatabase(context: Context): AutoFlowDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -167,7 +218,7 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                     AutoFlowDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance

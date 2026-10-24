@@ -56,45 +56,38 @@ class InvariantConstraintsTest {
     }
 
     @Test
-    fun testGoalIsolation_actualSavingsAndAvoidedSpendingRemainStrictlySeparated() {
+    fun testGoalIsolation_entriesAreMotivationJarAndDoNotBleedIntoTransactions() {
         val entries = listOf(
             GoalEntryEntity(
                 id = 1L,
                 goalId = 1L,
-                type = "SET_ASIDE",
                 amountPaise = 500000L, // ₹5,000
+                note = "Saved on dinner",
                 occurredAt = 1700000000000L,
-                note = "Cash saved"
+                isDeleted = 0
             ),
             GoalEntryEntity(
                 id = 2L,
                 goalId = 1L,
-                type = "AVOIDED",
                 amountPaise = 120000L, // ₹1,200
+                note = "Avoided cab ride",
                 occurredAt = 1700000100000L,
-                note = "Skipped impulse buy"
+                isDeleted = 0
             ),
             GoalEntryEntity(
                 id = 3L,
                 goalId = 1L,
-                type = "SET_ASIDE",
                 amountPaise = 200000L, // ₹2,000
+                note = "Old deleted note",
                 occurredAt = 1700000200000L,
-                note = "Bank deposit"
+                isDeleted = 1
             )
         )
 
-        val actualSavedTotal = entries
-            .filter { it.type == "SET_ASIDE" }
+        val activeTotal = entries
+            .filter { it.isDeleted == 0 }
             .sumOf { it.amountPaise }
 
-        val avoidedSpendingTotal = entries
-            .filter { it.type == "AVOIDED" }
-            .sumOf { it.amountPaise }
-
-        assertEquals(700000L, actualSavedTotal) // ₹7,000
-        assertEquals(120000L, avoidedSpendingTotal) // ₹1,200
-        // Invariant: Avoided spending must NEVER bleed into actual liquid savings
-        assertTrue(actualSavedTotal != (actualSavedTotal + avoidedSpendingTotal))
+        assertEquals(620000L, activeTotal) // ₹6,200
     }
 }
