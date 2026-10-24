@@ -32,7 +32,9 @@ class SmsRegressionCorpusTest {
         val expectedResult: ExpectedResult,
         val expectedType: RecordType? = null,
         val expectedAmountPaise: Long? = null,
-        val expectedMerchant: String? = null // Substring check (case-insensitive)
+        val expectedMerchant: String? = null, // Substring check (case-insensitive)
+        val isKnownFailure: Boolean = false,
+        val failureComment: String? = null
     )
 
     private val baseTimestamp = 1700000000000L
@@ -486,17 +488,77 @@ class SmsRegressionCorpusTest {
             message = "Rs 10,000.00 credited to A/c XX1234 on 24-10-26 by NEFT. Sent by ACME LTD.",
             sender = "VM-HDFCBK",
             expectedResult = ExpectedResult.IGNORE
+        ),
+
+        // ==========================================
+        // Prompt N2: Rows N-1..N-3 (Expected EXPENSE)
+        // Known failures: Dropped by M6 inboundTransferRegex ('paid by' / 'sent by')
+        // As instructed in Prompt N2: "If any FAILS, do NOT fix it; mark it as a known failure with a comment."
+        // ==========================================
+        TestCase(
+            id = "N-1",
+            message = "Rs 450.00 debited from A/c XX1234 on 24-10-26 at ZOMATO. Paid by UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 45000L,
+            expectedMerchant = "ZOMATO",
+            isKnownFailure = true,
+            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Paid by'."
+        ),
+        TestCase(
+            id = "N-2",
+            message = "Rs 320.00 debited from A/c XX1234 on 24-10-26 for UBER ride. Sent by you via UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 32000L,
+            expectedMerchant = "UBER",
+            isKnownFailure = true,
+            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Sent by'."
+        ),
+        TestCase(
+            id = "N-3",
+            message = "Rs 1,200.00 debited from A/c XX1234 on 24-10-26 at AMAZON. Paid by HDFC Bank Debit Card.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 120000L,
+            expectedMerchant = "AMAZON",
+            isKnownFailure = true,
+            failureComment = "KNOWN FAILURE: Dropped as null because M6 inboundTransferRegex matches 'Paid by'."
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 56 test cases", 56, corpus.size)
+        assertEquals("Corpus must have exactly 59 test cases", 59, corpus.size)
+    }
+
+    @Test
+    fun testPromptN2_probeReport_N1_N2_N3() {
+        // Probe and document exact behavior for Prompt N2 Part 1b
+        val cases = listOf(
+            Triple("N-1", "Rs 450.00 debited from A/c XX1234 on 24-10-26 at ZOMATO. Paid by UPI.", 45000L),
+            Triple("N-2", "Rs 320.00 debited from A/c XX1234 on 24-10-26 for UBER ride. Sent by you via UPI.", 32000L),
+            Triple("N-3", "Rs 1,200.00 debited from A/c XX1234 on 24-10-26 at AMAZON. Paid by HDFC Bank Debit Card.", 120000L)
+        )
+        for ((id, msg, _) in cases) {
+            val isNonTx = AutoFlowParserAdapter.isNonTransactionMessage(msg)
+            val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp)
+            // Documenting: isNonTx is false (guard passes), but entity is null because inboundTransferRegex matches "Paid by" / "Sent by"
+            assertFalse("$id is not a non-transaction alert", isNonTx)
+            assertNull("$id is currently dropped by M6 inboundTransferRegex", entity)
+        }
     }
 
     @Test
     fun testAllCorpusEntries() {
         for (case in corpus) {
+            if (case.isKnownFailure) {
+                // Known failure documented in failureComment - do not fail suite
+                continue
+            }
             val isNonTx = AutoFlowParserAdapter.isNonTransactionMessage(case.message)
             val entity = AutoFlowParserAdapter.parseAndAdapt(case.message, case.sender, baseTimestamp)
 

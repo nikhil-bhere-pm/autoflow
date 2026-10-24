@@ -27,7 +27,7 @@ import com.autoflow.app.data.db.entity.TransactionEntity
         MerchantCategoryEntity::class
     ],
     version = 2,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(AutoFlowTypeConverters::class)
 abstract class AutoFlowDatabase : RoomDatabase() {
@@ -44,23 +44,23 @@ abstract class AutoFlowDatabase : RoomDatabase() {
 
         const val DATABASE_NAME = "autoflow.db"
 
+        val MIGRATION_1_2_SQL: List<String> = listOf(
+            """
+            CREATE TABLE IF NOT EXISTS `merchant_categories` (
+                `merchantKey` TEXT NOT NULL,
+                `category` TEXT NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`merchantKey`)
+            )
+            """.trimIndent(),
+            """
+            ALTER TABLE `transactions` ADD COLUMN `categorySource` TEXT NOT NULL DEFAULT 'AUTO'
+            """.trimIndent()
+        )
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS `merchant_categories` (
-                        `merchantKey` TEXT NOT NULL,
-                        `category` TEXT NOT NULL,
-                        `updatedAt` INTEGER NOT NULL,
-                        PRIMARY KEY(`merchantKey`)
-                    )
-                    """.trimIndent()
-                )
-                db.execSQL(
-                    """
-                    ALTER TABLE `transactions` ADD COLUMN `categorySource` TEXT NOT NULL DEFAULT 'AUTO'
-                    """.trimIndent()
-                )
+                MIGRATION_1_2_SQL.forEach { db.execSQL(it) }
             }
         }
 
