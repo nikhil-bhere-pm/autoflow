@@ -371,5 +371,9 @@ class MainViewModelTest {
                 emit()
             }
         }
+
+        override suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity> {
+            return items.filter { it.isDeleted == 0 && it.categorySource == "AUTO" }
+        }
     }
 }

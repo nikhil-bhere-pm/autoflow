@@ -503,6 +503,10 @@ class FakeTransactionDao : TransactionDao {
             items[idx] = items[idx].copy(isDeleted = 1, updatedAt = updatedAt)
         }
     }
+
+    override suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity> {
+        return items.filter { it.isDeleted == 0 && it.categorySource == "AUTO" }
+    }
 }
 
 class FakeRefundMatchDao : RefundMatchDao {

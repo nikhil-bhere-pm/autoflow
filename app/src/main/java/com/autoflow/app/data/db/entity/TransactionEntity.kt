@@ -36,6 +36,9 @@ data class TransactionEntity(
     @ColumnInfo(name = "category")
     val category: String = "Others",
 
+    @ColumnInfo(name = "categorySource", defaultValue = "'AUTO'")
+    val categorySource: String = "AUTO",
+
     @ColumnInfo(name = "account_number")
     val accountNumber: String? = null,
 

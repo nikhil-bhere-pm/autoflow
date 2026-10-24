@@ -16,6 +16,7 @@ data class FinancialTransaction(
     val dateTime: Long,
     val merchantName: String,
     val category: String,
+    val categorySource: String = "AUTO",
     val accountNumber: String?,
     val bankName: String?,
     val reference: String?,

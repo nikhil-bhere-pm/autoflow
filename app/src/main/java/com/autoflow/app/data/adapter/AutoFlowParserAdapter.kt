@@ -344,10 +344,16 @@ object AutoFlowParserAdapter {
             uncertaintyReasons.add(UncertaintyReason.UNMATCHED_REFUND)
         }
 
-        val reviewStatus = if (uncertaintyReasons.isEmpty()) {
-            ReviewStatus.CONFIRMED
-        } else {
-            ReviewStatus.NEEDS_REVIEW
+        // Ingestion category resolution via CategoryEngine
+        val categoryResolution = com.autoflow.app.domain.category.CategoryEngine.resolveCategory(
+            merchantName = cleanedMerchant,
+            smsBodySnippet = smsBodySnippet
+        )
+
+        val reviewStatus = when {
+            categoryResolution.isExcluded -> ReviewStatus.EXCLUDED
+            uncertaintyReasons.isEmpty() -> ReviewStatus.CONFIRMED
+            else -> ReviewStatus.NEEDS_REVIEW
         }
 
         // 5. Compute immutable transaction hash for Tier-1 deduplication
@@ -359,7 +365,8 @@ object AutoFlowParserAdapter {
             recordType = recordType,
             dateTime = if (parsed.timestamp > 0) parsed.timestamp else fallbackTimestamp,
             merchantName = cleanedMerchant,
-            category = "Others",
+            category = categoryResolution.category,
+            categorySource = "AUTO",
             accountNumber = parsed.accountLast4,
             bankName = parsed.bankName.ifBlank { null },
             reference = parsed.reference,
@@ -392,7 +399,7 @@ object AutoFlowParserAdapter {
         return true
     }
 
-    private val JUNK_MERCHANT_NAMES = setOf(
+    val JUNK_MERCHANT_NAMES = setOf(
         "upi",
         "neft",
         "imps",
@@ -433,17 +440,20 @@ object AutoFlowParserAdapter {
         return null
     }
 
-    private fun isJunkOrPlaceholderMerchant(merchant: String?): Boolean {
+    fun isJunkOrPlaceholderMerchant(merchant: String?): Boolean {
         if (merchant.isNullOrBlank()) return true
         val lower = merchant.trim().lowercase()
         if (JUNK_MERCHANT_NAMES.contains(lower)) return true
         if (GENERIC_MERCHANT_PLACEHOLDERS.contains(lower)) return true
-        if (isJunkMerchant(merchant)) return true
+        if (isJunkMerchantPattern(lower)) return true
         return false
     }
 
-    private fun isJunkMerchant(merchant: String): Boolean {
-        val lower = merchant.trim().lowercase()
+    fun isJunkMerchant(merchant: String?): Boolean {
+        return isJunkOrPlaceholderMerchant(merchant)
+    }
+
+    private fun isJunkMerchantPattern(lower: String): Boolean {
         if (xxDigitsRegex.containsMatchIn(lower)) return true
         if (junkMerchantPrefixes.any { lower.startsWith(it) }) return true
         if (lower.contains(" for ") || lower.contains(" from ")) return true

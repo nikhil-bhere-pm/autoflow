@@ -6,4 +6,5 @@ Upstream License: GNU Affero General Public License v3.0 (GNU AGPL-3.0)
 Copyright (C) sarim2000 and the PennyWise contributors.
 
 The parser-core module is imported under the terms of the GNU AGPL-3.0.
+The KeywordCategoryMapper component (domain/category/KeywordCategoryMapper.kt) is derived from PennyWise's SharedCategoryMapping.kt (shared/src/commonMain/kotlin/com/pennywiseai/shared/domain/mapping/SharedCategoryMapping.kt) under the terms of the GNU AGPL-3.0.
 A copy of the GNU AGPL-3.0 is provided in the LICENSE file in the root directory.

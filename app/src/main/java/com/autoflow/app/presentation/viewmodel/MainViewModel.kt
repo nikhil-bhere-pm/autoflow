@@ -49,21 +49,7 @@ class MainViewModel(
         onComplete: () -> Unit = {}
     ) {
         viewModelScope.launch {
-            val existing = transactionRepository.getEntityById(id) ?: return@launch
-            val trimmedMerchant = newMerchantName.trim()
-            val finalMerchant = if (trimmedMerchant.isBlank()) {
-                if (existing.merchantName == "Unknown Merchant") "Unknown Merchant" else existing.merchantName
-            } else {
-                trimmedMerchant
-            }
-            val updated = existing.copy(
-                merchantName = finalMerchant,
-                category = newCategory.trim().ifBlank { existing.category },
-                reviewStatus = ReviewStatus.CONFIRMED,
-                uncertaintyBits = 0,
-                updatedAt = System.currentTimeMillis()
-            )
-            transactionRepository.updateTransaction(updated)
+            transactionRepository.updateTransactionCorrection(id, newMerchantName, newCategory)
             onComplete()
         }
     }
@@ -125,6 +111,7 @@ class MainViewModel(
                 dateTime = dateTime,
                 merchantName = merchantName.trim().ifBlank { "Cash Expense" },
                 category = category.trim().ifBlank { "Others" },
+                categorySource = "USER",
                 transactionHash = hash,
                 source = TransactionSource.MANUAL_CASH,
                 reviewStatus = ReviewStatus.CONFIRMED,

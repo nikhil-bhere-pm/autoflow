@@ -24,16 +24,19 @@ import com.autoflow.app.data.model.UncertaintyReason
 class DefaultIngestionPipeline(
     private val transactionDao: TransactionDao,
     private val refundMatchDao: RefundMatchDao,
+    private val merchantCategoryDao: com.autoflow.app.data.db.dao.MerchantCategoryDao? = null,
     private val runInTransaction: suspend (suspend () -> IngestionResult) -> IngestionResult = { block -> block() }
 ) : IngestionPipeline {
 
     constructor(
         database: AutoFlowDatabase,
         transactionDao: TransactionDao = database.transactionDao(),
-        refundMatchDao: RefundMatchDao = database.refundMatchDao()
+        refundMatchDao: RefundMatchDao = database.refundMatchDao(),
+        merchantCategoryDao: com.autoflow.app.data.db.dao.MerchantCategoryDao = database.merchantCategoryDao()
     ) : this(
         transactionDao = transactionDao,
         refundMatchDao = refundMatchDao,
+        merchantCategoryDao = merchantCategoryDao,
         runInTransaction = { block -> database.withTransaction { block() } }
     )
 
@@ -84,9 +87,19 @@ class DefaultIngestionPipeline(
         // Invariant: Never deduplicate solely on (merchant, amount, approximate time)
         // If hash is distinct and reference is null or different, it proceeds to insertion.
 
+        var txToInsert = transaction
+        if (txToInsert.categorySource == "AUTO" && merchantCategoryDao != null) {
+            val userRule = merchantCategoryDao.getCategory(
+                com.autoflow.app.domain.category.CategoryEngine.normalizeKey(txToInsert.merchantName)
+            )
+            if (!userRule.isNullOrBlank()) {
+                txToInsert = txToInsert.copy(category = userRule)
+            }
+        }
+
         return runInTransaction {
-            val insertedId = transactionDao.insert(transaction)
-            val persistedTx = transaction.copy(id = insertedId)
+            val insertedId = transactionDao.insert(txToInsert)
+            val persistedTx = txToInsert.copy(id = insertedId)
 
             if (persistedTx.recordType == RecordType.REFUND) {
                 matchRefundInternal(persistedTx)
