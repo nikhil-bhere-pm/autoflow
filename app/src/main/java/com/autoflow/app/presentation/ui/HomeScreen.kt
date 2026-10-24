@@ -101,7 +101,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onNavigateToReview: () -> Unit = {},
     onNavigateToCategories: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToGoals: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -141,8 +142,6 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            // App Frame Bottom Bar: Home tab on left, round + button in center (opens Add Cash),
-            // Review and Categories tabs on right with synchronized badge count.
             AFBottomNav(
                 items = listOf(
                     AFBottomNavItem(
@@ -151,6 +150,16 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.Home,
                                 contentDescription = "Home",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
+                    ),
+                    AFBottomNavItem(
+                        title = "Goals",
+                        icon = { selected ->
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_nav_goals),
+                                contentDescription = "Goals",
                                 tint = if (selected) colors.brand else colors.muted
                             )
                         }
@@ -180,8 +189,10 @@ fun HomeScreen(
                 selectedIndex = 0,
                 onSelect = { idx ->
                     when (idx) {
-                        1 -> onNavigateToReview()
-                        2 -> onNavigateToCategories()
+                        0 -> { /* Already on Home */ }
+                        1 -> onNavigateToGoals()
+                        2 -> onNavigateToReview()
+                        3 -> onNavigateToCategories()
                     }
                 },
                 centerButton = {

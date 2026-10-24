@@ -27,6 +27,11 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("qa") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".qa"
+            matchingFallbacks += listOf("debug")
+        }
     }
 
     compileOptions {

@@ -2,4 +2,75 @@
     <string name="app_name">AutoFlow</string>
     <string name="placeholder_title">AutoFlow Foundation</string>
     <string name="placeholder_subtitle">Phase 1: Local-first database schema and architecture established.</string>
+
+    <!-- Goals Common -->
+    <string name="goals_nav_title">Goals</string>
+    <string name="goals_title">Goals</string>
+    <string name="goals_add_goal">Add goal</string>
+    <string name="goals_empty_title">No goals yet</string>
+    <string name="goals_empty_description">Pick something you want. Every time you skip a spend, tap Saved and note how. Watch the jar fill up, so when you reach it you can enjoy it guilt-free.</string>
+    <string name="goals_create_first">Create your first goal</string>
+
+    <!-- Goals Card & Deadlines -->
+    <string name="goals_no_deadline">No deadline</string>
+    <string name="goals_due_today">Due today</string>
+    <string name="goals_deadline_passed">Deadline passed</string>
+    <string name="goals_reached">Reached</string>
+    <string name="goals_deadline_days_left">By %1$s · %2$d days left</string>
+    <string name="goals_deadline_one_day_left">By %1$s · 1 day left</string>
+    <string name="goals_card_target_pct">of %1$s · %2$d%%</string>
+
+    <!-- Goal Detail -->
+    <string name="goal_detail_saved_so_far">Saved so far</string>
+    <string name="goal_detail_reached_banner">You reached your target</string>
+    <string name="goal_detail_saved_button">Saved</string>
+    <string name="goal_detail_history_title">History</string>
+    <string name="goal_detail_history_empty">No savings logged yet</string>
+    <string name="goal_detail_edit_goal">Edit goal</string>
+    <string name="goal_detail_delete_goal">Delete goal</string>
+
+    <!-- Saved Screen -->
+    <string name="saved_screen_title">Saved</string>
+    <string name="saved_screen_note_label">How did you save? (required)</string>
+    <string name="saved_screen_note_placeholder">e.g. Avoided ordering food</string>
+    <string name="saved_screen_save_button">Save</string>
+    <string name="saved_screen_helper_hint">Counts towards the goal. It is not real money moved.</string>
+    <string name="saved_badge">Saved</string>
+
+    <!-- New Goal -->
+    <string name="new_goal_title">New goal</string>
+    <string name="new_goal_name_label">Goal name</string>
+    <string name="new_goal_name_placeholder">e.g. Goa trip</string>
+    <string name="new_goal_target_label">Target amount</string>
+    <string name="new_goal_deadline_label">Deadline</string>
+    <string name="new_goal_remove_deadline">Remove</string>
+    <string name="new_goal_create_button">Create goal</string>
+
+    <!-- Edit Goal -->
+    <string name="edit_goal_title">Edit goal</string>
+    <string name="edit_goal_target_note">Changing the target never changes what you have saved so far.</string>
+    <string name="goal_save_changes_button">Save changes</string>
+    <string name="goal_delete_button">Delete goal</string>
+
+    <!-- Edit Entry -->
+    <string name="edit_entry_title">Edit entry</string>
+    <string name="edit_entry_datetime_label">Date &amp; time</string>
+    <string name="entry_delete_button">Delete entry</string>
+
+    <!-- Errors & Validation -->
+    <string name="goal_error_blank_name">Name can\'t be blank</string>
+    <string name="goal_error_name_too_long">Name is too long (max 30 characters)</string>
+    <string name="goal_error_name_taken">Name is already used by another goal</string>
+    <string name="goal_error_bad_amount">Amount must be greater than zero</string>
+    <string name="goal_error_over_limit">Amount exceeds maximum allowed limit</string>
+    <string name="goal_error_blank_note">Note can\'t be blank</string>
+    <string name="goal_error_note_too_long">Note is too long (max 100 characters)</string>
+    <string name="goal_error_past_deadline">Deadline must be today or in the future</string>
+
+    <!-- Snackbars & Undo -->
+    <string name="goal_deleted_message">%1$s deleted</string>
+    <string name="goal_undo_action">Undo</string>
+    <string name="goal_undo_name_taken">Can\'t undo: that name is now used by another goal</string>
+    <string name="entry_deleted_message">Entry deleted</string>
+    <string name="entry_undo_failed">Can\'t undo entry deletion</string>
 </resources>

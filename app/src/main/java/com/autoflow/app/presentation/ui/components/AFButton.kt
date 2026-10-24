@@ -27,7 +27,9 @@ import com.autoflow.app.presentation.theme.AutoFlowTheme
 enum class AFButtonVariant {
     PRIMARY,
     SECONDARY,
-    DESTRUCTIVE
+    DESTRUCTIVE,
+    TINTED,
+    OUTLINE
 }
 
 @Composable
@@ -56,6 +58,16 @@ fun AFButton(
             colors.chip,
             colors.red,
             BorderStroke(1.dp, colors.red)
+        )
+        AFButtonVariant.TINTED -> Triple(
+            colors.tint,
+            colors.onTint,
+            null
+        )
+        AFButtonVariant.OUTLINE -> Triple(
+            colors.sheet,
+            colors.ink,
+            BorderStroke(1.dp, colors.line)
         )
     }
 

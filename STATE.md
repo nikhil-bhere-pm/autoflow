@@ -622,4 +622,66 @@
     2. Break immediate name reuse in `deleteGoal` -> caught RED by `deleteGoal_softDeletes_andAllowsImmediateNameReuse`, restored GREEN.
     3. Break migration copy in `MIGRATION_5_6_SQL` (dropping SET_ASIDE) -> caught RED by `testMigration5To6_dataPreservationAndRebuild`, restored GREEN.
 
+## 20. Goals Screens, "Saved" Motivation Jar UI — Task G2b (October 25, 2026)
+
+- **Worktree & Scope:**
+  - Branch `goals-ui2` in worktree `..\autoflow-g2b` based on `goals-simple` commit `5a561be`.
+  - UI, ViewModel, navigation, state formatting, and unit tests only.
+  - Zero changes to data, domain, Room database schema (v6 intact), or `parser-core`.
+  - Strict isolation: `AddCashExpenseScreen.kt` and `EditTransactionScreen.kt` do not touch or mention goals (proven via `git grep -i "goal"` with 0 matches).
+  - Integer paise everywhere, Indian number formatting via `CurrencyFormatter`, centralized design tokens (`Theme.kt`), zero hardcoded colors.
+
+- **Screens Implemented & Verified:**
+  1. **Goals Tab (`GoalsTabScreen.kt`):**
+     - Bottom navigation updated to 5 slots: Home, Goals, [+], Review, Categories (+ in center). Safe insets honored.
+     - Top bar "Goals" with tinted pill button "Add goal".
+     - Empty state when no active goals: tinted jar/wallet icon in rounded square, friendly headline, explanation, and "Add a goal" button.
+     - Goals list: sorted by creation order, displaying goal name, deadline indicator (No deadline, D days left, Deadline passed in red, or Reached in green), target progress bar, and amounts (`₹X.XX of ₹Y,YYY · Z%`).
+     - Reached badge and full progress bar when total >= target.
+     - Tap card navigates to Goal Detail screen.
+     - Snackbar with "Undo" action on goal deletion.
+  2. **New Goal Screen (`NewGoalScreen.kt`):**
+     - Top bar with cancel (X) and screen title "New goal".
+     - Name field (1..30 chars, required) with inline validation for uniqueness.
+     - Target amount display (`₹0` initial) with custom 48dp on-screen number pad (`AFNumberPad.kt`).
+     - Optional deadline selector opening Android date picker. Same day or past date selection shows error.
+     - Explanatory copy: "A goal is a jar for motivation. It does not move real money."
+     - Save button disabled until name and target > 0 are entered.
+  3. **Goal Detail Screen (`GoalDetailScreen.kt`):**
+     - Top bar with back arrow, goal name, and 3-dot overflow menu (Edit goal, Delete goal).
+     - Hero card: "Saved so far", formatted amount, target, percent, and deadline/reached status.
+     - Progress bar (green fill; when reached, shows green banner "✓ You reached your target").
+     - Prominent green primary button "Saved" to log a savings entry.
+     - History section: list of savings entries with green "Saved" badge, note, formatted date/time, and `+₹X.XX` amount in green.
+     - Tapping any history entry navigates to Edit Entry screen.
+  4. **Saved Entry Screen (`AddSavedScreen.kt`):**
+     - Top bar with cancel (X) and screen title "Saved".
+     - Large amount display with custom number pad.
+     - Required note field ("How did you save? (required)", e.g. "Avoided ordering food").
+     - Disabled Save button until positive amount and non-blank note are provided.
+     - Helper text: "Counts towards the goal. It is not real money moved."
+  5. **Edit Goal Screen (`EditGoalScreen.kt`):**
+     - Pre-populated goal name, target amount with number pad, and deadline selector.
+     - Explanatory note: "Changing the target never changes what you have saved so far."
+     - Destructive "Delete goal" button in red.
+     - Save changes updates goal in repository.
+  6. **Edit Entry Screen (`EditEntryScreen.kt`):**
+     - Pre-populated amount, number pad, note text field, and non-editable date/time.
+     - "Save changes" updates entry.
+     - Destructive "Delete entry" button with immediate navigation back and undo snackbar.
+
+- **Theme & Architecture:**
+  - Both Light and Dark modes fully supported and verified via phone screenshots.
+  - Zero hardcoded colors outside `Theme.kt`.
+  - Reusable components: `AFNumberPad` (accessible 48dp touch targets), `AFProgressBar` (custom canvas-based progress indicator), `AFButton` (added `TINTED` and `OUTLINE` variants).
+  - QA configuration: Installed strictly as `com.autoflow.app.qa` (applicationIdSuffix `.qa`, "AutoFlow QA"). Real production package `com.autoflow.app` remained completely untouched. No phone permissions changed.
+
+- **Testing & Verification:**
+  - Full test suite: 2,458 tests passing (1,962 parser-core, 248 app debug, 248 app release).
+  - 3 mutation proofs executed against UI state decisions and caught by automated unit tests:
+    1. Broken deadline calculation in `GoalDeadlineFormatter`: caught by `GoalDeadlineFormatterTest.testPastDeadlineShowsPassed`.
+    2. Broken reached status calculation in `GoalsUiState`: caught by `GoalsUiStateTest.testGoalCardCalculatesProgressAndReached`.
+    3. Premature Save button enablement in `AddSavedUiState`: caught by `GoalsUiStateTest.testAddSavedUiStateValidation`.
+
+
 

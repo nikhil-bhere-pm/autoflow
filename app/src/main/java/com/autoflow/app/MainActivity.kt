@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
                 return MainViewModel(
                     transactionRepository = app.transactionRepository,
                     categoryRepository = app.categoryRepository,
+                    goalRepository = app.goalRepository,
                     themePreferences = SharedPreferencesThemePreferences.fromContext(app),
                     firstRunPreferences = SharedPreferencesFirstRunPreferences.fromContext(app)
                 ) as T

@@ -22,6 +22,26 @@ object CurrencyFormatter {
     }
 
     /**
+     * Formats integer paise into Indian currency representation: ₹1,23,456 or ₹1,23,456.50
+     * Omits .00 when paise remainder is zero.
+     */
+    fun formatPaiseWithoutDecimalsIfZero(amountPaise: Long): String {
+        val isNegative = amountPaise < 0
+        val absPaise = if (isNegative) -amountPaise else amountPaise
+        val rupees = absPaise / 100
+        val paiseRemainder = absPaise % 100
+
+        val prefix = if (isNegative) "-₹" else "₹"
+        val rupeesString = formatIndianRupees(rupees)
+        return if (paiseRemainder == 0L) {
+            "$prefix$rupeesString"
+        } else {
+            val paiseString = String.format(Locale.US, "%02d", paiseRemainder)
+            "$prefix$rupeesString.$paiseString"
+        }
+    }
+
+    /**
      * Parses a user-entered rupee string (e.g. "130", "130.5", "130.50", " 1,200 ")
      * directly into integer paise without floating point inaccuracy.
      * Returns null if input is invalid or non-positive.

@@ -22,11 +22,18 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
+import com.autoflow.app.data.repository.GoalRepository
+import com.autoflow.app.domain.goals.Goal
+import com.autoflow.app.domain.goals.GoalEntry
+import com.autoflow.app.domain.goals.GoalError
+import com.autoflow.app.domain.goals.GoalResult
+import com.autoflow.app.domain.goals.GoalWithTotals
 import java.util.UUID
 
 class MainViewModel(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: com.autoflow.app.data.repository.CategoryRepository? = null,
+    private val goalRepository: GoalRepository? = null,
     private val themePreferences: com.autoflow.app.presentation.theme.ThemePreferences = InMemoryThemePreferences(),
     private val firstRunPreferences: com.autoflow.app.presentation.preferences.FirstRunPreferences = com.autoflow.app.presentation.preferences.InMemoryFirstRunPreferences(initialCompleted = true),
     private val timeProvider: () -> Instant = { Instant.now() },
@@ -349,5 +356,91 @@ class MainViewModel(
 
     fun onLater(id: Long) {
         // Leaves it pending and moves on. Do not delete it.
+    }
+
+    val goalsWithTotals: StateFlow<List<GoalWithTotals>> =
+        goalRepository?.observeGoalsWithTotals()
+            ?.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            ) ?: MutableStateFlow(emptyList())
+
+    val goalsUiState: StateFlow<GoalsUiState> =
+        goalsWithTotals.map { list ->
+            GoalsUiState(goals = list, isLoading = false)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = GoalsUiState()
+        )
+
+    fun observeEntries(goalId: Long): kotlinx.coroutines.flow.Flow<List<GoalEntry>> {
+        return goalRepository?.observeEntries(goalId) ?: kotlinx.coroutines.flow.flowOf(emptyList())
+    }
+
+    suspend fun getGoalById(id: Long): Goal? {
+        return goalRepository?.getGoalById(id)
+    }
+
+    suspend fun createGoal(
+        name: String,
+        targetPaise: Long,
+        deadlineAt: Long?
+    ): GoalResult<Goal> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.BlankName)
+        return repo.createGoal(name = name, targetPaise = targetPaise, deadlineAt = deadlineAt)
+    }
+
+    suspend fun updateGoal(
+        id: Long,
+        name: String,
+        targetPaise: Long,
+        deadlineAt: Long?
+    ): GoalResult<Goal> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.GoalNotFound(id))
+        return repo.updateGoal(id = id, name = name, targetPaise = targetPaise, deadlineAt = deadlineAt)
+    }
+
+    suspend fun deleteGoal(id: Long): GoalResult<Unit> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.GoalNotFound(id))
+        return repo.deleteGoal(id)
+    }
+
+    suspend fun undeleteGoal(id: Long): GoalResult<Unit> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.GoalNotFound(id))
+        return repo.undeleteGoal(id)
+    }
+
+    suspend fun addSaved(
+        goalId: Long,
+        amountPaise: Long,
+        note: String
+    ): GoalResult<GoalEntry> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.GoalNotFound(goalId))
+        return repo.addSaved(goalId = goalId, amountPaise = amountPaise, note = note)
+    }
+
+    suspend fun editEntry(
+        id: Long,
+        amountPaise: Long,
+        note: String
+    ): GoalResult<GoalEntry> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.EntryNotFound(id))
+        return repo.editEntry(id = id, amountPaise = amountPaise, note = note)
+    }
+
+    suspend fun deleteEntry(id: Long): GoalResult<Unit> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.EntryNotFound(id))
+        return repo.deleteEntry(id)
+    }
+
+    suspend fun undeleteEntry(id: Long): GoalResult<Unit> {
+        val repo = goalRepository ?: return GoalResult.Error(GoalError.EntryNotFound(id))
+        return repo.undeleteEntry(id)
+    }
+
+    suspend fun getEntryById(id: Long): GoalEntry? {
+        return goalRepository?.getEntryById(id)
     }
 }

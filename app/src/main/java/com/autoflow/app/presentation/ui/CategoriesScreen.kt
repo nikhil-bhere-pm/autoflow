@@ -80,7 +80,8 @@ fun CategoriesScreen(
     onNavigateToReview: () -> Unit,
     onNavigateToAddCash: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToGoals: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
 
@@ -123,6 +124,16 @@ fun CategoriesScreen(
                         }
                     ),
                     AFBottomNavItem(
+                        title = "Goals",
+                        icon = { selected ->
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_nav_goals),
+                                contentDescription = "Goals",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
+                    ),
+                    AFBottomNavItem(
                         title = "Review",
                         badgeCount = unreviewedCount,
                         icon = { selected ->
@@ -144,11 +155,13 @@ fun CategoriesScreen(
                         }
                     )
                 ),
-                selectedIndex = 2,
+                selectedIndex = 3,
                 onSelect = { idx ->
                     when (idx) {
                         0 -> onNavigateToHome()
-                        1 -> onNavigateToReview()
+                        1 -> onNavigateToGoals()
+                        2 -> onNavigateToReview()
+                        3 -> { /* Already on Categories */ }
                     }
                 },
                 centerButton = {

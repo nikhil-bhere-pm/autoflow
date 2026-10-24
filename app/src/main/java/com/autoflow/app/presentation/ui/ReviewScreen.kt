@@ -109,7 +109,8 @@ fun ReviewScreen(
     onConfirmCategory: (Long, String) -> Unit,
     onLater: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToCategories: () -> Unit = {}
+    onNavigateToCategories: () -> Unit = {},
+    onNavigateToGoals: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val count = transactions.size
@@ -151,6 +152,16 @@ fun ReviewScreen(
                         }
                     ),
                     AFBottomNavItem(
+                        title = "Goals",
+                        icon = { selected ->
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_nav_goals),
+                                contentDescription = "Goals",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
+                    ),
+                    AFBottomNavItem(
                         title = "Review",
                         badgeCount = count,
                         icon = { selected ->
@@ -172,11 +183,13 @@ fun ReviewScreen(
                         }
                     )
                 ),
-                selectedIndex = 1,
+                selectedIndex = 2,
                 onSelect = { idx ->
                     when (idx) {
                         0 -> onNavigateToHome()
-                        2 -> onNavigateToCategories()
+                        1 -> onNavigateToGoals()
+                        2 -> { /* Already on Review */ }
+                        3 -> onNavigateToCategories()
                     }
                 },
                 centerButton = {
