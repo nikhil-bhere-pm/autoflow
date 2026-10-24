@@ -265,7 +265,6 @@ fun HomeScreen(
                                         HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)
                                         HomeBadgeType.NOT_COUNTED -> AFBadge(text = "Not counted", variant = AFBadgeVariant.MUTED)
                                         HomeBadgeType.REFUND -> AFBadge(text = "Refund", variant = AFBadgeVariant.REFUND)
-                                        HomeBadgeType.CASH -> AFBadge(text = "Cash", variant = AFBadgeVariant.OUTLINE)
                                     }
                                 }
                             } else null,

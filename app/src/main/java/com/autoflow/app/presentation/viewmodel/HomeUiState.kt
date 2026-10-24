@@ -26,8 +26,7 @@ sealed class PeriodFilter {
 enum class HomeBadgeType {
     CHECK,
     NOT_COUNTED,
-    REFUND,
-    CASH
+    REFUND
 }
 
 fun FinancialTransaction.getHomeBadgeType(): HomeBadgeType? {
@@ -35,7 +34,6 @@ fun FinancialTransaction.getHomeBadgeType(): HomeBadgeType? {
         recordType == RecordType.REFUND -> HomeBadgeType.REFUND
         reviewStatus == ReviewStatus.EXCLUDED -> HomeBadgeType.NOT_COUNTED
         reviewStatus == ReviewStatus.NEEDS_REVIEW -> HomeBadgeType.CHECK
-        source == TransactionSource.MANUAL_CASH || paymentMode.equals("CASH", ignoreCase = true) -> HomeBadgeType.CASH
         else -> null
     }
 }

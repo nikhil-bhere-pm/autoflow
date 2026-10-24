@@ -228,14 +228,18 @@ class HomeScreenTest {
         val reviewTx = base.copy(reviewStatus = ReviewStatus.NEEDS_REVIEW)
         assertEquals(HomeBadgeType.CHECK, reviewTx.getHomeBadgeType())
 
-        // 4. MANUAL_CASH / CASH (Cash)
-        val cashTx1 = base.copy(source = TransactionSource.MANUAL_CASH)
-        assertEquals(HomeBadgeType.CASH, cashTx1.getHomeBadgeType())
+        // 4. Manual Cash entry -> null (no mode badge)
+        val cashTx1 = base.copy(source = TransactionSource.MANUAL_CASH, paymentMode = "CASH")
+        assertNull(cashTx1.getHomeBadgeType())
 
-        val cashTx2 = base.copy(paymentMode = "CASH")
-        assertEquals(HomeBadgeType.CASH, cashTx2.getHomeBadgeType())
+        val cashTx2 = base.copy(source = TransactionSource.SMS_AUTO, paymentMode = "CASH")
+        assertNull(cashTx2.getHomeBadgeType())
 
-        // 5. Standard Confirmed Bank/UPI Expense -> null (no badge)
+        // 5. Manual UPI entry -> null (no mode badge)
+        val manualUpiTx = base.copy(source = TransactionSource.MANUAL_CASH, paymentMode = "UPI")
+        assertNull(manualUpiTx.getHomeBadgeType())
+
+        // 6. Standard Confirmed Bank/UPI Expense -> null (no badge)
         val normalTx = base.copy(
             recordType = RecordType.EXPENSE,
             reviewStatus = ReviewStatus.CONFIRMED,
