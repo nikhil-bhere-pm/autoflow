@@ -129,5 +129,25 @@
     - `payment_mode`: 3 `CASH`, 2 `UNKNOWN`.
     - `source` x `payment_mode`: 3 `MANUAL_CASH` -> `CASH`, 2 `SMS_AUTO` -> `UNKNOWN`. Total 5 rows intact.
 
+## 9. updateTransaction Atomicity Proof & Production SQL Auditing (Prompt P3)
+
+- **Production Atomicity Proof on Real SQLite (`TransactionRepositoryRealSqliteAtomicityTest.kt`):**
+  - Host-JVM unit tests cannot run Android Room's SQLite framework driver without Android OS.
+  - `TransactionRepository` accepts an injectable transaction runner: in production on Android, `AutoFlowDatabase.runInTransaction` is supplied.
+  - In `TransactionRepositoryRealSqliteAtomicityTest.kt`, the repository executes against real SQLite (`sqlite-jdbc`, schema migrated from v2 to v3) using a real JDBC transaction runner:
+    `conn.autoCommit = false; try { block(); conn.commit() } catch (e) { conn.rollback(); throw e } finally { conn.autoCommit = true }`.
+  - When write 2 (`merchantCategoryDao.upsert`) fails with a SQLite constraint/disk exception, real SQLite `conn.rollback()` executes.
+  - Assertions on raw SQLite state prove write 1 is completely rolled back: `category` ("Food"), `categorySource` ("AUTO"), `payment_mode` ("UPI"), `note` (`null`), and `date_time` (original timestamp) remain 100% unchanged.
+  - **Production Mutation Proof:** Moving `transactionDao.update(updated)` outside `runInTransaction` in `TransactionRepository.kt` caused `updateTransaction_whenSecondWriteFails_firstWriteIsRolledBackInRealSqlite` to fail with `org.junit.ComparisonFailure: expected:<[Food]> but was:<[Coffee]>`. Reverted cleanly with `git diff` showing zero changes.
+- **DAO UPDATE Statement Auditing:**
+  - `updateTransaction` in production does not execute hand-written partial SQL; it calls `@Update suspend fun update(transaction: TransactionEntity)`.
+  - Room compiles this to: `UPDATE OR ABORT transactions SET id = ?, amount_paise = ?, record_type = ?, date_time = ?, merchant_name = ?, category = ?, categorySource = ?, payment_mode = ?, note = ?, account_number = ?, bank_name = ?, reference = ?, transaction_hash = ?, source = ?, review_status = ?, uncertainty_bits = ?, created_at = ?, updated_at = ?, is_deleted = ? WHERE id = ?`.
+  - Exposed as production constant `TransactionDao.SQL_UPDATE`.
+  - `RoomMigration2To3Test.kt` updated to reference `TransactionDao.SQL_UPDATE` directly rather than handwritten partial SQL strings.
+- **SpendingStats.kt Reconciliation:**
+  - Audited git diff hunk in commit `050a25d`: Myers diff relocated `dayTotal` and `dailyTotals` from bottom of file when `fiveMonthSpendingSeries` was inserted. All S1 tests pass untouched.
+  - Audited `monthlySeries` (S1 centered window `[-2..+2]` without refund deduction) vs `fiveMonthSpendingSeries` (P trailing 5-month window `[-4..0]` with net spend floored at 0). S1 tests and callers preserved without deletion pending UI integration.
+
+
 
 
