@@ -270,4 +270,51 @@
   - Visual inspection via `view_file` confirmed clean separation from the status bar, bottom bar and round `+` button elevated cleanly above the gesture navigation bar, and high-fidelity smooth Catmull-Rom spline curves.
   - 30-second error logcat confirmed zero application crashes, zero Room crashes, and zero SMS leaks.
 
+## 13. Add Expense and Edit Transaction Screens Rebuild (Prompt UI-2)
 
+- **Screen Architecture & AF Component Migration (`AddCashExpenseScreen.kt`, `EditTransactionScreen.kt`):**
+  - Rebuilt both screens using Theme.kt tokens and reusable AF building blocks: `AFTopBar`, `AFField`, `AFCategoryChip`, `AFSegmented`, and `AFButton`.
+  - Configured as pushed sub-screens: dedicated back navigation icon, bottom navigation bar omitted, scrollable content (`rememberScrollState`), and `Modifier.imePadding()` ensuring soft keyboards never conceal action buttons.
+  - Adheres to edge-to-edge system bar safe insets, guaranteeing seamless rendering across both gesture navigation and 3-button navigation layouts.
+- **Add Expense Screen Specification:**
+  - Amount input: numeric keypad with ₹ prefix, supporting whole rupees or up to 2 decimal places (values up to ₹10,00,00,000 / 10 crore).
+  - Validation: Save button disabled with helper text `"Save turns on once the amount is valid"` whenever amount is empty, zero, or malformed.
+  - Merchant / note field: optional entry, defaulting to `"Cash Expense"` if left blank.
+  - Category selector: horizontal wrapping chip flow dynamically loaded from `CategoryRepository` registry, defaulting to `"Food"`.
+  - Payment mode selector: `AFSegmented` control offering `Cash` (default), `Credit`, `Bank`, and `UPI`.
+  - Date & time picker: displays `"Now · <Day, d Mmm>"` by default. Tapping launches sequential Android `DatePickerDialog` (with maxDate set to current timestamp) and `TimePickerDialog`. Future timestamps strictly rejected with error `"Future date and time not allowed"`.
+  - Successfully creates manual transactions and routes back to Home.
+- **Edit Transaction Screen Specification:**
+  - Top bar: back navigation arrow and trash can icon launching a delete confirmation dialog (`"Delete this transaction?"`, `Cancel`/`Delete`).
+  - Origin header card:
+    - **SMS transaction:** Large fixed amount display with `"From bank SMS"` badge, lock icon, and note `"Amount is fixed"`.
+    - **Cash entry:** Large amount display with `"Cash entry"` badge and an editable amount input field.
+  - Merchant field: editable text field. Editing category updates merchant category association for future SMS transactions.
+  - Date & time row: editable via sequential date and time pickers; future timestamps rejected with error.
+  - Category chips: dynamic list populated from category registry with current transaction category pre-selected.
+  - Payment mode: `AFSegmented` with `Cash`, `Credit`, `Bank`, and `UPI`. Historical transactions with `UNKNOWN` mode display with no option selected and remain `UNKNOWN` unless explicitly tapped.
+  - Note field: optional user note field capped at 200 characters with live counter (`0/200`); raw bank SMS message text is never exposed.
+  - Action buttons:
+    - `"Save changes"`: primary button, enabled only when the form has valid edits and is dirty.
+    - `"Not an expense"` / `"Restore"`: secondary outlined button toggling transaction exclusion (`isExcludedFromBudget`) without deleting the record.
+  - Unsaved changes safeguard: pressing back when the form has uncommitted modifications opens a discard confirmation dialog (`"Discard changes?"`, `Keep editing`/`Discard`).
+- **Form Validation & Pure JVM Domain Logic (`FormLogic.kt`, `FormLogicTest.kt`):**
+  - Encapsulated presentation state and validation inside `FormLogic.kt`:
+    - `ExpenseFormLogic`: amount parsing, decimal validation, scale validation, and future timestamp checks.
+    - `AddExpenseFormState`: handles add form state, default merchant fallback, and Save button enablement.
+    - `EditTransactionFormState`: tracks dirty states across all 6 fields, handles SMS lock vs manual editable amount, handles restore vs exclude labeling, and manages discard dialog conditions.
+  - 10 pure JVM unit tests in `FormLogicTest.kt` covering all validation branches, invalid decimal strings, future dates, dirty state tracking, and UNKNOWN mode handling. Red test phase demonstrated prior to implementation.
+  - Production mutation proof: removing the future timestamp check caused `FormLogicTest.testAddExpenseFutureDateRejected` to fail with `AssertionError`. Reverted cleanly.
+- **Real SQLite Payment Mode Persistence Test (`ManualTransactionPaymentModeRealSqliteTest.kt`):**
+  - Verified manual transaction insertion with all payment modes (`CASH`, `CREDIT`, `BANK`, `UPI`) and round-trip retrieval against real SQLite upgraded to Room v4 schema.
+- **Data & Schema Isolation Proof:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified completely empty.
+- **Physical Device & Visual Verification (Device `dfa4dd90`):**
+  - Assembled debug APK and installed on physical device (`adb install -r`).
+  - Monitored 30-second error logcat (`*:E`) showing zero application errors or Room crashes.
+  - Captured 8 screen images into `screens/` via `cmd /c` (dark and light modes):
+    - `add_empty_dark.png`, `add_empty_light.png`
+    - `add_datepicker_dark.png`, `add_datepicker_light.png`
+    - `edit_sms_dark.png`, `edit_sms_light.png`
+    - `edit_manual_dark.png`, `edit_manual_light.png`
+  - Verified visually via `view_file` for accurate layout, colors, typography, touch padding, and contrast.
