@@ -18,7 +18,10 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val app = application as AutoFlowApplication
                 @Suppress("UNCHECKED_CAST")
-                return MainViewModel(app.transactionRepository) as T
+                return MainViewModel(
+                    transactionRepository = app.transactionRepository,
+                    categoryRepository = app.categoryRepository
+                ) as T
             }
         }
     }

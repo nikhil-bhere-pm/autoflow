@@ -26,6 +26,7 @@ import java.util.UUID
 
 class MainViewModel(
     private val transactionRepository: TransactionRepository,
+    private val categoryRepository: com.autoflow.app.data.repository.CategoryRepository? = null,
     private val timeProvider: () -> Instant = { Instant.now() },
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
@@ -59,6 +60,18 @@ class MainViewModel(
                 zone = zoneId
             )
         )
+
+    val categories: StateFlow<List<String>> =
+        if (categoryRepository != null) {
+            categoryRepository.getAllCategories().map { list -> list.map { it.name } }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
+                )
+        } else {
+            MutableStateFlow(com.autoflow.app.domain.category.BUILT_IN_CATEGORIES).asStateFlow()
+        }
 
     fun selectPeriod(period: StatsPeriod) {
         _periodFilter.value = PeriodFilter.Predefined(period)
@@ -143,11 +156,17 @@ class MainViewModel(
         merchantName: String,
         category: String,
         dateTime: Long = System.currentTimeMillis(),
+        paymentMode: String = com.autoflow.app.data.model.PaymentMode.CASH,
         onComplete: () -> Unit = {}
     ) {
         require(amountPaise > 0) { "Amount must be strictly positive" }
         viewModelScope.launch {
             val hash = "cash_${dateTime}_${UUID.randomUUID().toString().take(8)}"
+            val validMode = if (com.autoflow.app.data.model.PaymentMode.isValid(paymentMode)) {
+                paymentMode
+            } else {
+                com.autoflow.app.data.model.PaymentMode.CASH
+            }
             val entity = TransactionEntity(
                 amountPaise = amountPaise,
                 recordType = RecordType.EXPENSE,
@@ -155,7 +174,7 @@ class MainViewModel(
                 merchantName = merchantName.trim().ifBlank { "Cash Expense" },
                 category = category.trim().ifBlank { "Others" },
                 categorySource = "USER",
-                paymentMode = com.autoflow.app.data.model.PaymentMode.CASH,
+                paymentMode = validMode,
                 transactionHash = hash,
                 source = TransactionSource.MANUAL_CASH,
                 reviewStatus = ReviewStatus.CONFIRMED,
@@ -166,6 +185,30 @@ class MainViewModel(
             )
             transactionRepository.insertTransaction(entity)
             onComplete()
+        }
+    }
+
+    fun editTransactionFull(
+        id: Long,
+        merchantName: String,
+        category: String,
+        dateTime: Long,
+        paymentMode: String,
+        note: String?,
+        amountPaise: Long? = null,
+        onResult: (com.autoflow.app.data.repository.UpdateTransactionResult) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = transactionRepository.updateTransaction(
+                id = id,
+                merchantName = merchantName,
+                category = category,
+                dateTime = dateTime,
+                paymentMode = paymentMode,
+                note = note,
+                amountPaise = amountPaise
+            )
+            onResult(result)
         }
     }
 }

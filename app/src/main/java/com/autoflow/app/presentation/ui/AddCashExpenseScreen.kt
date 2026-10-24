@@ -1,17 +1,24 @@
 package com.autoflow.app.presentation.ui
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.res.Configuration
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,22 +26,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -43,116 +40,132 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
 import com.autoflow.app.presentation.theme.AppRadius
 import com.autoflow.app.presentation.theme.AppSpacing
-import com.autoflow.app.presentation.util.CurrencyFormatter
+import com.autoflow.app.presentation.theme.AutoFlowTheme
+import com.autoflow.app.presentation.ui.components.AFButton
+import com.autoflow.app.presentation.ui.components.AFButtonVariant
+import com.autoflow.app.presentation.ui.components.AFCategoryChip
+import com.autoflow.app.presentation.ui.components.AFCategoryIcons
+import com.autoflow.app.presentation.ui.components.AFField
+import com.autoflow.app.presentation.ui.components.AFSegmented
+import com.autoflow.app.presentation.ui.components.AFTopBar
+import com.autoflow.app.presentation.ui.form.AddExpenseFormState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddCashExpenseScreen(
-    onSave: (amountPaise: Long, merchant: String, category: String, dateTime: Long) -> Unit,
-    onNavigateBack: () -> Unit
+    onSave: (amountPaise: Long, merchant: String, category: String, dateTime: Long, paymentMode: String) -> Unit,
+    onNavigateBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    categories: List<String> = BUILT_IN_CATEGORIES
 ) {
+    val colors = AutoFlowTheme.colors
+    val context = LocalContext.current
+    val scrollState = rememberScrollState()
+
     var amountInput by remember { mutableStateOf("") }
     var merchantInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Food") }
-    var selectedTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var selectedMode by remember { mutableStateOf("CASH") }
     var isCustomDate by remember { mutableStateOf(false) }
+    var selectedTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    val context = LocalContext.current
-    val parsedPaise = remember(amountInput) {
-        CurrencyFormatter.parseRupeesToPaise(amountInput)
-    }
+    val now = remember { System.currentTimeMillis() }
 
-    val dateTimeFormatter = remember {
-        DateTimeFormatter.ofPattern("dd MMM yyyy, hh:mm a")
-    }
-    val formattedDateTime = remember(selectedTimestamp) {
-        Instant.ofEpochMilli(selectedTimestamp)
-            .atZone(ZoneId.systemDefault())
-            .format(dateTimeFormatter)
-    }
+    val formState = AddExpenseFormState(
+        amountInput = amountInput,
+        merchantInput = merchantInput,
+        selectedCategory = selectedCategory,
+        selectedPaymentMode = selectedMode,
+        isCustomDate = isCustomDate,
+        selectedTimestamp = selectedTimestamp,
+        now = System.currentTimeMillis()
+    )
 
-    val openTimePicker: () -> Unit = {
-        val currentZoned = Instant.ofEpochMilli(selectedTimestamp).atZone(ZoneId.systemDefault())
-        val timeDialog = android.app.TimePickerDialog(
-            context,
-            { _, hourOfDay, minute ->
-                val updated = Instant.ofEpochMilli(selectedTimestamp)
-                    .atZone(ZoneId.systemDefault())
-                    .withHour(hourOfDay)
-                    .withMinute(minute)
-                    .withSecond(0)
-                selectedTimestamp = updated.toInstant().toEpochMilli()
-                isCustomDate = true
-            },
-            currentZoned.hour,
-            currentZoned.minute,
-            false
-        )
-        timeDialog.show()
+    val dateLabel = remember(isCustomDate, selectedTimestamp) {
+        val zone = ZoneId.systemDefault()
+        if (!isCustomDate) {
+            val dateStr = Instant.ofEpochMilli(System.currentTimeMillis())
+                .atZone(zone)
+                .format(DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault()))
+            "Now · $dateStr"
+        } else {
+            Instant.ofEpochMilli(selectedTimestamp)
+                .atZone(zone)
+                .format(DateTimeFormatter.ofPattern("EEE, d MMM, h:mm a", Locale.getDefault()))
+        }
     }
 
     val openDatePicker: () -> Unit = {
-        val currentZoned = Instant.ofEpochMilli(selectedTimestamp).atZone(ZoneId.systemDefault())
-        val dateDialog = android.app.DatePickerDialog(
+        val zone = ZoneId.systemDefault()
+        val currentZoned = Instant.ofEpochMilli(selectedTimestamp).atZone(zone)
+
+        val datePicker = DatePickerDialog(
             context,
             { _, year, month, dayOfMonth ->
-                val updated = Instant.ofEpochMilli(selectedTimestamp)
-                    .atZone(ZoneId.systemDefault())
-                    .withYear(year)
-                    .withMonth(month + 1)
-                    .withDayOfMonth(dayOfMonth)
-                selectedTimestamp = updated.toInstant().toEpochMilli()
-                isCustomDate = true
-                openTimePicker()
+                val timePicker = TimePickerDialog(
+                    context,
+                    { _, hourOfDay, minute ->
+                        val pickedZoned = currentZoned
+                            .withYear(year)
+                            .withMonth(month + 1)
+                            .withDayOfMonth(dayOfMonth)
+                            .withHour(hourOfDay)
+                            .withMinute(minute)
+                            .withSecond(0)
+                        selectedTimestamp = pickedZoned.toInstant().toEpochMilli()
+                        isCustomDate = true
+                    },
+                    currentZoned.hour,
+                    currentZoned.minute,
+                    false
+                )
+                timePicker.show()
             },
             currentZoned.year,
             currentZoned.monthValue - 1,
             currentZoned.dayOfMonth
         )
-        dateDialog.show()
+        datePicker.datePicker.maxDate = System.currentTimeMillis()
+        datePicker.show()
     }
 
-    val scrollState = rememberScrollState()
-
     Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = colors.bg,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Add Cash Expense",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+            AFTopBar(
+                title = "Add expense",
                 navigationIcon = {
                     IconButton(
                         onClick = onNavigateBack,
                         modifier = Modifier
-                            .heightIn(min = AppSpacing.minTapTarget)
-                            .width(AppSpacing.minTapTarget)
+                            .defaultMinSize(minWidth = AppSpacing.minTapTarget, minHeight = AppSpacing.minTapTarget)
                             .semantics { contentDescription = "Navigate back" }
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = colors.ink
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                showDivider = true
             )
         }
     ) { paddingValues ->
@@ -160,207 +173,196 @@ fun AddCashExpenseScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.lg)
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
-            // AMOUNT INPUT CARD
-            Card(
-                shape = RoundedCornerShape(AppRadius.md),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(AppSpacing.md)) {
-                    Text(
-                        text = "Amount (₹)",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(AppSpacing.xs))
-                    OutlinedTextField(
-                        value = amountInput,
-                        onValueChange = { amountInput = it },
-                        placeholder = {
-                            Text(
-                                text = "e.g. 130 or 130.50",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = AppSpacing.minTapTarget)
-                            .semantics { contentDescription = "Amount in rupees" },
-                        shape = RoundedCornerShape(AppRadius.sm),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                        )
-                    )
-
-                    if (parsedPaise != null) {
-                        Spacer(modifier = Modifier.height(AppSpacing.xs))
+            // 1. AMOUNT FIELD
+            Column(modifier = Modifier.fillMaxWidth()) {
+                AFField(
+                    value = amountInput,
+                    onValueChange = { amountInput = it },
+                    label = "Amount",
+                    placeholder = "0.00",
+                    leadingIcon = {
                         Text(
-                            text = "Formatted: ${CurrencyFormatter.formatPaiseToInr(parsedPaise)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.primary
+                            text = "₹",
+                            style = AutoFlowTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.ink,
+                            modifier = Modifier.padding(start = AppSpacing.sm)
                         )
-                    }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+
+                if (formState.amountHint != null) {
+                    Spacer(modifier = Modifier.height(AppSpacing.xs))
+                    Text(
+                        text = formState.amountHint,
+                        style = AutoFlowTheme.typography.bodySmall,
+                        color = colors.muted,
+                        modifier = Modifier.padding(start = AppSpacing.xs)
+                    )
                 }
             }
 
-            // MERCHANT / NOTE INPUT
-            Column {
-                Text(
-                    text = "Merchant / Note",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(AppSpacing.xs))
-                OutlinedTextField(
-                    value = merchantInput,
-                    onValueChange = { merchantInput = it },
-                    placeholder = {
-                        Text(
-                            text = "e.g. Tea Stall, Vegetables",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = AppSpacing.minTapTarget)
-                        .semantics { contentDescription = "Merchant or note input" },
-                    shape = RoundedCornerShape(AppRadius.sm),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
-                    )
-                )
-            }
+            // 2. MERCHANT OR NOTE FIELD
+            AFField(
+                value = merchantInput,
+                onValueChange = { merchantInput = it },
+                label = "Merchant or note",
+                placeholder = "e.g. Tea stall"
+            )
 
-            // CATEGORY SELECTOR CHIPS
-            Column {
+            // 3. CATEGORY CHIPS
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Category",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    style = AutoFlowTheme.typography.labelLarge,
+                    color = colors.ink,
+                    modifier = Modifier.padding(bottom = AppSpacing.xs)
                 )
-                Spacer(modifier = Modifier.height(AppSpacing.sm))
+
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                 ) {
-                    CATEGORIES.forEach { category ->
-                        val isSelected = selectedCategory == category
-                        FilterChip(
+                    categories.forEach { categoryName ->
+                        val isSelected = categoryName.equals(selectedCategory, ignoreCase = true)
+                        val iconRes = AFCategoryIcons.getDrawableRes(categoryName)
+                        AFCategoryChip(
+                            text = categoryName,
                             selected = isSelected,
-                            onClick = { selectedCategory = category },
-                            label = {
-                                Text(
-                                    text = category,
-                                    style = MaterialTheme.typography.bodySmall
+                            onClick = { selectedCategory = categoryName },
+                            icon = {
+                                Icon(
+                                    painter = painterResource(id = iconRes),
+                                    contentDescription = null,
+                                    tint = if (isSelected) colors.buttonText else colors.forCategory(categoryName),
+                                    modifier = Modifier.size(16.dp)
                                 )
-                            },
-                            shape = RoundedCornerShape(AppRadius.sm),
-                            modifier = Modifier
-                                .heightIn(min = AppSpacing.minTapTarget)
-                                .semantics { contentDescription = "Select category $category" },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                labelColor = MaterialTheme.colorScheme.onSurface
-                            )
+                            }
                         )
                     }
                 }
             }
 
-            // DATE & TIME DISPLAY
-            Card(
-                shape = RoundedCornerShape(AppRadius.sm),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = AppSpacing.xxs),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        onClick = openDatePicker,
-                        onClickLabel = "Change date and time"
-                    )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(AppSpacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Date & Time",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(AppSpacing.xxs))
-                        Text(
-                            text = formattedDateTime,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Text(
-                        text = if (isCustomDate) "Change" else "Now",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(AppSpacing.sm))
-
-            // SAVE EXPENSE BUTTON
-            Button(
-                onClick = {
-                    val paise = parsedPaise ?: return@Button
-                    val merchant = merchantInput.trim().ifBlank { "Cash Expense" }
-                    onSave(paise, merchant, selectedCategory, selectedTimestamp)
-                    onNavigateBack()
-                },
-                enabled = parsedPaise != null,
-                shape = RoundedCornerShape(AppRadius.sm),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = AppSpacing.minTapTarget)
-                    .semantics { contentDescription = "Save cash expense" }
-            ) {
+            // 4. PAYMENT MODE SEGMENTED CONTROL
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "Save Expense",
-                    style = MaterialTheme.typography.labelLarge
+                    text = "Payment mode",
+                    style = AutoFlowTheme.typography.labelLarge,
+                    color = colors.ink,
+                    modifier = Modifier.padding(bottom = AppSpacing.xs)
+                )
+
+                val modes = listOf("Cash", "Credit", "Bank", "UPI")
+                val modeKeys = listOf("CASH", "CREDIT", "BANK", "UPI")
+                val selectedIndex = modeKeys.indexOf(selectedMode).coerceAtLeast(0)
+
+                AFSegmented(
+                    items = modes,
+                    selectedIndex = selectedIndex,
+                    onSelect = { index ->
+                        if (index in modeKeys.indices) {
+                            selectedMode = modeKeys[index]
+                        }
+                    }
                 )
             }
+
+            // 5. DATE AND TIME ROW
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Date and time",
+                    style = AutoFlowTheme.typography.labelLarge,
+                    color = colors.ink,
+                    modifier = Modifier.padding(bottom = AppSpacing.xs)
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(AppRadius.md),
+                    color = colors.field,
+                    border = BorderStroke(1.dp, if (formState.isFutureDate) colors.red else colors.line),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                        .clip(RoundedCornerShape(AppRadius.md))
+                        .clickable { openDatePicker() }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Select date and time",
+                            tint = colors.muted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacing.sm))
+                        Text(
+                            text = dateLabel,
+                            style = AutoFlowTheme.typography.bodyLarge,
+                            color = colors.ink
+                        )
+                    }
+                }
+
+                if (formState.isFutureDate) {
+                    Spacer(modifier = Modifier.height(AppSpacing.xs))
+                    Text(
+                        text = "Future date and time not allowed",
+                        style = AutoFlowTheme.typography.bodySmall,
+                        color = colors.red,
+                        modifier = Modifier.padding(start = AppSpacing.xs)
+                    )
+                }
+            }
+
+            // 6. SAVE BUTTON
+            Spacer(modifier = Modifier.height(AppSpacing.md))
+
+            AFButton(
+                text = "Save",
+                onClick = {
+                    val amountPaise = formState.parsedAmountPaise ?: return@AFButton
+                    val finalMerchant = merchantInput.trim().ifBlank { "Cash Expense" }
+                    val finalTimestamp = formState.effectiveDateTime
+                    onSave(amountPaise, finalMerchant, selectedCategory, finalTimestamp, selectedMode)
+                    onNavigateBack()
+                },
+                variant = AFButtonVariant.PRIMARY,
+                enabled = formState.isSaveEnabled,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
+    }
+}
+
+@Preview(name = "Light - AddCashExpenseScreen")
+@Composable
+private fun AddCashExpenseScreenLightPreview() {
+    AutoFlowTheme(darkTheme = false) {
+        AddCashExpenseScreen(
+            onSave = { _, _, _, _, _ -> },
+            onNavigateBack = {}
+        )
+    }
+}
+
+@Preview(name = "Dark - AddCashExpenseScreen", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun AddCashExpenseScreenDarkPreview() {
+    AutoFlowTheme(darkTheme = true) {
+        AddCashExpenseScreen(
+            onSave = { _, _, _, _, _ -> },
+            onNavigateBack = {}
+        )
     }
 }

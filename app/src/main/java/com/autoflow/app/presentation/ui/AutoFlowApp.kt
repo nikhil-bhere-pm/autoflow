@@ -20,6 +20,7 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val homeUiState by viewModel.homeUiState.collectAsState()
+    val categories by viewModel.categories.collectAsState()
 
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = Screen.Home
@@ -40,29 +41,34 @@ fun AutoFlowApp(viewModel: MainViewModel) {
             EditTransactionScreen(
                 transactionId = screen.transactionId,
                 loadTransaction = { id -> viewModel.getTransaction(id) },
-                onSaveCorrection = { id, newMerchant, newCategory ->
-                    viewModel.editTransaction(id, newMerchant, newCategory)
+                onSave = { id, merchant, category, dateTime, paymentMode, note, amountPaise, onResult ->
+                    viewModel.editTransactionFull(id, merchant, category, dateTime, paymentMode, note, amountPaise, onResult)
                 },
                 onMarkNotAnExpense = { id ->
                     viewModel.markNotAnExpense(id)
+                },
+                onRestore = { id ->
+                    viewModel.restoreTransaction(id)
                 },
                 onDelete = { id ->
                     viewModel.deleteTransaction(id)
                 },
                 onNavigateBack = {
                     currentScreen = Screen.Home
-                }
+                },
+                categories = categories
             )
         }
 
         is Screen.AddCash -> {
             AddCashExpenseScreen(
-                onSave = { amountPaise, merchant, category, dateTime ->
-                    viewModel.addCashExpense(amountPaise, merchant, category, dateTime)
+                onSave = { amountPaise, merchant, category, dateTime, paymentMode ->
+                    viewModel.addCashExpense(amountPaise, merchant, category, dateTime, paymentMode)
                 },
                 onNavigateBack = {
                     currentScreen = Screen.Home
-                }
+                },
+                categories = categories
             )
         }
     }
