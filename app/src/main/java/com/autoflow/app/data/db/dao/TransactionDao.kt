@@ -114,6 +114,10 @@ interface TransactionDao {
               AND date_time < :endTime 
             ORDER BY date_time DESC
         """
+
+        const val SQL_UPDATE = """
+            UPDATE OR ABORT `transactions` SET `id` = ?,`amount_paise` = ?,`record_type` = ?,`date_time` = ?,`merchant_name` = ?,`category` = ?,`categorySource` = ?,`payment_mode` = ?,`note` = ?,`account_number` = ?,`bank_name` = ?,`reference` = ?,`transaction_hash` = ?,`source` = ?,`review_status` = ?,`uncertainty_bits` = ?,`created_at` = ?,`updated_at` = ?,`is_deleted` = ? WHERE `id` = ?
+        """
     }
 
     @Query(QUERY_GET_ALL_AUTO)

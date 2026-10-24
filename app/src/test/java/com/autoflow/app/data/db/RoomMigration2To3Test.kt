@@ -334,19 +334,28 @@ class RoomMigration2To3Test {
         assertTrue("Row at exact end (12) must NOT be returned", !returnedIds.contains(12L))
         assertTrue("Soft-deleted row (13) must NOT be returned", !returnedIds.contains(13L))
 
-        // 9. Update test: execute update against migrated DB
-        val updateSql = """
-            UPDATE transactions 
-            SET payment_mode = ?, note = ?, date_time = ?, updated_at = ?
-            WHERE id = ?
-        """.trimIndent()
-
-        migratedConn.prepareStatement(updateSql).use { stmt ->
-            stmt.setString(1, "CREDIT")
-            stmt.setString(2, "Dinner with friends")
-            stmt.setLong(3, 2500L)
-            stmt.setLong(4, 5000L)
-            stmt.setLong(5, 10L)
+        // 9. Update test: execute production Room update SQL against migrated DB
+        migratedConn.prepareStatement(TransactionDao.SQL_UPDATE).use { stmt ->
+            stmt.setLong(1, 10L)
+            stmt.setLong(2, 1000L)
+            stmt.setString(3, "EXPENSE")
+            stmt.setLong(4, 2500L) // updated date_time
+            stmt.setString(5, "Start Merchant")
+            stmt.setString(6, "Food")
+            stmt.setString(7, "AUTO")
+            stmt.setString(8, "CREDIT") // updated payment_mode
+            stmt.setString(9, "Dinner with friends") // updated note
+            stmt.setString(10, null)
+            stmt.setString(11, null)
+            stmt.setString(12, null)
+            stmt.setString(13, "HASH_10")
+            stmt.setString(14, "SMS_AUTO")
+            stmt.setString(15, "CONFIRMED")
+            stmt.setInt(16, 0)
+            stmt.setLong(17, rangeStart)
+            stmt.setLong(18, 5000L) // updated updated_at
+            stmt.setInt(19, 0)
+            stmt.setLong(20, 10L) // WHERE id = ?
             val updatedCount = stmt.executeUpdate()
             assertEquals(1, updatedCount)
         }
@@ -363,10 +372,30 @@ class RoomMigration2To3Test {
         // 10. Atomicity test on real SQLite: step 2 failure rolls back step 1
         migratedConn.autoCommit = false
         try {
-            // Step 1: Update transaction row
-            migratedConn.prepareStatement(
-                "UPDATE transactions SET category = 'Groceries', categorySource = 'USER' WHERE id = 1"
-            ).use { it.executeUpdate() }
+            // Step 1: Update transaction row using production Room update SQL
+            migratedConn.prepareStatement(TransactionDao.SQL_UPDATE).use { stmt ->
+                stmt.setLong(1, 1L)
+                stmt.setLong(2, 45000L)
+                stmt.setString(3, "EXPENSE")
+                stmt.setLong(4, 1700000000000L)
+                stmt.setString(5, "Zomato")
+                stmt.setString(6, "Groceries") // updated category
+                stmt.setString(7, "USER") // updated categorySource
+                stmt.setString(8, "UNKNOWN")
+                stmt.setString(9, null)
+                stmt.setString(10, "XX1234")
+                stmt.setString(11, "HDFC")
+                stmt.setString(12, "REF100")
+                stmt.setString(13, "HASH100")
+                stmt.setString(14, "SMS_AUTO")
+                stmt.setString(15, "CONFIRMED")
+                stmt.setInt(16, 0)
+                stmt.setLong(17, 1700000000000L)
+                stmt.setLong(18, 1700000005000L)
+                stmt.setInt(19, 0)
+                stmt.setLong(20, 1L) // WHERE id = ?
+                stmt.executeUpdate()
+            }
 
             // Step 2: Failing statement (violates NOT NULL PRIMARY KEY constraint on merchant_categories)
             migratedConn.prepareStatement(
