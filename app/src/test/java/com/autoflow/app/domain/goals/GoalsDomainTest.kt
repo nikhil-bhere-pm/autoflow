@@ -980,6 +980,118 @@ class GoalsDomainTest {
         assertTrue(restoreResult is GoalResult.Error)
         assertEquals(GoalError.InsufficientBalance(availablePaise = 20_000L, requestedPaise = 40_000L), (restoreResult as GoalResult.Error).error)
     }
+
+    // -------------------------------------------------------------
+    // G2b: TWO RE-LINK EDGE CASES
+    // -------------------------------------------------------------
+
+    @Test
+    fun g2b_test1_sameGoal_newAmount_balanceCountsOldAmountAsAvailable() = runBlocking {
+        // Goal holds ₹1,000 saved (100_000 paise)
+        val goal = (service.createGoal("Vacation Fund", GoalKind.SAVINGS, 200_000L) as GoalResult.Success).data
+        service.addEntry(goal.id, EntryType.SET_ASIDE, 100_000L)
+        val txId = 501L
+
+        // Link expense T (expense amount ₹800 = 80_000 paise) with ₹600 (60_000 paise) -> saved becomes ₹400 (40_000 paise)
+        val initialLink = service.linkExpense(goal.id, transactionId = txId, expenseAmountPaise = 80_000L, amountPaise = 60_000L)
+        assertTrue(initialLink is GoalResult.Success)
+        var progress = (service.getGoalProgress(goal.id) as GoalResult.Success).data
+        assertEquals(40_000L, progress.savedPaise)
+
+        // Re-link T to the SAME goal with ₹900 (90_000 paise) is invalid (more than the ₹800 expense)
+        val overExpenseResult = service.linkExpense(goal.id, transactionId = txId, expenseAmountPaise = 80_000L, amountPaise = 90_000L)
+        assertTrue(overExpenseResult is GoalResult.Error)
+        assertEquals(GoalError.AmountExceedsExpense(amountPaise = 90_000L, expenseAmountPaise = 80_000L), (overExpenseResult as GoalResult.Error).error)
+
+        // Verify original ₹600 link is still active and saved amount unchanged
+        progress = (service.getGoalProgress(goal.id) as GoalResult.Success).data
+        assertEquals(40_000L, progress.savedPaise)
+        var activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(60_000L, activeEntries[0].amountPaise)
+
+        // Re-link T to same goal with amount larger than (current saved + old amount):
+        // current saved (40_000) + old amount (60_000) = 100_000 paise.
+        // Trying 100_001 paise (with expense 150_000 paise) must be rejected with InsufficientBalance
+        val overBalanceResult = service.linkExpense(goal.id, transactionId = txId, expenseAmountPaise = 150_000L, amountPaise = 100_001L)
+        assertTrue(overBalanceResult is GoalResult.Error)
+        assertEquals(GoalError.InsufficientBalance(availablePaise = 100_000L, requestedPaise = 100_001L), (overBalanceResult as GoalResult.Error).error)
+
+        // Verify original ₹600 link is STILL active and saved amount unchanged
+        progress = (service.getGoalProgress(goal.id) as GoalResult.Success).data
+        assertEquals(40_000L, progress.savedPaise)
+        activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(60_000L, activeEntries[0].amountPaise)
+
+        // Re-link with ₹800 (80_000 paise) must SUCCEED: old ₹600 counts as available again (40_000 + 60_000 = 100_000 >= 80_000)
+        val validRelink = service.linkExpense(goal.id, transactionId = txId, expenseAmountPaise = 80_000L, amountPaise = 80_000L)
+        assertTrue(validRelink is GoalResult.Success)
+
+        // Final saved = ₹200 (20_000 paise) and exactly ONE active USED entry exists for T
+        progress = (service.getGoalProgress(goal.id) as GoalResult.Success).data
+        assertEquals(20_000L, progress.savedPaise)
+        activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(80_000L, activeEntries[0].amountPaise)
+    }
+
+    @Test
+    fun g2b_test2_failedRelink_leavesEverythingAsItWas() = runBlocking {
+        // Goal A holds ₹1,000 (100_000 paise), Goal B holds ₹100 (10_000 paise)
+        val goalA = (service.createGoal("Goal A", GoalKind.SAVINGS, 200_000L) as GoalResult.Success).data
+        val goalB = (service.createGoal("Goal B", GoalKind.SAVINGS, 200_000L) as GoalResult.Success).data
+        service.addEntry(goalA.id, EntryType.SET_ASIDE, 100_000L)
+        service.addEntry(goalB.id, EntryType.SET_ASIDE, 10_000L)
+        val txId = 702L
+
+        // Link T (expense ₹500 = 50_000 paise) to A with ₹300 (30_000 paise)
+        val linkA = service.linkExpense(goalA.id, transactionId = txId, expenseAmountPaise = 50_000L, amountPaise = 30_000L)
+        assertTrue(linkA is GoalResult.Success)
+        assertEquals(70_000L, (service.getGoalProgress(goalA.id) as GoalResult.Success).data.savedPaise)
+        assertEquals(10_000L, (service.getGoalProgress(goalB.id) as GoalResult.Success).data.savedPaise)
+
+        // Check 1: Try to re-link T to B with ₹300 (30_000 paise) — B cannot afford it (holds only 10_000 paise)
+        val failB = service.linkExpense(goalB.id, transactionId = txId, expenseAmountPaise = 50_000L, amountPaise = 30_000L)
+        assertTrue(failB is GoalResult.Error)
+        assertEquals(GoalError.InsufficientBalance(availablePaise = 10_000L, requestedPaise = 30_000L), (failB as GoalResult.Error).error)
+
+        // Afterwards: A's link is still active, A's saved is unchanged (₹700), B is unchanged (₹100), exactly 1 active USED entry for T
+        assertEquals(70_000L, (service.getGoalProgress(goalA.id) as GoalResult.Success).data.savedPaise)
+        assertEquals(10_000L, (service.getGoalProgress(goalB.id) as GoalResult.Success).data.savedPaise)
+        var activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(goalA.id, activeEntries[0].goalId)
+        assertEquals(30_000L, activeEntries[0].amountPaise)
+
+        // Check 2: Same check when the failure is AmountExceedsExpense (trying ₹600 on ₹500 expense)
+        val failExceeds = service.linkExpense(goalB.id, transactionId = txId, expenseAmountPaise = 50_000L, amountPaise = 60_000L)
+        assertTrue(failExceeds is GoalResult.Error)
+        assertEquals(GoalError.AmountExceedsExpense(amountPaise = 60_000L, expenseAmountPaise = 50_000L), (failExceeds as GoalResult.Error).error)
+
+        // Afterwards: A's link is still active, A's saved is unchanged, B is unchanged, exactly 1 active USED entry for T
+        assertEquals(70_000L, (service.getGoalProgress(goalA.id) as GoalResult.Success).data.savedPaise)
+        assertEquals(10_000L, (service.getGoalProgress(goalB.id) as GoalResult.Success).data.savedPaise)
+        activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(goalA.id, activeEntries[0].goalId)
+        assertEquals(30_000L, activeEntries[0].amountPaise)
+
+        // Check 3: Same check when target goal is an AVOIDANCE goal
+        val goalC = (service.createGoal("Goal C Avoidance", GoalKind.AVOIDANCE, 100_000L) as GoalResult.Success).data
+        val failAvoidance = service.linkExpense(goalC.id, transactionId = txId, expenseAmountPaise = 50_000L, amountPaise = 20_000L)
+        assertTrue(failAvoidance is GoalResult.Error)
+        assertEquals(GoalError.WrongEntryType(GoalKind.AVOIDANCE, EntryType.USED), (failAvoidance as GoalResult.Error).error)
+
+        // Afterwards: A's link is still active, A's saved is unchanged, Goal C has 0 entries, exactly 1 active USED entry for T
+        assertEquals(70_000L, (service.getGoalProgress(goalA.id) as GoalResult.Success).data.savedPaise)
+        assertEquals(0, repository.getEntries(goalC.id).size)
+        activeEntries = repository.getEntriesByTransaction(txId).filter { it.deletedAt == null }
+        assertEquals(1, activeEntries.size)
+        assertEquals(goalA.id, activeEntries[0].goalId)
+        assertEquals(30_000L, activeEntries[0].amountPaise)
+    }
 }
+
 
 
