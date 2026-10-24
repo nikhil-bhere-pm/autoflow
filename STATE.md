@@ -210,3 +210,31 @@
     - Payment mode breakdown: 3 `CASH`, 2 `UNKNOWN` preserved unchanged.
     - `custom_categories` count: 0.
   - Clean 30-second error logcat with zero Room, SQLite, or application errors.
+
+## 11. App Frame & Home Screen (Prompt UI-1)
+
+- **Isolation & Setup:**
+  - Executed strictly in worktree `..\autoflow-ui2` on branch `ui-home`.
+  - Data, domain, schema, and `parser-core` layers kept 100% isolated (`git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` is empty).
+- **App Frame & Bottom Navigation:**
+  - Replaced legacy UI with approved wireframe components.
+  - Bottom bar contains Home tab on the left and a circular round `+` button in the center (opens existing `AddCashExpenseScreen`).
+  - Omitted Review and Categories tabs from the bottom bar because those screens do not exist yet in the codebase.
+  - Floating action button ("Add Cash") removed in favor of the center `+` button.
+  - Top bar displays "AutoFlow"; Settings icon omitted because Settings screen is not built yet.
+- **Home Content & Navigation:**
+  - **Period Pill:** Dropdown selector for `Today`, `This week`, `This month` (default), or historical month (e.g. `Sep 2026`). Uses phone's timezone and reuses `periodRange(StatsPeriod, Instant, ZoneId)`. Picking a predefined period returns from a past month back to the current period.
+  - **One Big Number:** Displays total counted period spend formatted via `CurrencyFormatter.formatPaiseToInr` (floored at 0L, never negative), count of counted transactions ("Across N transactions"), and `(i)` button opening an explanatory dialog stating "Refunds are not included yet."
+  - **5-Month Spending Chart:** Centered on viewed month via `monthlySeries`. Renders proportional bars with accessibility content description (e.g. "Spending by month, August to December, October selected"). Future months are rendered in muted colors and are non-selectable.
+  - **Grouped Transaction List:** Grouped by calendar day with day header and `dayTotal` (never negative). Uses `AFTransactionRow` with category icon tiles, merchant name, `Category · time` subtitle, amount (green `+` for refunds), and context-aware badges: `Check` (amber, for `NEEDS_REVIEW`), `Not counted` (muted, for `EXCLUDED`), `Refund` (tint, for `REFUND`), `Cash` (outline, for manual cash). Tapping opens `EditTransactionScreen`.
+  - **Empty State:** Friendly empty state card with an "Add expense" button when no transactions exist for the selected period.
+- **Indian Currency Formatter:**
+  - Formats paise values with Indian digit grouping (`₹1,18,450.00`, `₹10,00,000.00`).
+  - Unit tests verified for exact required test points: 0, 5, 130, 99999, 100000, 1000000 paise.
+- **Pure JVM Unit Tests & Production Mutation Proof:**
+  - `HomeScreenTest.kt` contains 8 pure JVM tests verifying period switching, past month selection, future month unselectable, return to current period, empty state, badge rules, day grouping, and day totals.
+  - Production mutation proof: disabling future month rejection in `MainViewModel.selectMonth` caused `HomeScreenTest.testFutureMonthNonSelectable` to fail with `AssertionError`. Reverted cleanly to green.
+- **Live Device Verification:**
+  - Debug APK built (`assembleDebug`) and installed on connected device `dfa4dd90` via `adb install -r`.
+  - 30-second error-filtered logcat (`*:E`) confirmed 0 app crashes, 0 Room crashes, 0 font crashes, and 0 SMS leakage.
+
