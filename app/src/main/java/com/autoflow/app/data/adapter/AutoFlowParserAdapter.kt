@@ -80,7 +80,7 @@ object AutoFlowParserAdapter {
     private val junkMerchantPrefixes = listOf("your", "a/c", "account", "card")
 
     private val completedSpendStatementRegex = Regex(
-        """\b(?:debited|debit\s+alert|spent|paid|sent to|transferred to|withdrawn|purchase)\b"""
+        """\b(?:debited|debit\s+alert|spent|paid|sent(?:\s+to)?|transferred\s+to\s+(?!(?:your\b|a/c\b|account\b|bank\s+account\b))|withdrawn|purchase)\b"""
     )
     private val uncompletedDebitPhrasesRegex = Regex(
         """\b(?:if\s+debited|will\s+be\s+debited|scheduled\s+to\s+be\s+debited|not\s+debited|no\s+amount\s+has\s+been\s+debited)\b"""
@@ -271,14 +271,24 @@ object AutoFlowParserAdapter {
 
         val recordType = when {
             isRefund -> RecordType.REFUND
-            parsed.type == TransactionType.EXPENSE || parsed.type == TransactionType.CREDIT -> RecordType.EXPENSE
+            parsed.type == TransactionType.EXPENSE || parsed.type == TransactionType.CREDIT -> {
+                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
+                    RecordType.EXPENSE
+                } else {
+                    return null
+                }
+            }
             parsed.type == TransactionType.TRANSFER -> {
                 // If it's an internal transfer between known accounts, ignore it.
                 if (parsed.fromAccount != null && parsed.toAccount != null && parsed.fromAccount == parsed.toAccount) {
                     return null
                 }
                 // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
-                RecordType.EXPENSE
+                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
+                    RecordType.EXPENSE
+                } else {
+                    return null
+                }
             }
             // Ordinary income (salary, external deposits) without refund keywords is ignored unless outbound spend occurred
             parsed.type == TransactionType.INCOME -> {
@@ -365,6 +375,56 @@ object AutoFlowParserAdapter {
         return true
     }
 
+    private val JUNK_MERCHANT_NAMES = setOf(
+        "upi",
+        "neft",
+        "imps",
+        "rtgs",
+        "atm",
+        "pos",
+        "card",
+        "bank",
+        "unknown",
+        "unknown merchant",
+        "merchant",
+        "debit",
+        "credit",
+        "vpa",
+        "upi payment",
+        "card payment"
+    )
+
+    private val trailingViaRegex = Regex("""\s+via(?:\s+.*)?$""", RegexOption.IGNORE_CASE)
+
+    private val vpaRegex = Regex("""\b([A-Za-z0-9.\-_]+)@[A-Za-z0-9.\-_]+\b""")
+
+    private val ignoredVpaPrefixes = setOf(
+        "support", "care", "help", "contact", "customercare", "helpdesk", "grievance", "nodal"
+    )
+
+    private fun extractVpaMerchant(smsBody: String): String? {
+        for (match in vpaRegex.findAll(smsBody)) {
+            val handle = match.groupValues[1]
+            if (handle.length in 3..20 &&
+                handle.all { it.isLetter() || it == '.' || it == '-' } &&
+                handle.any { it.isLetter() } &&
+                !ignoredVpaPrefixes.contains(handle.lowercase())
+            ) {
+                return handle.uppercase()
+            }
+        }
+        return null
+    }
+
+    private fun isJunkOrPlaceholderMerchant(merchant: String?): Boolean {
+        if (merchant.isNullOrBlank()) return true
+        val lower = merchant.trim().lowercase()
+        if (JUNK_MERCHANT_NAMES.contains(lower)) return true
+        if (GENERIC_MERCHANT_PLACEHOLDERS.contains(lower)) return true
+        if (isJunkMerchant(merchant)) return true
+        return false
+    }
+
     private fun isJunkMerchant(merchant: String): Boolean {
         val lower = merchant.trim().lowercase()
         if (xxDigitsRegex.containsMatchIn(lower)) return true
@@ -388,10 +448,24 @@ object AutoFlowParserAdapter {
     }
 
     private fun cleanMerchant(merchant: String?, smsBody: String): String {
-        if (!merchant.isNullOrBlank() && !isJunkMerchant(merchant)) {
-            return merchant.trim()
+        // Strip trailing "via <anything>"
+        val rawCleaned = merchant?.replace(trailingViaRegex, "")?.trim()
+        if (!isJunkOrPlaceholderMerchant(rawCleaned)) {
+            return rawCleaned!!
         }
-        val fallback = extractFallbackMerchant(smsBody)
-        return fallback ?: "Unknown Merchant"
+
+        // Try fallback regex
+        val fallback = extractFallbackMerchant(smsBody)?.replace(trailingViaRegex, "")?.trim()
+        if (!isJunkOrPlaceholderMerchant(fallback)) {
+            return fallback!!
+        }
+
+        // Try VPA extraction
+        val vpa = extractVpaMerchant(smsBody)
+        if (vpa != null) {
+            return vpa
+        }
+
+        return "Unknown Merchant"
     }
 }

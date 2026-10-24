@@ -332,12 +332,70 @@ class SmsRegressionCorpusTest {
             message = "Rs 799.00 will be credited back to your card XX1234.",
             sender = "VM-HDFCBK",
             expectedResult = ExpectedResult.IGNORE
+        ),
+
+        // ==========================================
+        // Prompt M4: Rows a..g
+        // ==========================================
+        TestCase(
+            id = "M4-a",
+            message = "Rs 799.00 has been transferred to your account XX1234 as refund for order at MYNTRA.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.REFUND,
+            expectedAmountPaise = 79900L,
+            expectedMerchant = "MYNTRA"
+        ),
+        TestCase(
+            id = "M4-b",
+            message = "Your payout of Rs 5,000.00 has been transferred to your bank account XX1234.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M4-c",
+            message = "Rs 2,500.00 credited to A/c XX1234 on 24-10-26. Amount transferred to your account by RAMESH via UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M4-d",
+            message = "Credit Alert: Rs 10,000.00 transferred to your A/c XX1234 from SBI. Ref 123.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE
+        ),
+        TestCase(
+            id = "M4-e",
+            message = "Sent Rs.250.00 from HDFC Bank A/c XX1234 to ZEPTO@upi on 24/10/26. UPI Ref 123456789012.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 25000L,
+            expectedMerchant = "ZEPTO"
+        ),
+        TestCase(
+            id = "M4-f",
+            message = "Debit alert: Rs 1,000.00 transferred to RAMESH KUMAR; amount credited successfully. Ref 123.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 100000L,
+            expectedMerchant = "RAMESH KUMAR"
+        ),
+        TestCase(
+            id = "M4-g",
+            message = "Rs 640.00 debited from A/c XX1234 on 24-10-26 at SWIGGY via UPI.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 64000L,
+            expectedMerchant = "SWIGGY"
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 35 test cases", 35, corpus.size)
+        assertEquals("Corpus must have exactly 42 test cases", 42, corpus.size)
     }
 
     @Test

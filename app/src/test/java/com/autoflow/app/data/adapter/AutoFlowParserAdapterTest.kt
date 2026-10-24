@@ -418,6 +418,74 @@ class AutoFlowParserAdapterTest {
         assertEquals("ZOMATO", entity.merchantName)
     }
 
+    @Test
+    fun testPromptM4_messageA_transferredToYourAccountAsRefund_ingestedAsRefund() {
+        val msg = "Rs 799.00 has been transferred to your account XX1234 as refund for order at MYNTRA."
+        val senders = listOf("VM-HDFCBK", "ICICIB", "SBIINB")
+        for (sender in senders) {
+            val entity = AutoFlowParserAdapter.parseAndAdapt(msg, sender, baseTimestamp)
+            assertNotNull("Expected message a to be parsed for $sender", entity)
+            assertEquals("Expected REFUND for $sender", RecordType.REFUND, entity!!.recordType)
+            assertEquals(79900L, entity.amountPaise)
+            assertEquals("MYNTRA", entity.merchantName)
+        }
+    }
+
+    @Test
+    fun testPromptM4_messagesBCD_incomingOrNonSpend_notIngestedAsExpense() {
+        val messages = mapOf(
+            "b" to "Your payout of Rs 5,000.00 has been transferred to your bank account XX1234.",
+            "c" to "Rs 2,500.00 credited to A/c XX1234 on 24-10-26. Amount transferred to your account by RAMESH via UPI.",
+            "d" to "Credit Alert: Rs 10,000.00 transferred to your A/c XX1234 from SBI. Ref 123."
+        )
+        val senders = listOf("VM-HDFCBK", "ICICIB", "SBIINB")
+        for ((row, msg) in messages) {
+            for (sender in senders) {
+                val entity = AutoFlowParserAdapter.parseAndAdapt(msg, sender, baseTimestamp)
+                if (entity != null) {
+                    org.junit.Assert.assertNotEquals(
+                        "Row $row on sender $sender must NOT be ingested as EXPENSE",
+                        RecordType.EXPENSE,
+                        entity.recordType
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun testPromptM4_merchantExtraction_upiVpaAndMessySms() {
+        // row e: VPA handle extraction
+        val msgE = "Sent Rs.250.00 from HDFC Bank A/c XX1234 to ZEPTO@upi on 24/10/26. UPI Ref 123456789012."
+        val entityE = AutoFlowParserAdapter.parseAndAdapt(msgE, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity E to be parsed", entityE)
+        assertEquals(RecordType.EXPENSE, entityE!!.recordType)
+        assertEquals(25000L, entityE.amountPaise)
+        assertEquals("ZEPTO", entityE.merchantName)
+
+        // VPA handle swiggy@upi -> SWIGGY
+        val msgVpa = "Rs.500.00 debited from A/c XX1234 on 24-10-26 and credited to VPA swiggy@upi (UPI Ref No 123456789012)."
+        val entityVpa = AutoFlowParserAdapter.parseAndAdapt(msgVpa, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity VPA to be parsed", entityVpa)
+        assertEquals(RecordType.EXPENSE, entityVpa!!.recordType)
+        assertEquals("SWIGGY", entityVpa.merchantName)
+
+        // Phone number VPA -> stays Unknown Merchant
+        val msgPhone = "Sent Rs.500.00 from A/c XX1234 to 9876543210@ybl on 24-10-26. UPI Ref 123."
+        val entityPhone = AutoFlowParserAdapter.parseAndAdapt(msgPhone, "VM-HDFCBK", baseTimestamp)
+        if (entityPhone != null) {
+            assertEquals("Unknown Merchant", entityPhone.merchantName)
+        }
+
+        // row g: strip trailing "via UPI"
+        val msgG = "Rs 640.00 debited from A/c XX1234 on 24-10-26 at SWIGGY via UPI."
+        val entityG = AutoFlowParserAdapter.parseAndAdapt(msgG, "VM-HDFCBK", baseTimestamp)
+        assertNotNull("Expected entity G to be parsed", entityG)
+        assertEquals(RecordType.EXPENSE, entityG!!.recordType)
+        assertEquals(64000L, entityG.amountPaise)
+        assertEquals("SWIGGY", entityG.merchantName)
+    }
+
     private fun createParsed(
         amount: BigDecimal,
         type: TransactionType,
