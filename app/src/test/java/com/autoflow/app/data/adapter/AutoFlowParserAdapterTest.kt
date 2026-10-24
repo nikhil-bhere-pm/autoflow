@@ -259,6 +259,32 @@ class AutoFlowParserAdapterTest {
         }
     }
 
+    @Test
+    fun testRow1_failedTransactionWithPromisedReversal_ignored() {
+        val msg = "Your UPI txn of Rs 500.00 to ABC has failed. If debited, the amount will be reversed within 3-5 working days."
+        assertTrue("Expected Row 1 to be identified as non-transaction", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        assertNull("Expected parseAndAdapt to return null for promised reversal", AutoFlowParserAdapter.parseAndAdapt(msg, "VK-HDFCBK", baseTimestamp))
+    }
+
+    @Test
+    fun testRow2_cancelledOrderWithPromisedRefund_ignored() {
+        val msg = "Order cancelled. Refund of Rs 799.00 will be initiated to your original payment mode within 5-7 days."
+        assertTrue("Expected Row 2 to be identified as non-transaction", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        assertNull("Expected parseAndAdapt to return null for promised refund", AutoFlowParserAdapter.parseAndAdapt(msg, "VM-HDFCBK", baseTimestamp))
+    }
+
+    @Test
+    fun testRow4_debitAlertWithOneTimePasswordWarning_ingestedAsExpense() {
+        val msg = "Dear Customer, never disclose your One Time Password to anyone. Rs 450.00 debited from A/c XX1234 at ZOMATO on 24-10-26."
+        org.junit.Assert.assertFalse("Expected Row 4 to NOT be blocked by OTP guard", AutoFlowParserAdapter.isNonTransactionMessage(msg))
+        val entity = AutoFlowParserAdapter.parseAndAdapt(msg, "VM-UNIONB-S", baseTimestamp)
+        assertNotNull("Expected parseAndAdapt to parse valid expense with OTP warning footer", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(45000L, entity.amountPaise)
+        assertTrue("Expected merchant to contain ZOMATO", entity.merchantName.contains("ZOMATO", ignoreCase = true))
+    }
+
+
 
     private fun createParsed(
         amount: BigDecimal,

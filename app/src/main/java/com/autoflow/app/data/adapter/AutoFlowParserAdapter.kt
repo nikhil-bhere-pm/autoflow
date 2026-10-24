@@ -48,11 +48,11 @@ object AutoFlowParserAdapter {
 
     // Compiled regexes for narrowed guard evaluation
     private val otpPhraseRegex = Regex(
-        """\b(?:is\s+(?:the\s+|your\s+)?otp|otp\s+is|otp\s+for\b[^.]*?\bis|one[- ]time[- ]password|verification code)\b"""
+        """\b(?:is\s+(?:the\s+|your\s+)?(?:otp|one[- ]time[- ]password)|(?:otp|one[- ]time[- ]password)\s+is|(?:otp|one[- ]time[- ]password)\s+for\b[^.]*?\bis|verification code)\b"""
     )
-    private val otpWordRegex = Regex("""\botp\b""")
+    private val otpTokenRegex = Regex("""\b(?:otp|one[- ]time[- ]password)\b""")
     private val otpWarningContextRegex = Regex(
-        """(?:never|do not|don't)\s+share\s+(?:your\s+)?otp|otp,?\s*(?:cvv|pin)"""
+        """(?:never|do not|don't)\s+(?:share|disclose|reveal)\s+(?:your\s+)?(?:otp|one[- ]time[- ]password)|(?:otp|one[- ]time[- ]password),?\s*(?:cvv|pin)"""
     )
     private val candidateDigitRegex = Regex("""(?<!\w)\d{4,8}(?!\w)""")
 
@@ -66,29 +66,38 @@ object AutoFlowParserAdapter {
     private val refundKeywordRegex = Regex(
         """\b(?:refund|refunded|reversal|reversed|returned|chargeback|money back)\b"""
     )
+    private val promisedRefundRegex = Regex(
+        """\b(?:will be (?:reversed|refunded|initiated|credited)|if debited|within\s+\d+(?:-\d+)?\s*(?:working\s+)?days)\b"""
+    )
 
     /**
      * Conservative phrase-based guard rejecting non-transaction messages
-     * (OTP codes, failed/declined debits without refund, reminders/mandates, promos, card bills, and payment received on card).
+     * (OTP codes, failed/declined debits without completed refund, reminders/mandates, promos, card bills, and payment received on card).
      */
     fun isNonTransactionMessage(message: String): Boolean {
         val lower = message.lowercase()
 
         // 1. OTP / Verification / Authentication
         // Block only when an OTP code is present (4-8 digits within ~30 chars of OTP) or explicit OTP phrases.
-        // Do NOT block on bare "OTP" or fraud warnings ("do not share" / "never share").
+        // Do NOT block on bare "OTP" or fraud warnings ("do not share" / "never share" / "never disclose").
         if (hasOtpCode(lower)) return true
 
         // 2. Failed / Declined / Cancelled / Negated debits
-        // Do NOT block if the message also contains any refund word (refund, refunded, reversal, reversed, returned, chargeback, money back).
+        // The refund-word exemption in the failed/declined guard must apply only when the message reports
+        // a COMPLETED refund/reversal. A message that only promises one ("will be reversed", "will be refunded",
+        // "will be initiated", "if debited", "within N days") must NOT count as a refund and stays ignored.
         val isFailedOrDeclined = failedDebitRegex.containsMatchIn(lower) ||
             lower.contains("no amount has been debited") ||
             lower.contains("not debited") ||
             lower.contains("could not be processed") ||
             lower.contains("was declined")
 
-        if (isFailedOrDeclined && !refundKeywordRegex.containsMatchIn(lower)) {
-            return true
+        if (isFailedOrDeclined) {
+            val hasRefundWord = refundKeywordRegex.containsMatchIn(lower)
+            val isPromisedRefund = promisedRefundRegex.containsMatchIn(lower)
+            if (!hasRefundWord || isPromisedRefund) {
+                return true
+            }
         }
 
         // 3. Credit limit / card limit updates
@@ -144,12 +153,12 @@ object AutoFlowParserAdapter {
     private fun hasOtpCode(lower: String): Boolean {
         if (otpPhraseRegex.containsMatchIn(lower)) return true
 
-        for (match in otpWordRegex.findAll(lower)) {
+        for (match in otpTokenRegex.findAll(lower)) {
             val start = (match.range.first - 35).coerceAtLeast(0)
             val end = (match.range.last + 36).coerceAtMost(lower.length)
             val window = lower.substring(start, end)
 
-            // If OTP appears in a warning clause (e.g. "never share OTP"), skip unless an OTP code indicator exists
+            // If OTP appears in a warning clause (e.g. "never share OTP" / "never disclose your One Time Password"), skip unless an OTP code indicator exists
             if (otpWarningContextRegex.containsMatchIn(window)) {
                 continue
             }
