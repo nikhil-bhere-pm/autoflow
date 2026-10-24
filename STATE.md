@@ -17,6 +17,8 @@
   - *Regression Corpus (`SmsRegressionCorpusTest.kt`):* Table-driven regression suite (`app/src/test/java/com/autoflow/app/data/adapter/SmsRegressionCorpusTest.kt`) expanded to 56 test cases covering M6 inbound money false-expense guards, M5 spend variations / parser-core limitation controls, M4 inbound transfer safety / UPI VPA extraction, M3 payee credit messages, M2 corner cases, Prompt M promise/completed pairs, Prompt 0 safety probe controls, and Prompt J narrowed-guard positive controls.
   - *Reminders & Summaries:* Blocks messages starting with `"reminder:"` or payment/mandate reminders, while allowing debits containing `"Reminder"` later in body text. Blocks monthly spend summaries, promos, card statements, and card debt repayments.
 
+- **Phase 5 (Category Engine v1 & User Rules):** CategoryEngine with 4-tier resolution hierarchy: (1) user's saved merchant rule on exact normalized key, (2) built-in aliases (`"swiggy inst"`, `"instamart"` -> `Groceries`; `"makemytrip"`, `"make my trip"`, `"irctc"` -> `Travel`), (3) keyword mapper (`KeywordCategoryMapper.kt` derived from PennyWise's `SharedCategoryMapping.kt` with pure Kotlin, whole-word/phrase regex matching on normalized merchant text, mapping upstream categories to AutoFlow's 9 fixed categories), (4) fallback to `"Others"`. Room database bumped to version 2 via explicit `MIGRATION_1_2` creating `merchant_categories` table and adding `categorySource` column (`'AUTO'` vs `'USER'`). Atomic retro-updates when user corrects a category: updates target row to `USER`, upserts rule, updates other active `AUTO` rows with same normalized key, and skips `USER` or soft-deleted rows. Junk merchants never store rules. Credit card payment messages classified as `"Others"` with reviewStatus `EXCLUDED`.
+
 ## 2. Money & Privacy Rules
 
 - **Paise Representation:** All monetary values stored and calculated as positive `Long` integers in paise (`round(amount * 100)`). No floating-point types in Room entities or math.
@@ -37,8 +39,7 @@
 ## 4. Known Open Issues
 
 1. **Refund UI Reconciliation:** Refunds appear in the transaction feed with a badge, but do not yet automatically link to or offset specific expense rows in the totals UI.
-2. **Hardcoded Category:** Category is currently hardcoded to "Others" across all ingested and cash transactions (investigated in Prompt L).
-3. **Peer-to-Peer UPI VPA Names:** Peer handles without real merchant identity require user review. Phone-number handles fall back to "Unknown Merchant".
+2. **Peer-to-Peer UPI VPA Names:** Peer handles without real merchant identity require user review. Phone-number handles fall back to "Unknown Merchant".
 4. **AxisBankParser spentAtPattern Boundary:** `spentAtPattern` in `AxisBankParser` triggers on messages containing `"Credit Card"` even without the word `"Spent"` (to tighten in a future update).
 5. **OutOfScope Commit 6e8ee14:** An `extractReference` modification in commit `6e8ee14` was outside its originally requested scope.
 6. **Play Store Policy:** Google Play Store SMS permission (`RECEIVE_SMS`) policy justification and compliance pathway is unresolved.
