@@ -46,33 +46,55 @@ object AutoFlowParserAdapter {
         "credit"
     )
 
+    // Compiled regexes for narrowed guard evaluation
+    private val otpPhraseRegex = Regex(
+        """\b(?:is\s+(?:the\s+|your\s+)?otp|otp\s+is|otp\s+for\b[^.]*?\bis|one[- ]time[- ]password|verification code)\b"""
+    )
+    private val otpWordRegex = Regex("""\botp\b""")
+    private val otpWarningContextRegex = Regex(
+        """(?:never|do not|don't)\s+share\s+(?:your\s+)?otp|otp,?\s*(?:cvv|pin)"""
+    )
+    private val candidateDigitRegex = Regex("""(?<!\w)\d{4,8}(?!\w)""")
+
+    private val creditLimitUpdateRegex = Regex(
+        """\bcredit limit\b.{0,35}?\b(?:is now|increased to|enhanced to|revised to|has been (?:increased|enhanced|revised))\b"""
+    )
+
+    private val failedDebitRegex = Regex(
+        """\b(?:has failed|failed|declined|unsuccessful|cancelled|canceled|voided)\b"""
+    )
+    private val refundKeywordRegex = Regex(
+        """\b(?:refund|refunded|reversal|reversed|returned|chargeback|money back)\b"""
+    )
+
     /**
      * Conservative phrase-based guard rejecting non-transaction messages
-     * (OTP, failed/declined debits, reminders/mandates, promos, card bills, and payment received on card).
+     * (OTP codes, failed/declined debits without refund, reminders/mandates, promos, card bills, and payment received on card).
      */
     fun isNonTransactionMessage(message: String): Boolean {
         val lower = message.lowercase()
 
         // 1. OTP / Verification / Authentication
-        if (Regex("""\b(?:otp|one[- ]time[- ]password|verification code)\b""").containsMatchIn(lower)) return true
-        if (lower.contains("do not share") || lower.contains("never share")) return true
+        // Block only when an OTP code is present (4-8 digits within ~30 chars of OTP) or explicit OTP phrases.
+        // Do NOT block on bare "OTP" or fraud warnings ("do not share" / "never share").
+        if (hasOtpCode(lower)) return true
 
         // 2. Failed / Declined / Cancelled / Negated debits
-        if (Regex("""\b(?:has failed|failed|declined|unsuccessful|cancelled|canceled|voided)\b""").containsMatchIn(lower)) return true
-        if (lower.contains("no amount has been debited") ||
+        // Do NOT block if the message also contains any refund word (refund, refunded, reversal, reversed, returned, chargeback, money back).
+        val isFailedOrDeclined = failedDebitRegex.containsMatchIn(lower) ||
+            lower.contains("no amount has been debited") ||
             lower.contains("not debited") ||
             lower.contains("could not be processed") ||
             lower.contains("was declined")
-        ) return true
+
+        if (isFailedOrDeclined && !refundKeywordRegex.containsMatchIn(lower)) {
+            return true
+        }
 
         // 3. Credit limit / card limit updates
-        if (lower.contains("credit limit") && (
-                lower.contains("is now") ||
-                lower.contains("increased") ||
-                lower.contains("enhanced") ||
-                lower.contains("good news") ||
-                lower.contains("has been")
-            )) return true
+        // Block only when "credit limit" is followed within ~20-35 characters by "is now", "increased to",
+        // "enhanced to", "revised to", or "has been increased/enhanced/revised". Never block "Avl limit" or "Available credit limit".
+        if (creditLimitUpdateRegex.containsMatchIn(lower)) return true
 
         // 4. Period / monthly spend summary
         if (lower.contains("you have spent") ||
@@ -88,7 +110,9 @@ object AutoFlowParserAdapter {
             lower.contains("scheduled to be debited") ||
             lower.contains("mandate scheduled")
         ) return true
-        if (lower.startsWith("reminder:") || lower.contains(" reminder:")) return true
+        if (lower.startsWith("reminder:") || lower.startsWith("reminder -") ||
+            lower.contains("payment reminder") || lower.contains("mandate reminder")
+        ) return true
 
         // 6. Promos / offers / discounts
         if (lower.contains("t&c apply") ||
@@ -114,6 +138,35 @@ object AutoFlowParserAdapter {
             lower.contains("payment received towards")
         ) return true
 
+        return false
+    }
+
+    private fun hasOtpCode(lower: String): Boolean {
+        if (otpPhraseRegex.containsMatchIn(lower)) return true
+
+        for (match in otpWordRegex.findAll(lower)) {
+            val start = (match.range.first - 35).coerceAtLeast(0)
+            val end = (match.range.last + 36).coerceAtMost(lower.length)
+            val window = lower.substring(start, end)
+
+            // If OTP appears in a warning clause (e.g. "never share OTP"), skip unless an OTP code indicator exists
+            if (otpWarningContextRegex.containsMatchIn(window)) {
+                continue
+            }
+
+            for (dm in candidateDigitRegex.findAll(window)) {
+                val numIdx = dm.range.first
+                val prefix = window.substring((numIdx - 10).coerceAtLeast(0), numIdx).trimEnd()
+                if (prefix.endsWith("rs") || prefix.endsWith("rs.") || prefix.endsWith("inr") ||
+                    prefix.endsWith("bal") || prefix.endsWith("bal:") || prefix.endsWith("bal.") ||
+                    prefix.endsWith("a/c") || prefix.endsWith("card") || prefix.endsWith("no.") ||
+                    prefix.endsWith("block") || prefix.endsWith("call")
+                ) {
+                    continue
+                }
+                return true
+            }
+        }
         return false
     }
 

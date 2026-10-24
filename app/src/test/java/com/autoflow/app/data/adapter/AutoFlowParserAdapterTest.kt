@@ -240,7 +240,18 @@ class AutoFlowParserAdapterTest {
             "Refund of Rs. 350.00 credited to HDFC Bank A/C *1234 from ZOMATO on 23-10-24 via UPI Ref 429799998888. Bal Rs 10900.",
             "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 4870.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
             "INR 220.00 debited from A/c no. XX1234 to SWIGGY via UPI. Bal INR 4300.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
-            "Spent INR 500 using Axis Bank Credit Card no. XX1234 on 24-10-26 15:00:00 IST at BIGBASKET. Avl limit: INR 35000.0. Not you? SMS BLOCK 1234 to +919951860002."
+            "Spent INR 500 using Axis Bank Credit Card no. XX1234 on 24-10-26 15:00:00 IST at BIGBASKET. Avl limit: INR 35000.0. Not you? SMS BLOCK 1234 to +919951860002.",
+            // Narrowed guard positive controls
+            "INR 500.00 debited from A/c no. XX1234 on 24-10-26 to CAFE. Bal INR 4500.00. Never share OTP, CVV or PIN with anyone.",
+            "INR 250.00 debited from A/c no. XX1234 to SWIGGY. Bal INR 4250.00. Do not share your OTP with anyone.",
+            "INR 1,450.00 has been spent on your card XX1234 at RELIANCE RETAIL. Available credit limit INR 45,000.00.",
+            "Refund of Rs 350.00 for your cancelled order at SWIGGY credited to A/c XX1234.",
+            "Reversal of Rs 500.00 for failed UPI transaction credited to A/c XX1234.",
+            "INR 350.00 debited from A/c no. XX1234 to SWIGGY on 24-10-26 via UPI. Avl Bal INR 12500.00. Not you? Call 18004195959",
+            "Spent INR 450 using Axis Bank Credit Card no. XX1234 at STARBUCKS. Transaction successful. Avl limit: INR 40000.0.",
+            "Spent INR 650 using Axis Bank Credit Card no. XX1234 on 24-10-26 14:00:00 IST at AMAZON. Avl limit: INR 38000.0. Pay now to clear dues.",
+            "INR 120.00 debited from A/c no. XX1234 to CHAI POINT on 24-10-26. Bal INR 5000.00. Reminder: Keep your card details safe.",
+            "INR 2000.00 debited from A/c no. XX1234 for ATM cash withdrawal on 24-10-26. Avl bal INR 8000.00. Beware of fraud! Never reveal sensitive data to strangers."
         )
 
         for (msg in legitimateTransactions) {

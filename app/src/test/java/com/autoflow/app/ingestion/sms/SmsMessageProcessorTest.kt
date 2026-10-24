@@ -268,5 +268,146 @@ class SmsMessageProcessorTest {
             assertEquals(expectedCount, transactionDao.items.size)
         }
     }
+
+    @Test
+    fun testPositiveControl_debitAlertWithNeverShareOtpFooter_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "VM-UNIONB-S",
+            body = "INR 500.00 debited from A/c no. XX1234 to CAFE. Avl Bal INR 4500.00. Never share OTP, CVV or PIN with anyone.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(50000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_debitAlertWithDoNotShareOtpFooter_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "VM-UNIONB-S",
+            body = "INR 250.00 debited from A/c no. XX1234 to SWIGGY. Avl Bal INR 4250.00. Do not share your OTP with anyone.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(25000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_cardSpendWithAvailableCreditLimit_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK-S",
+            body = "INR 1,450.00 has been spent on your card XX1234 at RELIANCE RETAIL. Available credit limit INR 45,000.00.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(145000L, tx.amountPaise)
+        assertEquals("RELIANCE RETAIL", tx.merchantName)
+    }
+
+    @Test
+    fun testPositiveControl_refundForCancelledOrder_ingestedAsRefund() = runTest {
+        val result = processor.processMessage(
+            sender = "VM-HDFCBK",
+            body = "Refund of Rs 350.00 for your cancelled order at SWIGGY credited to A/c XX1234.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.REFUND, tx.recordType)
+        assertEquals(35000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_reversalForFailedTransaction_ingestedAsRefund() = runTest {
+        val result = processor.processMessage(
+            sender = "VM-HDFCBK",
+            body = "Reversal of Rs 500.00 for failed UPI transaction credited to A/c XX1234.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.REFUND, tx.recordType)
+        assertEquals(50000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_upiDebitWithAvlBalAndHelpline_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK",
+            body = "INR 350.00 debited from A/c no. XX1234 to SWIGGY on 24-10-26 via UPI. Avl Bal INR 12500.00. Not you? Call 18004195959",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(35000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_cardSpendWithTransactionSuccessful_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK-S",
+            body = "Spent INR 450 using Axis Bank Credit Card no. XX1234 at STARBUCKS. Transaction successful. Avl limit: INR 40000.0.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(45000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_creditCardSpendWithAvlLimitAndPayNow_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK-S",
+            body = "Spent INR 650 using Axis Bank Credit Card no. XX1234 on 24-10-26 14:00:00 IST at AMAZON. Avl limit: INR 38000.0. Pay now to clear dues.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(65000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_debitWithReminderLaterInText_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK",
+            body = "INR 120.00 debited from A/c no. XX1234 to CHAI POINT on 24-10-26. Bal INR 5000.00. Reminder: Keep your card details safe.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(12000L, tx.amountPaise)
+    }
+
+    @Test
+    fun testPositiveControl_atmWithdrawalWithFraudWarningFooter_ingested() = runTest {
+        val result = processor.processMessage(
+            sender = "AX-AXISBK",
+            body = "INR 2000.00 debited from A/c no. XX1234 for ATM cash withdrawal on 24-10-26. Avl bal INR 8000.00. Beware of fraud! Never reveal sensitive data to strangers.",
+            timestamp = 1700000000000L
+        )
+        assertTrue("Expected Success result but got: $result", result is ProcessSmsResult.Success)
+        assertEquals(1, transactionDao.items.size)
+        val tx = transactionDao.items.first()
+        assertEquals(RecordType.EXPENSE, tx.recordType)
+        assertEquals(200000L, tx.amountPaise)
+    }
 }
 
