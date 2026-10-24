@@ -67,3 +67,23 @@
   - `cancelUsageForTransaction(transactionId)` & `restoreUsageForTransaction(transactionId)`: Idempotently soft-deletes and restores linked `USED` entries for expense deletion and Undo workflows.
 - **Progress Calculations:** Savings goals compute progress percent and `isReached` against net saved amount (`setAsidePaise - usedPaise`). Avoidance goals compute progress against `avoidedPaise`.
 
+## 7. Spending Statistics Domain
+
+- **Pure Kotlin Architecture:** Decoupled analytics and statistics calculation engine (`domain/stats/SpendingStats.kt`) with zero Android, UI, or database dependencies. All amounts calculated as integer paise (`Long`) with overflow-safe arithmetic (`Math.addExact`, `BigInteger`).
+- **Spending Eligibility Rules:** Reuses core criteria from `domain/totals/SpendingTotals.kt`:
+  - Active (`is_deleted = 0`), outbound (`recordType == EXPENSE`), non-excluded (`reviewStatus != EXCLUDED`).
+  - Pending review (`NEEDS_REVIEW`) items are included.
+  - `REFUND` records are excluded (not subtracted in MVP).
+- **Period Ranges (`periodRange`):** Calculates half-open intervals `[start, end)` in UTC instants based on caller-supplied `ZoneId` and `Instant` anchor:
+  - `TODAY`: Local midnight to next midnight.
+  - `THIS_WEEK`: ISO-8601 Monday midnight to next Monday midnight.
+  - `THIS_MONTH`: First day of month at midnight to first day of next month at midnight.
+- **5-Month Trend Series (`monthlySeries`):**
+  - Generates exactly 5 `MonthPoint(month, totalPaise, isFuture)` points: two preceding months, the selected month, and two following months.
+  - Months strictly after `currentMonth` are flagged `isFuture = true` with `totalPaise = 0L`.
+- **Category Breakdown (`categoryBreakdown`):**
+  - Aggregates spending per category over a given `PeriodRange`. Omits categories with zero spend.
+  - Whole-number percentage calculation using the **Largest Remainder Method** (Hamilton/Hare–Niemeyer), guaranteeing percentages sum to exactly 100% when total spend > 0.
+  - Deterministic tie-breaking: sorts by largest remainder descending, then largest spend descending, then alphabetical category name ascending.
+- **Daily Totals (`dayTotal`, `dailyTotals`):** Computes spend totals per local calendar day or across ranges, clamped at a minimum of `0L`.
+
