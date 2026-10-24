@@ -17,6 +17,8 @@ data class FinancialTransaction(
     val merchantName: String,
     val category: String,
     val categorySource: String = "AUTO",
+    val paymentMode: String = "UNKNOWN",
+    val note: String? = null,
     val accountNumber: String?,
     val bankName: String?,
     val reference: String?,

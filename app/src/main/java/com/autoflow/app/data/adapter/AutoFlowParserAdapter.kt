@@ -109,6 +109,28 @@ object AutoFlowParserAdapter {
         RegexOption.IGNORE_CASE
     )
 
+    private val creditCardModeRegex = Regex(
+        """\bcredit\s+card\b|\bcc\s+|\b(?:card\s+ending|card\s+no\.?)\b[^\n.]*?\bcredit\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val upiModeRegex = Regex(
+        """\b(?:upi|vpa)\b|@[a-zA-Z0-9._-]+""",
+        RegexOption.IGNORE_CASE
+    )
+    private val bankModeRegex = Regex(
+        """\b(?:debit\s+card|neft|imps|rtgs|atm)\b|\b(?:a/c|account)\b[^\n.]*?\bdebited\b|\bdebited\b[^\n.]*?\b(?:from\s+)?(?:a/c|account)\b""",
+        RegexOption.IGNORE_CASE
+    )
+
+    fun detectPaymentMode(smsBody: String): String {
+        return when {
+            creditCardModeRegex.containsMatchIn(smsBody) -> com.autoflow.app.data.model.PaymentMode.CREDIT
+            upiModeRegex.containsMatchIn(smsBody) -> com.autoflow.app.data.model.PaymentMode.UPI
+            bankModeRegex.containsMatchIn(smsBody) -> com.autoflow.app.data.model.PaymentMode.BANK
+            else -> com.autoflow.app.data.model.PaymentMode.UNKNOWN
+        }
+    }
+
     private fun hasCompletedSpend(lower: String): Boolean {
         val textWithoutUncompleted = uncompletedDebitPhrasesRegex.replace(lower, " ")
         return completedSpendStatementRegex.containsMatchIn(textWithoutUncompleted)
@@ -371,6 +393,7 @@ object AutoFlowParserAdapter {
             merchantName = cleanedMerchant,
             category = categoryResolution.category,
             categorySource = "AUTO",
+            paymentMode = detectPaymentMode(smsBodySnippet),
             accountNumber = parsed.accountLast4,
             bankName = parsed.bankName.ifBlank { null },
             reference = parsed.reference,

@@ -112,6 +112,7 @@ class MainViewModel(
                 merchantName = merchantName.trim().ifBlank { "Cash Expense" },
                 category = category.trim().ifBlank { "Others" },
                 categorySource = "USER",
+                paymentMode = com.autoflow.app.data.model.PaymentMode.CASH,
                 transactionHash = hash,
                 source = TransactionSource.MANUAL_CASH,
                 reviewStatus = ReviewStatus.CONFIRMED,

@@ -507,6 +507,13 @@ class FakeTransactionDao : TransactionDao {
     override suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity> {
         return items.filter { it.isDeleted == 0 && it.categorySource == "AUTO" }
     }
+
+    override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> {
+        return flowOf(
+            items.filter { it.isDeleted == 0 && it.dateTime >= startTime && it.dateTime < endTime }
+                .sortedByDescending { it.dateTime }
+        )
+    }
 }
 
 class FakeRefundMatchDao : RefundMatchDao {

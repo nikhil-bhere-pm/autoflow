@@ -39,6 +39,17 @@ data class CategorySpendItem(
     val totalPaise: Long,
     val count: Int,
     val percent: Int
+) {
+    val percentInt: Int get() = percent
+}
+
+data class MonthlySpendPoint(
+    val label: String,
+    val startTimestamp: Long,
+    val endTimestamp: Long,
+    val totalExpensePaise: Long,
+    val totalRefundPaise: Long,
+    val netSpendPaise: Long
 )
 
 data class CategoryBreakdown(
@@ -132,13 +143,104 @@ fun categoryBreakdown(
 ): CategoryBreakdown {
     val startMillis = range.startEpochMillis
     val endMillis = range.endEpochMillis
+    val eligible = records.filter { tx -> tx.dateTime in startMillis until endMillis }
+    val items = categoryBreakdown(eligible)
+    val totalPaise = items.fold(0L) { acc, item -> Math.addExact(acc, item.totalPaise) }
+    return CategoryBreakdown(totalPaise = totalPaise, items = items)
+}
 
-    val eligibleRecords = records.filter { tx ->
-        tx.isCountedAsSpending() && tx.dateTime in startMillis until endMillis
+/**
+ * Calculates total spending for a specific calendar day in the given time zone.
+ * Total is never negative.
+ */
+fun dayTotal(
+    records: List<FinancialTransaction>,
+    date: LocalDate,
+    zone: ZoneId
+): Long {
+    val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
+    val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+
+    var total = 0L
+    for (tx in records) {
+        if (!tx.isCountedAsSpending()) continue
+        if (tx.dateTime in start until end) {
+            total = Math.addExact(total, tx.amountPaise)
+        }
     }
+    return total.coerceAtLeast(0L)
+}
 
+/**
+ * Returns daily spending totals for all days falling within the given range in the specified time zone.
+ */
+fun dailyTotals(
+    records: List<FinancialTransaction>,
+    range: PeriodRange,
+    zone: ZoneId
+): List<DayTotal> {
+    val startLocalDate = range.start.atZone(zone).toLocalDate()
+    val endLocalDate = range.end.atZone(zone).toLocalDate()
+
+    val result = mutableListOf<DayTotal>()
+    var current = startLocalDate
+    while (current.isBefore(endLocalDate)) {
+        val total = dayTotal(records, current, zone)
+        result.add(DayTotal(date = current, totalPaise = total))
+        current = current.plusDays(1)
+    }
+    return result
+}
+
+/**
+ * Returns a 5-month spending series: selectedMonth + 4 prior months (5 points total).
+ * For each month: label (e.g. "Oct 2026"), start timestamp, end timestamp,
+ * total expense paise, total refund paise, and net spend paise (floored at 0).
+ */
+fun fiveMonthSpendingSeries(
+    records: List<FinancialTransaction>,
+    selectedMonth: YearMonth,
+    zone: ZoneId = ZoneId.systemDefault()
+): List<MonthlySpendPoint> {
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM yyyy", java.util.Locale.US)
+    val months = (4 downTo 0).map { selectedMonth.minusMonths(it.toLong()) }
+    return months.map { month ->
+        val start = month.atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val end = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        var expTotal = 0L
+        var refTotal = 0L
+        for (tx in records) {
+            if (tx.isDeleted || tx.reviewStatus == ReviewStatus.EXCLUDED) continue
+            if (tx.dateTime in start until end) {
+                if (tx.recordType == RecordType.EXPENSE) {
+                    expTotal = Math.addExact(expTotal, tx.amountPaise)
+                } else if (tx.recordType == RecordType.REFUND) {
+                    refTotal = Math.addExact(refTotal, tx.amountPaise)
+                }
+            }
+        }
+        val net = (expTotal - refTotal).coerceAtLeast(0L)
+        MonthlySpendPoint(
+            label = month.format(formatter),
+            startTimestamp = start,
+            endTimestamp = end,
+            totalExpensePaise = expTotal,
+            totalRefundPaise = refTotal,
+            netSpendPaise = net
+        )
+    }
+}
+
+/**
+ * Calculates category breakdown for a pre-filtered list of transactions.
+ * Returns a list of CategorySpendItem sorted descending by totalPaise.
+ */
+fun categoryBreakdown(
+    records: List<FinancialTransaction>
+): List<CategorySpendItem> {
+    val eligibleRecords = records.filter { it.isCountedAsSpending() }
     if (eligibleRecords.isEmpty()) {
-        return CategoryBreakdown(totalPaise = 0L, items = emptyList())
+        return emptyList()
     }
 
     data class MutableCat(val category: String, var totalPaise: Long, var count: Int)
@@ -153,7 +255,7 @@ fun categoryBreakdown(
 
     val nonZeroCategories = map.values.filter { it.totalPaise > 0L }
     if (nonZeroCategories.isEmpty()) {
-        return CategoryBreakdown(totalPaise = 0L, items = emptyList())
+        return emptyList()
     }
 
     var grandTotal = 0L
@@ -162,7 +264,7 @@ fun categoryBreakdown(
     }
 
     if (grandTotal <= 0L) {
-        return CategoryBreakdown(totalPaise = 0L, items = emptyList())
+        return emptyList()
     }
 
     data class TempItem(
@@ -210,7 +312,7 @@ fun categoryBreakdown(
     val finalComparator = compareByDescending<CategorySpendItem> { it.totalPaise }
         .thenBy { it.category }
 
-    val finalItems = tempItems.map {
+    return tempItems.map {
         CategorySpendItem(
             category = it.category,
             totalPaise = it.totalPaise,
@@ -218,52 +320,5 @@ fun categoryBreakdown(
             percent = it.percent
         )
     }.sortedWith(finalComparator)
-
-    return CategoryBreakdown(
-        totalPaise = grandTotal,
-        items = finalItems
-    )
 }
 
-/**
- * Calculates total spending for a specific calendar day in the given time zone.
- * Total is never negative.
- */
-fun dayTotal(
-    records: List<FinancialTransaction>,
-    date: LocalDate,
-    zone: ZoneId
-): Long {
-    val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-    val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-
-    var total = 0L
-    for (tx in records) {
-        if (!tx.isCountedAsSpending()) continue
-        if (tx.dateTime in start until end) {
-            total = Math.addExact(total, tx.amountPaise)
-        }
-    }
-    return total.coerceAtLeast(0L)
-}
-
-/**
- * Returns daily spending totals for all days falling within the given range in the specified time zone.
- */
-fun dailyTotals(
-    records: List<FinancialTransaction>,
-    range: PeriodRange,
-    zone: ZoneId
-): List<DayTotal> {
-    val startLocalDate = range.start.atZone(zone).toLocalDate()
-    val endLocalDate = range.end.atZone(zone).toLocalDate()
-
-    val result = mutableListOf<DayTotal>()
-    var current = startLocalDate
-    while (current.isBefore(endLocalDate)) {
-        val total = dayTotal(records, current, zone)
-        result.add(DayTotal(date = current, totalPaise = total))
-        current = current.plusDays(1)
-    }
-    return result
-}

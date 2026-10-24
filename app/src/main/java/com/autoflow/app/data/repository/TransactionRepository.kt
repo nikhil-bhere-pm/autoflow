@@ -4,12 +4,30 @@ import com.autoflow.app.data.db.dao.MerchantCategoryDao
 import com.autoflow.app.data.db.dao.TransactionDao
 import com.autoflow.app.data.db.entity.MerchantCategoryEntity
 import com.autoflow.app.data.db.entity.TransactionEntity
+import com.autoflow.app.data.model.PaymentMode
 import com.autoflow.app.data.model.ReviewStatus
+import com.autoflow.app.data.model.TransactionSource
 import com.autoflow.app.data.model.UncertaintyReason
 import com.autoflow.app.domain.category.CategoryEngine
 import com.autoflow.app.domain.model.FinancialTransaction
+import com.autoflow.app.domain.stats.CategorySpendItem
+import com.autoflow.app.domain.stats.MonthlySpendPoint
+import com.autoflow.app.domain.stats.categoryBreakdown
+import com.autoflow.app.domain.stats.fiveMonthSpendingSeries
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.time.YearMonth
+import java.time.ZoneId
+
+sealed interface UpdateTransactionResult {
+    data class Success(val transaction: FinancialTransaction) : UpdateTransactionResult
+    object NotFound : UpdateTransactionResult
+    object FutureDateNotAllowed : UpdateTransactionResult
+    object NoteTooLong : UpdateTransactionResult
+    object InvalidAmount : UpdateTransactionResult
+    object CannotEditSmsAmount : UpdateTransactionResult
+    object InvalidPaymentMode : UpdateTransactionResult
+}
 
 class TransactionRepository(
     private val transactionDao: TransactionDao,
@@ -32,6 +50,26 @@ class TransactionRepository(
         return transactionDao.getTransactionsForPeriod(startTime, endTime).map { list ->
             list.map { it.toDomain() }
         }
+    }
+
+    fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<FinancialTransaction>> {
+        return transactionDao.getTransactionsInRange(startTime, endTime).map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    fun getFiveMonthSpendingSeries(
+        records: List<FinancialTransaction>,
+        selectedMonth: YearMonth,
+        zone: ZoneId = ZoneId.systemDefault()
+    ): List<MonthlySpendPoint> {
+        return fiveMonthSpendingSeries(records, selectedMonth, zone)
+    }
+
+    fun getCategoryBreakdown(
+        records: List<FinancialTransaction>
+    ): List<CategorySpendItem> {
+        return categoryBreakdown(records)
     }
 
     fun getTransactionsByReviewStatus(status: ReviewStatus): Flow<List<FinancialTransaction>> {
@@ -58,40 +96,74 @@ class TransactionRepository(
         transactionDao.update(transaction)
     }
 
-    suspend fun updateTransactionCorrection(
+    suspend fun updateTransaction(
         id: Long,
-        newMerchantName: String,
-        newCategory: String,
+        merchantName: String,
+        category: String,
+        dateTime: Long,
+        paymentMode: String,
+        note: String?,
+        amountPaise: Long? = null,
         now: Long = System.currentTimeMillis()
-    ) {
-        val existing = transactionDao.getById(id) ?: return
-        val trimmedMerchant = newMerchantName.trim()
+    ): UpdateTransactionResult {
+        val existing = transactionDao.getById(id) ?: return UpdateTransactionResult.NotFound
+
+        if (!PaymentMode.isValid(paymentMode)) {
+            return UpdateTransactionResult.InvalidPaymentMode
+        }
+
+        if (dateTime > now) {
+            return UpdateTransactionResult.FutureDateNotAllowed
+        }
+
+        val cleanedNote = note?.trim()?.ifBlank { null }
+        if (cleanedNote != null && cleanedNote.length > 200) {
+            return UpdateTransactionResult.NoteTooLong
+        }
+
+        val finalAmountPaise = if (amountPaise != null) {
+            if (existing.source != TransactionSource.MANUAL_CASH) {
+                return UpdateTransactionResult.CannotEditSmsAmount
+            }
+            if (amountPaise <= 0L || amountPaise > 10_000_000_000L) {
+                return UpdateTransactionResult.InvalidAmount
+            }
+            amountPaise
+        } else {
+            existing.amountPaise
+        }
+
+        val trimmedMerchant = merchantName.trim()
         val finalMerchant = if (trimmedMerchant.isBlank()) {
             if (existing.merchantName == "Unknown Merchant") "Unknown Merchant" else existing.merchantName
         } else {
             trimmedMerchant
         }
-        val categoryTrimmed = newCategory.trim().ifBlank { existing.category }
+
+        val categoryTrimmed = category.trim().ifBlank { existing.category }
         val categoryChanged = categoryTrimmed != existing.category
         val isRealMerchant = CategoryEngine.shouldStoreRule(finalMerchant)
 
+        var resultEntity: TransactionEntity = existing
+
         runInTransaction {
-            // (a) update that row, categorySource=USER
             val updated = existing.copy(
+                amountPaise = finalAmountPaise,
                 merchantName = finalMerchant,
                 category = categoryTrimmed,
                 categorySource = "USER",
+                dateTime = dateTime,
+                paymentMode = paymentMode,
+                note = cleanedNote,
                 reviewStatus = ReviewStatus.CONFIRMED,
                 uncertaintyBits = 0,
                 updatedAt = now
             )
             transactionDao.update(updated)
+            resultEntity = updated
 
-            // When user changes category on a row with a real merchant name:
             if (categoryChanged && isRealMerchant && merchantCategoryDao != null) {
                 val normalizedKey = CategoryEngine.normalizeKey(finalMerchant)
-
-                // (b) upsert the merchant rule
                 merchantCategoryDao.upsert(
                     MerchantCategoryEntity(
                         merchantKey = normalizedKey,
@@ -100,7 +172,6 @@ class TransactionRepository(
                     )
                 )
 
-                // (c) update all OTHER non-deleted rows with the same normalized merchant key whose categorySource='AUTO'
                 val autoRows = transactionDao.getAllAutoCategorizedTransactions()
                 for (other in autoRows) {
                     if (other.id != id && CategoryEngine.normalizeKey(other.merchantName) == normalizedKey) {
@@ -114,6 +185,27 @@ class TransactionRepository(
                 }
             }
         }
+
+        return UpdateTransactionResult.Success(resultEntity.toDomain())
+    }
+
+    suspend fun updateTransactionCorrection(
+        id: Long,
+        newMerchantName: String,
+        newCategory: String,
+        now: Long = System.currentTimeMillis()
+    ) {
+        val existing = transactionDao.getById(id) ?: return
+        updateTransaction(
+            id = id,
+            merchantName = newMerchantName,
+            category = newCategory,
+            dateTime = existing.dateTime,
+            paymentMode = existing.paymentMode,
+            note = existing.note,
+            amountPaise = null,
+            now = now
+        )
     }
 
     suspend fun softDelete(id: Long) {
@@ -129,6 +221,8 @@ class TransactionRepository(
             merchantName = merchantName,
             category = category,
             categorySource = categorySource,
+            paymentMode = paymentMode,
+            note = note,
             accountNumber = accountNumber,
             bankName = bankName,
             reference = reference,

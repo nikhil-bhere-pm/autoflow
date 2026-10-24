@@ -26,7 +26,7 @@ import com.autoflow.app.data.db.entity.TransactionEntity
         GoalContributionEntity::class,
         MerchantCategoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(AutoFlowTypeConverters::class)
@@ -64,6 +64,18 @@ abstract class AutoFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3_SQL: List<String> = listOf(
+            "ALTER TABLE `transactions` ADD COLUMN `payment_mode` TEXT NOT NULL DEFAULT 'UNKNOWN'",
+            "ALTER TABLE `transactions` ADD COLUMN `note` TEXT",
+            "UPDATE `transactions` SET `payment_mode` = 'CASH' WHERE `source` = 'MANUAL_CASH'"
+        )
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_2_3_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
         fun getDatabase(context: Context): AutoFlowDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -71,7 +83,7 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                     AutoFlowDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance

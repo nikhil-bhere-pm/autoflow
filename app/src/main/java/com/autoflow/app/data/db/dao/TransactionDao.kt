@@ -106,8 +106,19 @@ interface TransactionDao {
             WHERE is_deleted = 0 
               AND categorySource = 'AUTO'
         """
+
+        const val QUERY_GET_IN_RANGE = """
+            SELECT * FROM transactions 
+            WHERE is_deleted = 0 
+              AND date_time >= :startTime 
+              AND date_time < :endTime 
+            ORDER BY date_time DESC
+        """
     }
 
     @Query(QUERY_GET_ALL_AUTO)
     suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity>
+
+    @Query(QUERY_GET_IN_RANGE)
+    fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>>
 }
