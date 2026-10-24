@@ -2,8 +2,11 @@ package com.autoflow.app.presentation.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,31 +14,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,29 +52,48 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.autoflow.app.data.model.RecordType
-import com.autoflow.app.data.model.ReviewStatus
 import com.autoflow.app.domain.model.FinancialTransaction
-import com.autoflow.app.domain.totals.SpendingTotals
+import com.autoflow.app.domain.stats.MonthPoint
+import com.autoflow.app.domain.stats.StatsPeriod
 import com.autoflow.app.presentation.theme.AppRadius
 import com.autoflow.app.presentation.theme.AppSpacing
-import com.autoflow.app.presentation.theme.LocalAppBadgeColors
+import com.autoflow.app.presentation.theme.AutoFlowTheme
+import com.autoflow.app.presentation.ui.components.AFBadge
+import com.autoflow.app.presentation.ui.components.AFBadgeVariant
+import com.autoflow.app.presentation.ui.components.AFBottomNav
+import com.autoflow.app.presentation.ui.components.AFBottomNavItem
+import com.autoflow.app.presentation.ui.components.AFButton
+import com.autoflow.app.presentation.ui.components.AFButtonVariant
+import com.autoflow.app.presentation.ui.components.AFTopBar
+import com.autoflow.app.presentation.ui.components.AFTransactionRow
 import com.autoflow.app.presentation.util.CurrencyFormatter
+import com.autoflow.app.presentation.viewmodel.DayGroup
+import com.autoflow.app.presentation.viewmodel.HomeBadgeType
+import com.autoflow.app.presentation.viewmodel.HomeUiState
+import com.autoflow.app.presentation.viewmodel.PeriodFilter
+import com.autoflow.app.presentation.viewmodel.getHomeBadgeType
 import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    totals: SpendingTotals,
-    transactions: List<FinancialTransaction>,
+    uiState: HomeUiState,
+    onSelectPeriod: (StatsPeriod) -> Unit,
+    onSelectMonth: (YearMonth) -> Unit,
     onNavigateToEdit: (Long) -> Unit,
-    onNavigateToAddCash: () -> Unit
+    onNavigateToAddCash: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val colors = AutoFlowTheme.colors
     val context = LocalContext.current
     var hasSmsPermission by remember {
         mutableStateOf(
@@ -87,50 +110,60 @@ fun HomeScreen(
         hasSmsPermission = isGranted
     }
 
+    var showRefundInfoDialog by remember { mutableStateOf(false) }
+
     Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = colors.bg,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "AutoFlow",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+            // Top Bar with title only (settings icon omitted because settings screen is not built yet)
+            AFTopBar(
+                title = "AutoFlow",
+                showDivider = true
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddCash,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(AppRadius.lg),
-                modifier = Modifier
-                    .heightIn(min = AppSpacing.minTapTarget)
-                    .semantics { contentDescription = "Add cash expense" }
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(horizontal = AppSpacing.md)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null
+        bottomBar = {
+            // App Frame Bottom Bar: Home tab on left, round + button in center (opens Add Cash),
+            // Review and Categories tabs omitted because those screens do not exist yet.
+            // Floating action button removed per prompt requirements.
+            AFBottomNav(
+                items = listOf(
+                    AFBottomNavItem(
+                        title = "Home",
+                        icon = { selected ->
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "Home",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
                     )
-                    Spacer(modifier = Modifier.width(AppSpacing.xs))
-                    Text(
-                        text = "Add Cash",
-                        style = MaterialTheme.typography.labelLarge,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                ),
+                selectedIndex = 0,
+                onSelect = { /* Already on Home */ },
+                centerButton = {
+                    Surface(
+                        shape = CircleShape,
+                        color = colors.button,
+                        contentColor = colors.buttonText,
+                        modifier = Modifier
+                            .size(AppSpacing.minTapTarget)
+                            .clickable(onClick = onNavigateToAddCash)
+                            .semantics { contentDescription = "Add expense" }
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = colors.buttonText
+                            )
+                        }
+                    }
                 }
-            }
+            )
         }
     ) { paddingValues ->
         LazyColumn(
@@ -140,20 +173,42 @@ fun HomeScreen(
             contentPadding = PaddingValues(
                 start = AppSpacing.md,
                 end = AppSpacing.md,
-                top = AppSpacing.sm,
-                bottom = AppSpacing.xxl + AppSpacing.xl
+                top = AppSpacing.md,
+                bottom = AppSpacing.xl
             ),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
-            // SPENDING TOTALS CARD
+            // 1. Period Pill
             item {
-                TotalsSummaryCard(totals = totals)
+                PeriodPill(
+                    pillLabel = uiState.pillLabel,
+                    onSelectPeriod = onSelectPeriod
+                )
             }
 
-            // SMS PERMISSION CARD (Shown ONLY when permission is NOT granted)
+            // 2. One Big Number & Transaction Count
+            item {
+                BigNumberSection(
+                    countedSpendPaise = uiState.countedSpendPaise,
+                    countedCount = uiState.countedTransactionCount,
+                    onInfoClick = { showRefundInfoDialog = true }
+                )
+            }
+
+            // 3. 5-Month Spending Chart
+            item {
+                FiveMonthChartCard(
+                    monthlySeries = uiState.monthlySeries,
+                    periodFilter = uiState.periodFilter,
+                    accessibilityDescription = uiState.chartAccessibilityDescription,
+                    onSelectMonth = onSelectMonth
+                )
+            }
+
+            // 4. SMS Permission Card (Shown ONLY when permission is NOT granted)
             if (!hasSmsPermission) {
                 item {
-                    SmsPermissionCard(
+                    SmsPermissionBanner(
                         onRequestPermission = {
                             permissionLauncher.launch(Manifest.permission.RECEIVE_SMS)
                         }
@@ -161,108 +216,396 @@ fun HomeScreen(
                 }
             }
 
-            // TRANSACTIONS SECTION TITLE
-            item {
-                Text(
-                    text = "Recent Transactions",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(
-                        top = AppSpacing.sm,
-                        bottom = AppSpacing.xxs
-                    )
-                )
-            }
-
-            // TRANSACTIONS LIST OR EMPTY STATE
-            if (transactions.isEmpty()) {
+            // 5. Grouped List or Empty State
+            if (uiState.isEmpty) {
                 item {
-                    EmptyTransactionsCard()
+                    EmptyStateView(onAddExpense = onNavigateToAddCash)
                 }
             } else {
-                items(
-                    items = transactions,
-                    key = { it.id }
-                ) { transaction ->
-                    TransactionRow(
-                        transaction = transaction,
-                        onClick = { onNavigateToEdit(transaction.id) }
-                    )
+                uiState.groupedTransactions.forEach { dayGroup ->
+                    item(key = "header_${dayGroup.date}") {
+                        DayHeader(
+                            date = dayGroup.date,
+                            dayTotalPaise = dayGroup.dayTotalPaise
+                        )
+                    }
+
+                    items(
+                        items = dayGroup.transactions,
+                        key = { it.id }
+                    ) { tx ->
+                        val isRefund = tx.recordType == RecordType.REFUND
+                        val formattedAmount = if (isRefund) {
+                            "+${CurrencyFormatter.formatPaiseToInr(tx.amountPaise)}"
+                        } else {
+                            CurrencyFormatter.formatPaiseToInr(tx.amountPaise)
+                        }
+
+                        val timeString = formatTime(tx.dateTime)
+                        val subtitle = "${tx.category} · $timeString"
+                        val merchant = tx.merchantName.trim().ifBlank { "Unknown merchant" }
+                        val badgeType = tx.getHomeBadgeType()
+
+                        AFTransactionRow(
+                            title = merchant,
+                            subtitle = subtitle,
+                            amountText = formattedAmount,
+                            category = tx.category,
+                            isPositive = isRefund,
+                            badge = if (badgeType != null) {
+                                {
+                                    when (badgeType) {
+                                        HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)
+                                        HomeBadgeType.NOT_COUNTED -> AFBadge(text = "Not counted", variant = AFBadgeVariant.MUTED)
+                                        HomeBadgeType.REFUND -> AFBadge(text = "Refund", variant = AFBadgeVariant.REFUND)
+                                        HomeBadgeType.CASH -> AFBadge(text = "Cash", variant = AFBadgeVariant.OUTLINE)
+                                    }
+                                }
+                            } else null,
+                            onClick = { onNavigateToEdit(tx.id) }
+                        )
+                    }
                 }
             }
         }
     }
-}
 
-@Composable
-private fun TotalsSummaryCard(totals: SpendingTotals) {
-    Card(
-        shape = RoundedCornerShape(AppRadius.lg),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(AppSpacing.md)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
+    if (showRefundInfoDialog) {
+        AlertDialog(
+            onDismissRequest = { showRefundInfoDialog = false },
+            containerColor = colors.sheet,
+            titleContentColor = colors.ink,
+            textContentColor = colors.muted,
+            title = {
+                Text(
+                    text = "Refunds",
+                    style = AutoFlowTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Refunds are not included yet.",
+                    style = AutoFlowTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showRefundInfoDialog = false }
+                ) {
                     Text(
-                        text = "Today",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(AppSpacing.xs))
-                    Text(
-                        text = CurrencyFormatter.formatPaiseToInr(totals.todayPaise),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(AppSpacing.md))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "This month",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(AppSpacing.xs))
-                    Text(
-                        text = CurrencyFormatter.formatPaiseToInr(totals.monthPaise),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "OK",
+                        style = AutoFlowTheme.typography.labelLarge,
+                        color = colors.brand
                     )
                 }
             }
+        )
+    }
+}
 
-            Spacer(modifier = Modifier.height(AppSpacing.sm))
+@Composable
+private fun PeriodPill(
+    pillLabel: String,
+    onSelectPeriod: (StatsPeriod) -> Unit
+) {
+    val colors = AutoFlowTheme.colors
+    var menuExpanded by remember { mutableStateOf(false) }
 
-            Text(
-                text = "Refunds not included yet",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box {
+        Surface(
+            shape = RoundedCornerShape(AppRadius.full),
+            color = colors.chip,
+            border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
+            modifier = Modifier
+                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                .clickable { menuExpanded = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.xs)
+            ) {
+                Text(
+                    text = pillLabel,
+                    style = AutoFlowTheme.typography.labelLarge,
+                    color = colors.ink,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(AppSpacing.xs))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Select period",
+                    tint = colors.muted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+            modifier = Modifier.background(colors.sheet)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Today", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
+                onClick = {
+                    onSelectPeriod(StatsPeriod.TODAY)
+                    menuExpanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("This week", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
+                onClick = {
+                    onSelectPeriod(StatsPeriod.THIS_WEEK)
+                    menuExpanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("This month", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
+                onClick = {
+                    onSelectPeriod(StatsPeriod.THIS_MONTH)
+                    menuExpanded = false
+                }
             )
         }
     }
 }
 
 @Composable
-private fun SmsPermissionCard(onRequestPermission: () -> Unit) {
-    Card(
+private fun BigNumberSection(
+    countedSpendPaise: Long,
+    countedCount: Int,
+    onInfoClick: () -> Unit
+) {
+    val colors = AutoFlowTheme.colors
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = CurrencyFormatter.formatPaiseToInr(countedSpendPaise),
+            style = AutoFlowTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = colors.ink
+        )
+
+        Spacer(modifier = Modifier.height(AppSpacing.xxs))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val countText = if (countedCount == 1) "Across 1 transaction" else "Across $countedCount transactions"
+            Text(
+                text = countText,
+                style = AutoFlowTheme.typography.bodyMedium,
+                color = colors.muted
+            )
+
+            IconButton(
+                onClick = onInfoClick,
+                modifier = Modifier
+                    .size(AppSpacing.minTapTarget)
+                    .semantics { contentDescription = "Refund information" }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = colors.muted,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FiveMonthChartCard(
+    monthlySeries: List<MonthPoint>,
+    periodFilter: PeriodFilter,
+    accessibilityDescription: String,
+    onSelectMonth: (YearMonth) -> Unit
+) {
+    val colors = AutoFlowTheme.colors
+
+    Surface(
+        shape = RoundedCornerShape(AppRadius.lg),
+        color = colors.sheet,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = accessibilityDescription }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppSpacing.md)
+        ) {
+            val maxPaise = monthlySeries.maxOfOrNull { it.totalPaise } ?: 0L
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                monthlySeries.forEach { point ->
+                    val isSelected = when (periodFilter) {
+                        is PeriodFilter.SpecificMonth -> periodFilter.month == point.month
+                        is PeriodFilter.Predefined -> false
+                    }
+
+                    val heightFraction = if (maxPaise > 0L && point.totalPaise > 0L) {
+                        (point.totalPaise.toFloat() / maxPaise).coerceIn(0.12f, 1f)
+                    } else {
+                        0.08f
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .defaultMinSize(minWidth = AppSpacing.minTapTarget, minHeight = AppSpacing.minTapTarget)
+                            .clickable(
+                                enabled = !point.isFuture,
+                                onClick = { onSelectMonth(point.month) }
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            val barColor = when {
+                                point.isFuture -> colors.track
+                                isSelected -> colors.bar
+                                else -> colors.line
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.48f)
+                                    .fillMaxHeight(heightFraction)
+                                    .background(barColor, RoundedCornerShape(topStart = AppRadius.xs, topEnd = AppRadius.xs))
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(AppSpacing.xs))
+
+                        val monthAbbr = point.month.month.name.take(3).lowercase(Locale.ROOT).replaceFirstChar { it.uppercase(Locale.ROOT) }
+                        val labelColor = when {
+                            point.isFuture -> colors.muted.copy(alpha = 0.4f)
+                            isSelected -> colors.ink
+                            else -> colors.muted
+                        }
+
+                        Text(
+                            text = monthAbbr,
+                            style = AutoFlowTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = labelColor
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DayHeader(
+    date: LocalDate,
+    dayTotalPaise: Long
+) {
+    val colors = AutoFlowTheme.colors
+    val today = LocalDate.now(ZoneId.systemDefault())
+    val headerDateString = when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> date.format(DateTimeFormatter.ofPattern("EEEE, d MMM"))
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = AppSpacing.sm, bottom = AppSpacing.xxs),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = headerDateString,
+            style = AutoFlowTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.ink
+        )
+
+        Text(
+            text = CurrencyFormatter.formatPaiseToInr(dayTotalPaise),
+            style = AutoFlowTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold,
+            color = colors.muted
+        )
+    }
+}
+
+@Composable
+private fun EmptyStateView(
+    onAddExpense: () -> Unit
+) {
+    val colors = AutoFlowTheme.colors
+
+    Surface(
+        shape = RoundedCornerShape(AppRadius.lg),
+        color = colors.sheet,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = AppSpacing.xl, horizontal = AppSpacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = "No transactions found",
+                style = AutoFlowTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colors.ink
+            )
+
+            Spacer(modifier = Modifier.height(AppSpacing.xs))
+
+            Text(
+                text = "Expenses detected from bank SMS or added manually will appear here.",
+                style = AutoFlowTheme.typography.bodyMedium,
+                color = colors.muted,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(AppSpacing.md))
+
+            AFButton(
+                text = "Add expense",
+                onClick = onAddExpense,
+                variant = AFButtonVariant.PRIMARY,
+                modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmsPermissionBanner(
+    onRequestPermission: () -> Unit
+) {
+    val colors = AutoFlowTheme.colors
+
+    Surface(
         shape = RoundedCornerShape(AppRadius.md),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ),
+        color = colors.amberBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.amberFg.copy(alpha = 0.2f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -271,266 +614,137 @@ private fun SmsPermissionCard(onRequestPermission: () -> Unit) {
         ) {
             Text(
                 text = "Enable Live SMS Detection",
-                style = MaterialTheme.typography.titleSmall,
+                style = AutoFlowTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = colors.amberFg
             )
             Spacer(modifier = Modifier.height(AppSpacing.xs))
             Text(
-                text = "AutoFlow detects expenses when you receive payment SMS from your bank. SMS messages are processed locally on your device and raw message text is never stored or sent anywhere.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                text = "AutoFlow detects expenses locally when you receive payment SMS from your bank. SMS messages are processed on-device and raw text is never stored or sent anywhere.",
+                style = AutoFlowTheme.typography.bodySmall,
+                color = colors.amberFg
             )
             Spacer(modifier = Modifier.height(AppSpacing.sm))
-            Button(
+            AFButton(
+                text = "Enable SMS Detection",
                 onClick = onRequestPermission,
-                shape = RoundedCornerShape(AppRadius.sm),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .heightIn(min = AppSpacing.minTapTarget)
-                    .semantics { contentDescription = "Grant SMS receive permission" }
-            ) {
-                Text(
-                    text = "Enable SMS Detection",
-                    style = MaterialTheme.typography.labelLarge
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyTransactionsCard() {
-    Card(
-        shape = RoundedCornerShape(AppRadius.md),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = AppSpacing.lg)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(AppSpacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.heightIn(min = AppSpacing.xl)
-            )
-            Spacer(modifier = Modifier.height(AppSpacing.sm))
-            Text(
-                text = "No transactions yet",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(AppSpacing.xs))
-            Text(
-                text = "Incoming bank SMS and manual cash entries will appear here.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                variant = AFButtonVariant.PRIMARY,
+                modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
             )
         }
     }
 }
 
+private fun formatTime(epochMillis: Long): String {
+    val zone = ZoneId.systemDefault()
+    return Instant.ofEpochMilli(epochMillis)
+        .atZone(zone)
+        .format(DateTimeFormatter.ofPattern("h:mm a"))
+}
+
+@Preview(name = "Light - HomeScreen")
 @Composable
-private fun TransactionRow(
-    transaction: FinancialTransaction,
-    onClick: () -> Unit
-) {
-    val badgeColors = LocalAppBadgeColors.current
-    val dateTimeFormatter = remember {
-        DateTimeFormatter.ofPattern("dd MMM, hh:mm a")
-    }
-    val formattedDateTime = remember(transaction.dateTime) {
-        Instant.ofEpochMilli(transaction.dateTime)
-            .atZone(ZoneId.systemDefault())
-            .format(dateTimeFormatter)
-    }
-
-    val isExcluded = transaction.reviewStatus == ReviewStatus.EXCLUDED
-
-    Card(
-        shape = RoundedCornerShape(AppRadius.md),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isExcluded) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-            contentColor = if (isExcluded) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isExcluded) 0.dp else AppSpacing.xxs),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = AppSpacing.minTapTarget)
-            .clickable(
-                onClick = onClick,
-                onClickLabel = "Edit transaction for ${transaction.merchantName}"
-            )
-    ) {
-        Column(
-            modifier = Modifier.padding(
-                horizontal = AppSpacing.md,
-                vertical = AppSpacing.sm
-            )
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = transaction.merchantName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isExcluded) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+private fun HomeScreenLightPreview() {
+    AutoFlowTheme(darkTheme = false) {
+        val fakeState = HomeUiState(
+            periodFilter = PeriodFilter.Predefined(StatsPeriod.THIS_MONTH),
+            pillLabel = "This month",
+            countedSpendPaise = 1845000L,
+            countedTransactionCount = 4,
+            monthlySeries = listOf(
+                MonthPoint(YearMonth.of(2026, 8), 1200000L, false),
+                MonthPoint(YearMonth.of(2026, 9), 1540000L, false),
+                MonthPoint(YearMonth.of(2026, 10), 1845000L, false),
+                MonthPoint(YearMonth.of(2026, 11), 0L, true),
+                MonthPoint(YearMonth.of(2026, 12), 0L, true)
+            ),
+            chartAccessibilityDescription = "Spending by month, August to December, October selected",
+            groupedTransactions = listOf(
+                DayGroup(
+                    date = LocalDate.now(),
+                    dayTotalPaise = 77000L,
+                    transactions = listOf(
+                        FinancialTransaction(
+                            id = 1L,
+                            amountPaise = 45000L,
+                            recordType = RecordType.EXPENSE,
+                            dateTime = System.currentTimeMillis(),
+                            merchantName = "Zomato",
+                            category = "Food",
+                            paymentMode = "UPI",
+                            accountNumber = null,
+                            bankName = null,
+                            reference = null,
+                            transactionHash = "h1",
+                            source = com.autoflow.app.data.model.TransactionSource.SMS_AUTO,
+                            reviewStatus = com.autoflow.app.data.model.ReviewStatus.CONFIRMED,
+                            uncertaintyReasons = emptySet(),
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis(),
+                            isDeleted = false
+                        ),
+                        FinancialTransaction(
+                            id = 2L,
+                            amountPaise = 32000L,
+                            recordType = RecordType.EXPENSE,
+                            dateTime = System.currentTimeMillis() - 3600000,
+                            merchantName = "Uber",
+                            category = "Transport",
+                            paymentMode = "UPI",
+                            accountNumber = null,
+                            bankName = null,
+                            reference = null,
+                            transactionHash = "h2",
+                            source = com.autoflow.app.data.model.TransactionSource.SMS_AUTO,
+                            reviewStatus = com.autoflow.app.data.model.ReviewStatus.NEEDS_REVIEW,
+                            uncertaintyReasons = emptySet(),
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis(),
+                            isDeleted = false
+                        )
+                    )
                 )
+            ),
+            isEmpty = false
+        )
 
-                Spacer(modifier = Modifier.width(AppSpacing.sm))
+        HomeScreen(
+            uiState = fakeState,
+            onSelectPeriod = {},
+            onSelectMonth = {},
+            onNavigateToEdit = {},
+            onNavigateToAddCash = {}
+        )
+    }
+}
 
-                Text(
-                    text = CurrencyFormatter.formatPaiseToInr(transaction.amountPaise),
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = when {
-                        isExcluded -> MaterialTheme.colorScheme.onSurfaceVariant
-                        transaction.recordType == RecordType.REFUND -> badgeColors.onRefund
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                )
-            }
+@Preview(name = "Dark - HomeScreen", uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Composable
+private fun HomeScreenDarkPreview() {
+    AutoFlowTheme(darkTheme = true) {
+        val fakeState = HomeUiState(
+            periodFilter = PeriodFilter.Predefined(StatsPeriod.THIS_MONTH),
+            pillLabel = "This month",
+            countedSpendPaise = 1845000L,
+            countedTransactionCount = 4,
+            monthlySeries = listOf(
+                MonthPoint(YearMonth.of(2026, 8), 1200000L, false),
+                MonthPoint(YearMonth.of(2026, 9), 1540000L, false),
+                MonthPoint(YearMonth.of(2026, 10), 1845000L, false),
+                MonthPoint(YearMonth.of(2026, 11), 0L, true),
+                MonthPoint(YearMonth.of(2026, 12), 0L, true)
+            ),
+            chartAccessibilityDescription = "Spending by month, August to December, October selected",
+            groupedTransactions = emptyList(),
+            isEmpty = true
+        )
 
-            Spacer(modifier = Modifier.height(AppSpacing.xs))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
-                ) {
-                    Text(
-                        text = transaction.category,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Text(
-                        text = formattedDateTime,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-                ) {
-                    if (isExcluded) {
-                        Surface(
-                            shape = RoundedCornerShape(AppRadius.xs),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Not counted as expense"
-                            }
-                        ) {
-                            Text(
-                                text = "Not counted",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(
-                                    horizontal = AppSpacing.xs,
-                                    vertical = AppSpacing.xxs
-                                )
-                            )
-                        }
-                    } else if (transaction.recordType == RecordType.REFUND) {
-                        Surface(
-                            shape = RoundedCornerShape(AppRadius.xs),
-                            color = badgeColors.refundContainer,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Refund transaction"
-                            }
-                        ) {
-                            Text(
-                                text = "Refund",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = badgeColors.onRefund,
-                                modifier = Modifier.padding(
-                                    horizontal = AppSpacing.xs,
-                                    vertical = AppSpacing.xxs
-                                )
-                            )
-                        }
-                    }
-
-                    if (!isExcluded && transaction.reviewStatus == ReviewStatus.NEEDS_REVIEW) {
-                        Surface(
-                            shape = RoundedCornerShape(AppRadius.xs),
-                            color = badgeColors.reviewContainer,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Needs review"
-                            }
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(
-                                    horizontal = AppSpacing.xs,
-                                    vertical = AppSpacing.xxs
-                                )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = badgeColors.onReview,
-                                    modifier = Modifier.heightIn(max = AppSpacing.md)
-                                )
-                                Spacer(modifier = Modifier.width(AppSpacing.xxs))
-                                Text(
-                                    text = "Check",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = badgeColors.onReview
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        HomeScreen(
+            uiState = fakeState,
+            onSelectPeriod = {},
+            onSelectMonth = {},
+            onNavigateToEdit = {},
+            onNavigateToAddCash = {}
+        )
     }
 }

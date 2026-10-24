@@ -3,8 +3,10 @@ package com.autoflow.app.presentation.ui.components
 import android.content.res.Configuration
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,7 +31,8 @@ fun AFBottomNav(
     items: List<AFBottomNavItem>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    centerButton: (@Composable () -> Unit)? = null
 ) {
     val colors = AutoFlowTheme.colors
 
@@ -46,26 +49,118 @@ fun AFBottomNav(
                     .defaultMinSize(minHeight = 64.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                items.forEachIndexed { index, item ->
-                    val isSelected = index == selectedIndex
-                    val itemColor = if (isSelected) colors.brand else colors.muted
+                if (centerButton == null) {
+                    items.forEachIndexed { index, item ->
+                        val isSelected = index == selectedIndex
+                        val itemColor = if (isSelected) colors.brand else colors.muted
 
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .defaultMinSize(minHeight = 56.dp)
-                            .clickable { onSelect(index) }
-                            .padding(vertical = AppSpacing.xs),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        item.icon(isSelected)
-                        Text(
-                            text = item.title,
-                            style = AutoFlowTheme.typography.labelSmall,
-                            color = itemColor,
-                            modifier = Modifier.padding(top = 2.dp)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 56.dp)
+                                .clickable { onSelect(index) }
+                                .padding(vertical = AppSpacing.xs),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            item.icon(isSelected)
+                            Text(
+                                text = item.title,
+                                style = AutoFlowTheme.typography.labelSmall,
+                                color = itemColor,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+                    }
+                } else {
+                    if (items.size == 1) {
+                        // Single tab on left, centerButton in middle, spacer on right for balance
+                        val item = items[0]
+                        val isSelected = selectedIndex == 0
+                        val itemColor = if (isSelected) colors.brand else colors.muted
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 56.dp)
+                                .clickable { onSelect(0) }
+                                .padding(vertical = AppSpacing.xs),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            item.icon(isSelected)
+                            Text(
+                                text = item.title,
+                                style = AutoFlowTheme.typography.labelSmall,
+                                color = itemColor,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            centerButton()
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+                    } else {
+                        val half = items.size / 2
+                        val leftItems = items.take(half)
+                        val rightItems = items.drop(half)
+
+                        leftItems.forEachIndexed { idx, item ->
+                            val isSelected = idx == selectedIndex
+                            val itemColor = if (isSelected) colors.brand else colors.muted
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 56.dp)
+                                    .clickable { onSelect(idx) }
+                                    .padding(vertical = AppSpacing.xs),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                item.icon(isSelected)
+                                Text(
+                                    text = item.title,
+                                    style = AutoFlowTheme.typography.labelSmall,
+                                    color = itemColor,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            centerButton()
+                        }
+
+                        rightItems.forEachIndexed { idx, item ->
+                            val actualIdx = half + idx
+                            val isSelected = actualIdx == selectedIndex
+                            val itemColor = if (isSelected) colors.brand else colors.muted
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .defaultMinSize(minHeight = 56.dp)
+                                    .clickable { onSelect(actualIdx) }
+                                    .padding(vertical = AppSpacing.xs),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                item.icon(isSelected)
+                                Text(
+                                    text = item.title,
+                                    style = AutoFlowTheme.typography.labelSmall,
+                                    color = itemColor,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

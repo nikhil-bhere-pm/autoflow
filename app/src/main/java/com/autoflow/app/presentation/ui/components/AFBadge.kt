@@ -25,7 +25,8 @@ enum class AFBadgeVariant {
     CHECK,
     MUTED,
     REFUND,
-    OUTLINE
+    OUTLINE,
+    AMBER
 }
 
 @Composable
@@ -42,6 +43,7 @@ fun AFBadge(
         AFBadgeVariant.MUTED -> Triple(colors.chip, colors.muted, null)
         AFBadgeVariant.REFUND -> Triple(colors.tint, colors.onTint, null)
         AFBadgeVariant.OUTLINE -> Triple(Color.Transparent, colors.muted, BorderStroke(1.dp, colors.line))
+        AFBadgeVariant.AMBER -> Triple(colors.amberBg, colors.amberFg, null)
     }
 
     Surface(

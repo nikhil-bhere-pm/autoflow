@@ -12,14 +12,26 @@ import com.autoflow.app.domain.totals.SpendingTotals
 import com.autoflow.app.domain.totals.calculateSpendingTotals
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import com.autoflow.app.domain.stats.StatsPeriod
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.YearMonth
+import java.time.ZoneId
 import java.util.UUID
 
 class MainViewModel(
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val timeProvider: () -> Instant = { Instant.now() },
+    private val zoneId: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
+
+    private val _periodFilter = MutableStateFlow<PeriodFilter>(PeriodFilter.Predefined(StatsPeriod.THIS_MONTH))
+    val periodFilter: StateFlow<PeriodFilter> = _periodFilter.asStateFlow()
 
     val transactions: StateFlow<List<FinancialTransaction>> =
         transactionRepository.getAllActiveTransactions()
@@ -28,6 +40,37 @@ class MainViewModel(
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyList()
             )
+
+    val homeUiState: StateFlow<HomeUiState> =
+        combine(transactions, _periodFilter) { list, filter ->
+            computeHomeUiState(
+                transactions = list,
+                periodFilter = filter,
+                now = timeProvider(),
+                zone = zoneId
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = computeHomeUiState(
+                transactions = emptyList(),
+                periodFilter = PeriodFilter.Predefined(StatsPeriod.THIS_MONTH),
+                now = timeProvider(),
+                zone = zoneId
+            )
+        )
+
+    fun selectPeriod(period: StatsPeriod) {
+        _periodFilter.value = PeriodFilter.Predefined(period)
+    }
+
+    fun selectMonth(month: YearMonth) {
+        val currentMonth = YearMonth.from(timeProvider().atZone(zoneId))
+        if (month.isAfter(currentMonth)) {
+            return // future month is non-selectable
+        }
+        _periodFilter.value = PeriodFilter.SpecificMonth(month)
+    }
 
     val spendingTotals: StateFlow<SpendingTotals> =
         transactions.map { list ->

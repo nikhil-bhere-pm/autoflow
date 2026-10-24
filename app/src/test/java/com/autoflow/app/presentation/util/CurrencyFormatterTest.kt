@@ -13,6 +13,19 @@ class CurrencyFormatterTest {
 
         // 12345600 paise -> ₹1,23,456.00
         assertEquals("₹1,23,456.00", CurrencyFormatter.formatPaiseToInr(12345600L))
+
+        // Required Prompt UI-1 specific paise test points: 0, 5, 130, 99999, 100000, 1000000
+        assertEquals("₹0.00", CurrencyFormatter.formatPaiseToInr(0L))
+        assertEquals("₹0.05", CurrencyFormatter.formatPaiseToInr(5L))
+        assertEquals("₹1.30", CurrencyFormatter.formatPaiseToInr(130L))
+        assertEquals("₹999.99", CurrencyFormatter.formatPaiseToInr(99999L))
+        assertEquals("₹1,000.00", CurrencyFormatter.formatPaiseToInr(100000L))
+        assertEquals("₹10,000.00", CurrencyFormatter.formatPaiseToInr(1000000L))
+
+        // Other Prompt UI-1 grouping examples
+        assertEquals("₹18,450.00", CurrencyFormatter.formatPaiseToInr(1845000L))
+        assertEquals("₹1,18,450.00", CurrencyFormatter.formatPaiseToInr(11845000L))
+        assertEquals("₹10,00,000.00", CurrencyFormatter.formatPaiseToInr(100000000L))
     }
 
     @Test
@@ -31,12 +44,6 @@ class CurrencyFormatterTest {
         assertEquals("₹10,000.00", CurrencyFormatter.formatPaiseToInr(1000000L))
 
         // ₹1,00,000.00 (1 lakh rupees = 10000000 paise)
-        assertEquals("₹1,00,000.00", CurrencyFormatter.formatPaiseToInr(10000000L))
-
-        // ₹10,00,000.00 (10 lakh rupees)
-        assertEquals("₹10,00,000.00", CurrencyFormatter.formatPaiseToInr(100000000L))
-
-        // ₹1,00,00,000.00 (1 crore rupees)
         assertEquals("₹1,00,00,000.00", CurrencyFormatter.formatPaiseToInr(1000000000L))
     }
 

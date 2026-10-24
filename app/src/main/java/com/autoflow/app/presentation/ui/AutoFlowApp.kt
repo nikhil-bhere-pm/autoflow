@@ -19,8 +19,7 @@ sealed class Screen {
 fun AutoFlowApp(viewModel: MainViewModel) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
-    val transactions by viewModel.transactions.collectAsState()
-    val totals by viewModel.spendingTotals.collectAsState()
+    val homeUiState by viewModel.homeUiState.collectAsState()
 
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = Screen.Home
@@ -29,8 +28,9 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     when (val screen = currentScreen) {
         is Screen.Home -> {
             HomeScreen(
-                totals = totals,
-                transactions = transactions,
+                uiState = homeUiState,
+                onSelectPeriod = { period -> viewModel.selectPeriod(period) },
+                onSelectMonth = { month -> viewModel.selectMonth(month) },
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id) },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash }
             )
