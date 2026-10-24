@@ -84,7 +84,7 @@ fun EditTransactionScreen(
         val loaded = loadTransaction(transactionId)
         if (loaded != null) {
             transaction = loaded
-            merchantNameInput = loaded.merchantName
+            merchantNameInput = if (loaded.merchantName == "Unknown Merchant") "" else loaded.merchantName
             selectedCategory = if (loaded.category in CATEGORIES) loaded.category else "Others"
         }
     }
@@ -200,6 +200,13 @@ fun EditTransactionScreen(
                     OutlinedTextField(
                         value = merchantNameInput,
                         onValueChange = { merchantNameInput = it },
+                        placeholder = {
+                            Text(
+                                text = "Merchant name (optional)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = AppSpacing.minTapTarget)
@@ -260,48 +267,73 @@ fun EditTransactionScreen(
                     verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // SAVE CHANGES (Sets reviewStatus to CONFIRMED, updates row)
-                    Button(
-                        onClick = {
-                            val finalMerchant = merchantNameInput.trim().ifBlank { currentTx.merchantName }
-                            onSaveCorrection(currentTx.id, finalMerchant, selectedCategory)
-                            onNavigateBack()
-                        },
-                        shape = RoundedCornerShape(AppRadius.sm),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = AppSpacing.minTapTarget)
-                            .semantics { contentDescription = "Save changes" }
-                    ) {
-                        Text(
-                            text = "Save Changes",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
+                    if (currentTx.reviewStatus == com.autoflow.app.data.model.ReviewStatus.EXCLUDED) {
+                        // RESTORE BUTTON
+                        Button(
+                            onClick = {
+                                val finalMerchant = merchantNameInput.trim().ifBlank { "Unknown Merchant" }
+                                onSaveCorrection(currentTx.id, finalMerchant, selectedCategory)
+                                onNavigateBack()
+                            },
+                            shape = RoundedCornerShape(AppRadius.sm),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = AppSpacing.minTapTarget)
+                                .semantics { contentDescription = "Restore transaction" }
+                        ) {
+                            Text(
+                                text = "Restore",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    } else {
+                        // SAVE CHANGES (Sets reviewStatus to CONFIRMED, updates row)
+                        Button(
+                            onClick = {
+                                val finalMerchant = merchantNameInput.trim().ifBlank { "Unknown Merchant" }
+                                onSaveCorrection(currentTx.id, finalMerchant, selectedCategory)
+                                onNavigateBack()
+                            },
+                            shape = RoundedCornerShape(AppRadius.sm),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = AppSpacing.minTapTarget)
+                                .semantics { contentDescription = "Save changes" }
+                        ) {
+                            Text(
+                                text = "Save Changes",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
 
-                    // NOT AN EXPENSE (Sets reviewStatus to EXCLUDED)
-                    OutlinedButton(
-                        onClick = {
-                            onMarkNotAnExpense(currentTx.id)
-                            onNavigateBack()
-                        },
-                        shape = RoundedCornerShape(AppRadius.sm),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.secondary
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = AppSpacing.minTapTarget)
-                            .semantics { contentDescription = "Mark as not an expense" }
-                    ) {
-                        Text(
-                            text = "Not an expense",
-                            style = MaterialTheme.typography.labelLarge
-                        )
+                        // NOT AN EXPENSE (Sets reviewStatus to EXCLUDED)
+                        OutlinedButton(
+                            onClick = {
+                                onMarkNotAnExpense(currentTx.id)
+                                onNavigateBack()
+                            },
+                            shape = RoundedCornerShape(AppRadius.sm),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.secondary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = AppSpacing.minTapTarget)
+                                .semantics { contentDescription = "Mark as not an expense" }
+                        ) {
+                            Text(
+                                text = "Not an expense",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
 
                     // DELETE (Soft delete)

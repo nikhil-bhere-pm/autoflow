@@ -182,6 +182,115 @@ class MainViewModelTest {
         assertTrue(activeTransactions.none { it.id == initialId })
     }
 
+    @Test
+    fun testEditTransaction_blankMerchantPreservesUnknownMerchant() = runTest {
+        val initialId = inMemoryDao.insert(
+            TransactionEntity(
+                id = 30L,
+                amountPaise = 15000L,
+                recordType = RecordType.EXPENSE,
+                dateTime = System.currentTimeMillis(),
+                merchantName = "Unknown Merchant",
+                category = "Others",
+                transactionHash = "sms_hash_unknown",
+                source = TransactionSource.SMS_AUTO,
+                reviewStatus = ReviewStatus.NEEDS_REVIEW,
+                uncertaintyBits = 1
+            )
+        )
+        advanceUntilIdle()
+
+        var completed = false
+        // User saves with the merchant field left empty
+        viewModel.editTransaction(
+            id = initialId,
+            newMerchantName = "   ",
+            newCategory = "Food",
+            onComplete = { completed = true }
+        )
+        advanceUntilIdle()
+
+        assertTrue(completed)
+        val updated = inMemoryDao.getById(initialId)
+        assertNotNull(updated)
+        // Must preserve "Unknown Merchant", category updated to "Food", reviewStatus CONFIRMED
+        assertEquals("Unknown Merchant", updated?.merchantName)
+        assertEquals("Food", updated?.category)
+        assertEquals(ReviewStatus.CONFIRMED, updated?.reviewStatus)
+        assertEquals(0, updated?.uncertaintyBits)
+    }
+
+    @Test
+    fun testExcludedTransaction_visibleInActiveTransactions_andCanBeRestored() = runTest {
+        val excludedId = inMemoryDao.insert(
+            TransactionEntity(
+                id = 40L,
+                amountPaise = 9900L,
+                recordType = RecordType.EXPENSE,
+                dateTime = System.currentTimeMillis() - 1000,
+                merchantName = "Excluded Expense",
+                category = "Others",
+                transactionHash = "sms_hash_excluded",
+                source = TransactionSource.SMS_AUTO,
+                reviewStatus = ReviewStatus.EXCLUDED,
+                isDeleted = 0
+            )
+        )
+        val deletedId = inMemoryDao.insert(
+            TransactionEntity(
+                id = 41L,
+                amountPaise = 5000L,
+                recordType = RecordType.EXPENSE,
+                dateTime = System.currentTimeMillis(),
+                merchantName = "Deleted Expense",
+                category = "Others",
+                transactionHash = "sms_hash_deleted",
+                source = TransactionSource.SMS_AUTO,
+                reviewStatus = ReviewStatus.CONFIRMED,
+                isDeleted = 1
+            )
+        )
+        advanceUntilIdle()
+
+        // 1. Check visibility in active transactions
+        val activeTransactions = inMemoryDao.getAllActiveTransactions().first()
+        assertTrue("EXCLUDED transaction must remain visible in active list", activeTransactions.any { it.id == excludedId })
+        assertTrue("Soft-deleted transaction must remain hidden", activeTransactions.none { it.id == deletedId })
+
+        // 2. Restore transaction back to CONFIRMED
+        var restoreCompleted = false
+        viewModel.restoreTransaction(
+            id = excludedId,
+            onComplete = { restoreCompleted = true }
+        )
+        advanceUntilIdle()
+
+        assertTrue(restoreCompleted)
+        val restored = inMemoryDao.getById(excludedId)
+        assertEquals(ReviewStatus.CONFIRMED, restored?.reviewStatus)
+        assertEquals(0, restored?.uncertaintyBits)
+    }
+
+    @Test
+    fun testAddCashExpense_withCustomDateTime() = runTest {
+        val pastTimestamp = 1690000000000L // Specific past date/time
+        var completed = false
+
+        viewModel.addCashExpense(
+            amountPaise = 45000L,
+            merchantName = "Grocery Mart",
+            category = "Groceries",
+            dateTime = pastTimestamp,
+            onComplete = { completed = true }
+        )
+        advanceUntilIdle()
+
+        assertTrue(completed)
+        val entity = inMemoryDao.items.find { it.amountPaise == 45000L }
+        assertNotNull(entity)
+        assertEquals(pastTimestamp, entity?.dateTime)
+    }
+
     private class InMemoryTransactionDao : TransactionDao {
         val items = mutableListOf<TransactionEntity>()
         private val stateFlow = MutableStateFlow<List<TransactionEntity>>(emptyList())

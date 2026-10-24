@@ -50,9 +50,31 @@ class MainViewModel(
     ) {
         viewModelScope.launch {
             val existing = transactionRepository.getEntityById(id) ?: return@launch
+            val trimmedMerchant = newMerchantName.trim()
+            val finalMerchant = if (trimmedMerchant.isBlank()) {
+                if (existing.merchantName == "Unknown Merchant") "Unknown Merchant" else existing.merchantName
+            } else {
+                trimmedMerchant
+            }
             val updated = existing.copy(
-                merchantName = newMerchantName.trim().ifBlank { existing.merchantName },
+                merchantName = finalMerchant,
                 category = newCategory.trim().ifBlank { existing.category },
+                reviewStatus = ReviewStatus.CONFIRMED,
+                uncertaintyBits = 0,
+                updatedAt = System.currentTimeMillis()
+            )
+            transactionRepository.updateTransaction(updated)
+            onComplete()
+        }
+    }
+
+    fun restoreTransaction(
+        id: Long,
+        onComplete: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val existing = transactionRepository.getEntityById(id) ?: return@launch
+            val updated = existing.copy(
                 reviewStatus = ReviewStatus.CONFIRMED,
                 uncertaintyBits = 0,
                 updatedAt = System.currentTimeMillis()

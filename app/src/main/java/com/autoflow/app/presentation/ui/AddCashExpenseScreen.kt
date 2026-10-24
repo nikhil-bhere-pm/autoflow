@@ -1,5 +1,6 @@
 package com.autoflow.app.presentation.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +65,9 @@ fun AddCashExpenseScreen(
     var merchantInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Food") }
     var selectedTimestamp by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var isCustomDate by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val parsedPaise = remember(amountInput) {
         CurrencyFormatter.parseRupeesToPaise(amountInput)
     }
@@ -75,6 +79,47 @@ fun AddCashExpenseScreen(
         Instant.ofEpochMilli(selectedTimestamp)
             .atZone(ZoneId.systemDefault())
             .format(dateTimeFormatter)
+    }
+
+    val openTimePicker: () -> Unit = {
+        val currentZoned = Instant.ofEpochMilli(selectedTimestamp).atZone(ZoneId.systemDefault())
+        val timeDialog = android.app.TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                val updated = Instant.ofEpochMilli(selectedTimestamp)
+                    .atZone(ZoneId.systemDefault())
+                    .withHour(hourOfDay)
+                    .withMinute(minute)
+                    .withSecond(0)
+                selectedTimestamp = updated.toInstant().toEpochMilli()
+                isCustomDate = true
+            },
+            currentZoned.hour,
+            currentZoned.minute,
+            false
+        )
+        timeDialog.show()
+    }
+
+    val openDatePicker: () -> Unit = {
+        val currentZoned = Instant.ofEpochMilli(selectedTimestamp).atZone(ZoneId.systemDefault())
+        val dateDialog = android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val updated = Instant.ofEpochMilli(selectedTimestamp)
+                    .atZone(ZoneId.systemDefault())
+                    .withYear(year)
+                    .withMonth(month + 1)
+                    .withDayOfMonth(dayOfMonth)
+                selectedTimestamp = updated.toInstant().toEpochMilli()
+                isCustomDate = true
+                openTimePicker()
+            },
+            currentZoned.year,
+            currentZoned.monthValue - 1,
+            currentZoned.dayOfMonth
+        )
+        dateDialog.show()
     }
 
     val scrollState = rememberScrollState()
@@ -251,7 +296,12 @@ fun AddCashExpenseScreen(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = AppSpacing.xxs),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = openDatePicker,
+                        onClickLabel = "Change date and time"
+                    )
             ) {
                 Row(
                     modifier = Modifier
@@ -260,7 +310,7 @@ fun AddCashExpenseScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Date & Time",
                             style = MaterialTheme.typography.labelSmall,
@@ -275,9 +325,10 @@ fun AddCashExpenseScreen(
                         )
                     }
                     Text(
-                        text = "Now",
+                        text = if (isCustomDate) "Change" else "Now",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }

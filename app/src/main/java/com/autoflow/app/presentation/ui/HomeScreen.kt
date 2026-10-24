@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.autoflow.app.data.model.RecordType
 import com.autoflow.app.data.model.ReviewStatus
@@ -110,7 +111,6 @@ fun HomeScreen(
                 shape = RoundedCornerShape(AppRadius.lg),
                 modifier = Modifier
                     .heightIn(min = AppSpacing.minTapTarget)
-                    .width(AppSpacing.xxl + AppSpacing.xxl)
                     .semantics { contentDescription = "Add cash expense" }
             ) {
                 Row(
@@ -125,7 +125,9 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.width(AppSpacing.xs))
                     Text(
                         text = "Add Cash",
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -358,13 +360,23 @@ private fun TransactionRow(
             .format(dateTimeFormatter)
     }
 
+    val isExcluded = transaction.reviewStatus == ReviewStatus.EXCLUDED
+
     Card(
         shape = RoundedCornerShape(AppRadius.md),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            containerColor = if (isExcluded) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+            contentColor = if (isExcluded) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = AppSpacing.xxs),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isExcluded) 0.dp else AppSpacing.xxs),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = AppSpacing.minTapTarget)
@@ -388,7 +400,11 @@ private fun TransactionRow(
                     text = transaction.merchantName,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = if (isExcluded) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -400,10 +416,10 @@ private fun TransactionRow(
                     text = CurrencyFormatter.formatPaiseToInr(transaction.amountPaise),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = if (transaction.recordType == RecordType.REFUND) {
-                        badgeColors.onRefund
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
+                    color = when {
+                        isExcluded -> MaterialTheme.colorScheme.onSurfaceVariant
+                        transaction.recordType == RecordType.REFUND -> badgeColors.onRefund
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
                 )
             }
@@ -442,7 +458,26 @@ private fun TransactionRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
                 ) {
-                    if (transaction.recordType == RecordType.REFUND) {
+                    if (isExcluded) {
+                        Surface(
+                            shape = RoundedCornerShape(AppRadius.xs),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Not counted as expense"
+                            }
+                        ) {
+                            Text(
+                                text = "Not counted",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(
+                                    horizontal = AppSpacing.xs,
+                                    vertical = AppSpacing.xxs
+                                )
+                            )
+                        }
+                    } else if (transaction.recordType == RecordType.REFUND) {
                         Surface(
                             shape = RoundedCornerShape(AppRadius.xs),
                             color = badgeColors.refundContainer,
@@ -463,7 +498,7 @@ private fun TransactionRow(
                         }
                     }
 
-                    if (transaction.reviewStatus == ReviewStatus.NEEDS_REVIEW) {
+                    if (!isExcluded && transaction.reviewStatus == ReviewStatus.NEEDS_REVIEW) {
                         Surface(
                             shape = RoundedCornerShape(AppRadius.xs),
                             color = badgeColors.reviewContainer,
