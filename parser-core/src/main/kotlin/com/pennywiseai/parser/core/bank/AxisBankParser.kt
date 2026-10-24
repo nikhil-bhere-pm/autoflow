@@ -95,6 +95,41 @@ class AxisBankParser : BaseIndianBankParser() {
         return super.extractAmount(message)
     }
 
+    private fun isKnownNonMerchant(candidate: String): Boolean {
+        val upper = candidate.uppercase().trim()
+        if (upper.isEmpty()) return true
+
+        val nonMerchantWords = setOf(
+            "AXIS", "AXIS BANK", "AXISBANK", "AXISBK", "UTIB",
+            "ATM", "CASH WITHDRAWAL", "WITHDRAWAL",
+            "TRANSFER", "PAYMENT", "SENT", "DEBIT", "DEBITED", "CREDIT", "CREDITED",
+            "UPI", "UPI REF", "REF", "REFERENCE", "IMPS", "NEFT", "RTGS", "NACH", "ECS",
+            "BAL", "BALANCE", "AVL BAL", "AVL LIMIT", "AVL LMT", "LIMIT",
+            "NOT YOU", "BLOCK", "BLOCKCARD", "SMS BLOCK",
+            "INFO", "INR", "RS"
+        )
+        if (upper in nonMerchantWords) return true
+
+        // Bank names / codes
+        if (upper.endsWith(" BANK") || upper.endsWith(" BK")) return true
+
+        // Account patterns: "A/C XX...", "ACCOUNT ...", "AC ..."
+        if (upper.startsWith("A/C") || upper.startsWith("ACCOUNT") || upper.startsWith("AC ") || upper.startsWith("A/C NO")) return true
+        if (upper.matches(Regex("""^(?:XX|\*{2,}|X+)?\d+$"""))) return true
+
+        // QR code identifiers: "PAYTMQR...", "BHARATPE...", etc.
+        if (upper.startsWith("PAYTMQR") || upper.startsWith("BHARATPE") || upper.matches(Regex("""^[A-Z0-9]+QR.*"""))) return true
+
+        // Prefixed transfer / payment clauses
+        if (upper.startsWith("TRANSFER TO ") || upper.startsWith("PAYMENT TO ") || upper.startsWith("PAID TO ") || upper.startsWith("SENT TO ")) return true
+
+        // Reference numbers (e.g. standalone 6+ digit numbers)
+        if (upper.matches(Regex("""^\d{6,}$"""))) return true
+        if (upper.startsWith("REF ") || upper.startsWith("REF.") || upper.startsWith("TXN ") || upper.startsWith("UPI REF")) return true
+
+        return false
+    }
+
     override fun extractMerchant(message: String, sender: String): String? {
         // ATM withdrawal detection
         // Pattern: "debited from A/c no. XX589034 on AXIS BANK L" or similar
@@ -114,12 +149,12 @@ class AxisBankParser : BaseIndianBankParser() {
         // Pattern: "debited from A/c no. XXxxxxy on BURGRILL 04-12-2025 13:13:27 IST"
         // Extract merchant name between "on" and the date pattern
         val debitCardPattern = Regex(
-            """debited from A/c no\. [^\s]+ on ([^0-9]+?)(?:\d{2}-\d{2}-\d{4})""",
+            """debited from A/c no\. [^\s]+ on ([^0-9]+?)(?:\s+\d{2}-\d{2}-\d{2,4})""",
             RegexOption.IGNORE_CASE
         )
         debitCardPattern.find(message)?.let { match ->
             val merchant = cleanMerchantName(match.groupValues[1].trim())
-            if (isValidMerchantName(merchant)) {
+            if (isValidMerchantName(merchant) && !isKnownNonMerchant(merchant)) {
                 return merchant
             }
         }
@@ -140,7 +175,7 @@ class AxisBankParser : BaseIndianBankParser() {
             merchant = merchant.replace(Regex("""\s+SUPE$"""), "")  // "AVENUE SUPE" -> "AVENUE"
 
             merchant = cleanMerchantName(merchant)
-            if (isValidMerchantName(merchant)) {
+            if (isValidMerchantName(merchant) && !isKnownNonMerchant(merchant)) {
                 return merchant
             }
         }
@@ -159,29 +194,56 @@ class AxisBankParser : BaseIndianBankParser() {
             merchant = merchant.replace(Regex("""\s+SUPE$"""), "")
 
             merchant = cleanMerchantName(merchant)
-            if (isValidMerchantName(merchant)) {
+            if (isValidMerchantName(merchant) && !isKnownNonMerchant(merchant)) {
                 return merchant
             }
         }
 
-        val upiMerchantPattern = Regex(
-            """UPI/[^/]+/[^/]+/([^\n]+?)(?:\s*Not you|\s*$)""",
+        // VPA-based extraction: "to VPA swiggy@axisbank", "to swiggy@axisbank", "towards VPA swiggy@upi"
+        val vpaPattern = Regex(
+            """(?:to|towards)\s+(?:VPA\s+)?([A-Za-z0-9._-]+)@[A-Za-z0-9._-]+""",
             RegexOption.IGNORE_CASE
         )
-        upiMerchantPattern.find(message)?.let { match ->
-            val merchant = cleanMerchantName(match.groupValues[1].trim())
-            if (isValidMerchantName(merchant)) {
-                return merchant
+        vpaPattern.find(message)?.let { match ->
+            val rawHandle = match.groupValues[1].trim()
+            if (!isKnownNonMerchant(rawHandle)) {
+                val cleanedHandle = cleanMerchantName(
+                    rawHandle.replace('.', ' ').replace('_', ' ').replace('-', ' ').trim()
+                )
+                if (isValidMerchantName(cleanedHandle) && !isKnownNonMerchant(cleanedHandle)) {
+                    return cleanedHandle
+                }
             }
         }
 
-        val upiPersonPattern = Regex(
-            """UPI/P2A/[^/]+/([^\n]+?)(?:\s*Not you|\s*$)""",
+        // NPCI UPI slash patterns:
+        // Examples:
+        // UPI/DR/429812345678/ZOMATO/UTIB
+        // UPI/P2M/429812345678/SWIGGY/UTIB
+        // UPI/429812345678/BLINKIT/UTIB
+        val upiSlashPattern = Regex(
+            """UPI/(?:(?:DR|CR|P2M|P2A)/)?(?:\d+/)?([^/\n]+?)(?:/[A-Za-z0-9]+|\s*\.|\s+Bal|\s+Avl|\s+Not\s+you|$)""",
             RegexOption.IGNORE_CASE
         )
-        upiPersonPattern.find(message)?.let { match ->
+        upiSlashPattern.find(message)?.let { match ->
+            val candidate = cleanMerchantName(match.groupValues[1].trim())
+            if (isValidMerchantName(candidate) && !isKnownNonMerchant(candidate)) {
+                return candidate
+            }
+        }
+
+        // Bounded "to/towards" pattern:
+        // Examples:
+        // "debited ... to BLINKIT. Bal INR 4870.00."
+        // "debited ... to ZOMATO on 24-10-2026."
+        // "debited ... to SWIGGY via UPI."
+        val toPattern = Regex(
+            """(?:to|towards)\s+([A-Za-z0-9\s&._-]+?)(?:\s+via\s+UPI|\s+on\s+\d|\s*\.\s*(?:Bal|Avl|Not|Ref|UPI|$)|(?<=[A-Za-z0-9])\.(?:\s+|$)|(?:\s+(?:Bal|Avl|UPI\s+Ref|Ref|Not\s+you)\b)|$)""",
+            RegexOption.IGNORE_CASE
+        )
+        toPattern.find(message)?.let { match ->
             val merchant = cleanMerchantName(match.groupValues[1].trim())
-            if (isValidMerchantName(merchant)) {
+            if (isValidMerchantName(merchant) && !isKnownNonMerchant(merchant)) {
                 return merchant
             }
         }
@@ -194,12 +256,20 @@ class AxisBankParser : BaseIndianBankParser() {
             val info = match.groupValues[1].trim()
             return when {
                 info.contains("SALARY", ignoreCase = true) -> "Salary"
-                else -> cleanMerchantName(info)
+                else -> {
+                    val candidate = cleanMerchantName(info)
+                    if (isValidMerchantName(candidate) && !isKnownNonMerchant(candidate)) candidate else null
+                }
             }
         }
 
-        // Fall back to base class patterns
-        return super.extractMerchant(message, sender)
+        // Fall back to base class patterns, but strictly reject non-merchants
+        val fallback = super.extractMerchant(message, sender)
+        if (fallback != null && !isKnownNonMerchant(fallback)) {
+            return fallback
+        }
+
+        return null
     }
 
     override fun extractAccountLast4(message: String): String? {
@@ -235,11 +305,29 @@ class AxisBankParser : BaseIndianBankParser() {
     }
 
     override fun extractReference(message: String): String? {
+        // Pattern 1: UPI slash format: UPI/DR/<ref>, UPI/P2M/<ref>, UPI/<ref>
+        val upiSlashRefPattern = Regex(
+            """UPI/(?:(?:DR|CR|P2M|P2A)/)?([0-9]{9,12})""",
+            RegexOption.IGNORE_CASE
+        )
+        upiSlashRefPattern.find(message)?.let { match ->
+            return match.groupValues[1]
+        }
+
+        // Pattern 2: Explicit UPI Ref No: "UPI Ref: 429812345678", "UPI Ref No 429812345678"
         val upiRefPattern = Regex(
-            """UPI/[^/]+/([0-9]+)""",
+            """UPI\s+Ref(?:\s+No\.?)?[:\s]+([0-9]{9,12})""",
             RegexOption.IGNORE_CASE
         )
         upiRefPattern.find(message)?.let { match ->
+            return match.groupValues[1]
+        }
+
+        val legacyUpiRefPattern = Regex(
+            """UPI/[^/]+/([0-9]+)""",
+            RegexOption.IGNORE_CASE
+        )
+        legacyUpiRefPattern.find(message)?.let { match ->
             return match.groupValues[1]
         }
 

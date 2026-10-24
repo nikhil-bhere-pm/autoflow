@@ -215,6 +215,212 @@ Not you? SMS BLOCK 6018 to 919951860002""",
                     accountLast4 = "2225",
                     balance = BigDecimal("10000.00")
                 )
+            ),
+
+            // Regression: Merchant following 'to' with period or balance text
+            ParserTestCase(
+                name = "Debit SMS - Merchant to BLINKIT with period and balance",
+                message = "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 4870.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "BLINKIT",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("4870.00")
+                )
+            ),
+
+            ParserTestCase(
+                name = "Debit SMS - Merchant to ZOMATO with on date",
+                message = "INR 350.00 debited from A/c no. XX1234 to ZOMATO on 24-10-2026. Avl bal: INR 4520.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("350.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "ZOMATO",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("4520.00")
+                )
+            ),
+
+            ParserTestCase(
+                name = "Debit SMS - Merchant to SWIGGY via UPI",
+                message = "INR 220.00 debited from A/c no. XX1234 to SWIGGY via UPI. Bal INR 4300.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("220.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "SWIGGY",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("4300.00")
+                )
+            ),
+
+            // Regression: VPA-based merchant extraction
+            ParserTestCase(
+                name = "UPI VPA - to VPA swiggy@axisbank",
+                message = "INR 250.00 debited from A/c no. XX1234 to VPA swiggy@axisbank on 24-10-2026. Bal INR 4050.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("250.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "swiggy",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("4050.00")
+                )
+            ),
+
+            ParserTestCase(
+                name = "UPI VPA - handle with dot and uppercase handle",
+                message = "INR 150.00 debited from A/c no. XX1234 to UBER.INDIA@axisbank on 24-10-2026. Bal INR 3900.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("150.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "UBER INDIA",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("3900.00")
+                )
+            ),
+
+            // Regression: Supported UPI slash variants
+            ParserTestCase(
+                name = "UPI Slash - DR variant with ref and merchant and bank",
+                message = "INR 350.00 debited from A/c no. XX1234 via UPI/DR/429812345678/ZOMATO/UTIB. Bal INR 3550.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("350.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "ZOMATO",
+                    reference = "429812345678",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("3550.00")
+                )
+            ),
+
+            ParserTestCase(
+                name = "UPI Slash - P2M variant with ref and merchant",
+                message = "INR 499.00 debited from A/c no. XX1234 via UPI/P2M/429812345679/BOOKMYSHOW. Bal INR 3051.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("499.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "BOOKMYSHOW",
+                    reference = "429812345679",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("3051.00")
+                )
+            ),
+
+            ParserTestCase(
+                name = "UPI Slash - ref and merchant without DR/P2M prefix",
+                message = "INR 120.00 debited from A/c no. XX1234 via UPI/429812345680/ZEPTO/UTIB. Bal INR 2931.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("120.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "ZEPTO",
+                    reference = "429812345680",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("2931.00")
+                )
+            ),
+
+            // Regression: Missing or ambiguous merchant
+            ParserTestCase(
+                name = "Missing Merchant - Generic debit without payee",
+                message = "INR 500.00 debited from A/c no. XX1234 on 24-10-2026. Avl Bal INR 2431.00. Not you? Call 18004195959 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("500.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    accountLast4 = "1234",
+                    balance = BigDecimal("2431.00"),
+                    expectNullMerchant = true
+                )
+            ),
+
+            ParserTestCase(
+                name = "Ambiguous Merchant - P2P Account transfer",
+                message = "INR 1000.00 debited from A/c no. XX1234 to A/c XX5678 on 24-10-2026. Bal INR 1431.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("1000.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    accountLast4 = "1234",
+                    balance = BigDecimal("1431.00"),
+                    expectNullMerchant = true
+                )
+            ),
+
+            // Regression: Generic labels, bank codes, account identifiers, references, and trailing boilerplate
+            ParserTestCase(
+                name = "Non-Merchant - Bank name Axis Bank in to clause",
+                message = "INR 600.00 debited from A/c no. XX1234 to AXIS BANK on 24-10-2026. Bal INR 831.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("600.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    accountLast4 = "1234",
+                    balance = BigDecimal("831.00"),
+                    expectNullMerchant = true
+                )
+            ),
+
+            ParserTestCase(
+                name = "Non-Merchant - Bank IFSC code UTIB in UPI slash without merchant",
+                message = "INR 200.00 debited from A/c no. XX1234 via UPI/DR/429812345681/UTIB. Bal INR 631.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("200.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    reference = "429812345681",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("631.00"),
+                    expectNullMerchant = true
+                )
+            ),
+
+            ParserTestCase(
+                name = "Non-Merchant - Generated QR code in VPA",
+                message = "INR 80.00 debited from A/c no. XX1234 to VPA paytmqr28100505@paytm. Bal INR 551.00. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("80.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    accountLast4 = "1234",
+                    balance = BigDecimal("551.00"),
+                    expectNullMerchant = true
+                )
+            ),
+
+            ParserTestCase(
+                name = "Debit with UPI Ref suffix",
+                message = "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 421.00. UPI Ref: 429812345682. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130.00"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.EXPENSE,
+                    merchant = "BLINKIT",
+                    reference = "429812345682",
+                    accountLast4 = "1234",
+                    balance = BigDecimal("421.00")
+                )
             )
         )
 
