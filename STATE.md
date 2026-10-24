@@ -318,3 +318,42 @@
     - `edit_sms_dark.png`, `edit_sms_light.png`
     - `edit_manual_dark.png`, `edit_manual_light.png`
   - Verified visually via `view_file` for accurate layout, colors, typography, touch padding, and contrast.
+
+## 14. Review Tab ("Needs a check" Screen) Implementation (Prompt UI-3)
+
+- **Review Screen Architecture (`ReviewScreen.kt`):**
+  - Built using Theme.kt tokens and AF components (`AFTopBar`, `AFCategoryChip`, `AFButton`).
+  - Top bar displaying `Needs a check (N)`.
+  - Grouped chronologically by day (`Today`, `Yesterday`, and formatted dates), exactly matching Home screen day header styling.
+  - Each pending item card displays:
+    - Merchant name, formatted time, and formatted amount in ₹ (integer paise).
+    - Top 3 likely category suggestions derived from `CategoryEngine.resolveCategory(merchant)` and built-in frequency fallbacks.
+    - Quick confirmation: tapping a category chip calls `TransactionRepository.updateTransaction`, updates the category, sets `reviewStatus = CONFIRMED`, and immediately removes the item from the pending list.
+    - `"Later"` button: defers review action and keeps the item pending.
+    - Card body tap navigation: tapping anywhere on the card header/body navigates directly into the existing `EditTransactionScreen` with full edit capabilities; saving or returning routes back cleanly to Review.
+  - Empty state (`ReviewEmptyState`):
+    - Displayed when all pending items are resolved: green checkmark icon in circular tint container, bold heading `"All caught up"`, and subtitle `"Nothing needs your attention"`.
+- **Live Synchronized Review Count & Home Banner:**
+  - `AFBottomNav.kt`: added amber count badge support to navigation items; displays active unreviewed count on the Review tab icon.
+  - `HomeScreen.kt`: amber review banner (`ReviewCheckBanner`) shown below the period selector when `unreviewedCount > 0`, displaying `"N need a check"` with an arrow. Tapping navigates directly to the Review tab. Banner cleanly hides when count is 0.
+  - Pending-review expenses remain strictly counted in Home totals and charts (integer paise arithmetic intact).
+- **Comprehensive Unit Testing (`ReviewScreenTest.kt`):**
+  - 4 test cases verifying all business rules:
+    - `confirmCategoryClearsReviewStatusAndDecrementsCount`: confirms category selection marks status as CONFIRMED and decrements count.
+    - `onLaterPreservesReviewStatusAndCount`: confirms tapping Later preserves pending state and count.
+    - `homeBannerVisibilityTogglesWithUnreviewedCount`: confirms banner is visible when count > 0 and hidden when count == 0.
+    - `unreviewedExpensesRemainCountedInTotals`: confirms unreviewed items are counted in total spend alongside confirmed items.
+  - Demonstrated RED test phase initially against unimplemented stubs, followed by GREEN test phase after wiring.
+- **Isolation & Integrity:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified 100% empty.
+  - Production database backed up to `backups/v4_pre_ui3.db` (94,208 bytes, % 4096 == 0) and restored to original state post-verification.
+  - Zero hardcoded colors outside `Theme.kt`.
+- **Physical Device & Visual Verification (Device `dfa4dd90`):**
+  - Installed debug APK and verified live behavior on physical device in both Dark and Light modes.
+  - Captured artifacts:
+    - `home_review_banner.png`: Home screen with amber "2 need a check" banner and Review tab badge count 2.
+    - `review_items_dark.png`: Review screen displaying pending items in Dark theme.
+    - `review_items_light.png`: Review screen displaying pending items in Light theme.
+    - `review_after_food_confirmed.png`: Review screen after confirming Swiggy to Food (count decremented to 1).
+    - `review_empty.png`: "All caught up" empty state when all review items are cleared.
+
