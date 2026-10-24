@@ -455,3 +455,50 @@
     - `my_categories_after_delete.png`: My Categories list after deleting "Gaming", showing "Pet Care" ("1 of 30 used").
     - `categories_custom_category.png`: Categories tab ring chart and breakdown list displaying "Pet Care" with ORANGE ring slice/tile and PAW icon.
   - Phone database restored from `v4_pre_ui5.db` and verified (94,208 bytes, % 4096 == 0).
+
+## 17. First Run & Permission Help UI (Prompt UI-6)
+
+- **Architecture & Screen Composition (`FirstRunScreen.kt`, `PermissionHelpScreen.kt`):**
+  - **First Run Screen (`FirstRunScreen.kt`):**
+    - Shown once on first launch only; checks `isFirstRunCompleted` from `FirstRunPreferences`.
+    - Hero: Tinted rounded square with Shield vector icon (`ic_shield_private.xml`).
+    - Title: "Your spending, tracked privately".
+    - Subtitle: "AutoFlow reads bank SMS on your phone only. Nothing leaves your device. Messages are not saved."
+    - 3 Key Value Props:
+      - "Stays on your phone — No account, no upload" (`ic_point_device.xml`).
+      - "Messages are not saved — Only the amount, merchant and time are kept" (`ic_point_no_save.xml`).
+      - "Cash works without SMS — Add cash spending any time" (`ic_point_cash.xml`).
+    - Primary Button: "Allow SMS access" launches real `RECEIVE_SMS` runtime permission prompt (`ActivityResultContracts.RequestPermission`).
+      - Granted -> sets first run completed, navigates to Home.
+      - Denied -> sets first run completed, navigates to Home without nagging.
+      - Blocked/Restricted (sideloaded app restrictions via `AppOpsManager.unsafeCheckOpNoThrow("android:access_restricted_settings", ...)`) -> routes to Permission Help.
+    - Secondary Action: "Not now, I will add cash only" text button immediately marks first run completed and routes to Home without prompting.
+  - **Permission Help Screen (`PermissionHelpScreen.kt`):**
+    - Header: `AFTopBar` with title "Permission help" and back navigation arrow.
+    - Intro: "Android blocks SMS access for apps installed outside the Play Store. It takes three taps to allow it."
+    - 3 Numbered Step Cards:
+      1. "Open AutoFlow's app settings with the button below"
+      2. "Tap the menu at the top right, then choose Allow restricted settings"
+      3. "Come back and tap Allow SMS access"
+    - Primary Button: "Open app settings" launches `ACTION_APPLICATION_DETAILS_SETTINGS` targeting AutoFlow's package.
+    - Secondary Button: "Allow SMS access" launches runtime permission request.
+    - Auto-Detection on Resume: Observes lifecycle `ON_RESUME` after `ON_PAUSE` (when user comes back from App Settings or system prompt) to automatically detect permission grant and proceed to Home (or back to Settings if opened from Settings > Privacy).
+- **First-Run State & Preferences (`FirstRunPreferences.kt`):**
+  - Stored in SharedPreferences (`"autoflow_settings"`, key `"has_completed_first_run"`).
+  - Observed reactively in `MainViewModel` via `isFirstRunCompleted: StateFlow<Boolean>`.
+  - Never shown again on subsequent launches once completed.
+  - Provided clean debug-only reset mechanism in `SettingsScreen` and debug intent (`--ez reset_first_run true`), verified to be gated by `ApplicationInfo.FLAG_DEBUGGABLE` so it cannot trigger in release builds.
+- **Unit Testing (`FirstRunTest.kt`):**
+  - Verified initial flag state, persistence after "Not now", persistence after permission grant/denial.
+  - Verified routing for `PermissionPromptResult.Granted`, `Denied`, and `BlockedOrRestricted`.
+- **Data & Schema Isolation Proof:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified 100% empty.
+  - `AndroidManifest.xml` verified: `RECEIVE_SMS` only, zero `READ_SMS`.
+- **Physical Device & Visual Verification (Device `dfa4dd90`):**
+  - Phone database backed up to `..\backups\v4_pre_ui6.db` (94,208 bytes, % 4096 == 0) prior to test execution.
+  - Captured artifacts:
+    - `first_run_screen.png`: First Run screen with shield hero, title, 3 value prop points, and action buttons.
+    - `screen_after_allow.png` / `screen_relaunch_home.png`: Seamless transition to Home screen and persistence on subsequent launches.
+    - `settings_privacy_off.png`: Settings screen Privacy section showing SMS access "Off" badge in amber with right chevron.
+    - `permission_help_screen.png`: Permission Help screen with 3 numbered cards, "Open app settings" and "Allow SMS access" buttons.
+    - Database integrity verified after test runs (94,208 bytes, % 4096 == 0).

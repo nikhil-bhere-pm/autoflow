@@ -28,6 +28,7 @@ class MainViewModel(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: com.autoflow.app.data.repository.CategoryRepository? = null,
     private val themePreferences: com.autoflow.app.presentation.theme.ThemePreferences = InMemoryThemePreferences(),
+    private val firstRunPreferences: com.autoflow.app.presentation.preferences.FirstRunPreferences = com.autoflow.app.presentation.preferences.InMemoryFirstRunPreferences(initialCompleted = true),
     private val timeProvider: () -> Instant = { Instant.now() },
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
@@ -36,6 +37,14 @@ class MainViewModel(
 
     fun setThemeMode(mode: com.autoflow.app.presentation.theme.AppThemeMode) {
         themePreferences.setThemeMode(mode)
+    }
+
+    private val _isFirstRunCompleted = MutableStateFlow(firstRunPreferences.isFirstRunCompleted)
+    val isFirstRunCompleted: StateFlow<Boolean> = _isFirstRunCompleted.asStateFlow()
+
+    fun setFirstRunCompleted(completed: Boolean) {
+        firstRunPreferences.setFirstRunCompleted(completed)
+        _isFirstRunCompleted.value = completed
     }
 
     private val _periodFilter = MutableStateFlow<PeriodFilter>(PeriodFilter.Predefined(StatsPeriod.THIS_MONTH))

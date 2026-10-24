@@ -47,6 +47,8 @@ import com.autoflow.app.presentation.theme.AppRadius
 import com.autoflow.app.presentation.theme.AppSpacing
 import com.autoflow.app.presentation.theme.AppThemeMode
 import com.autoflow.app.presentation.theme.AutoFlowTheme
+import com.autoflow.app.presentation.ui.components.AFButton
+import com.autoflow.app.presentation.ui.components.AFButtonVariant
 import com.autoflow.app.presentation.ui.components.AFSegmented
 import com.autoflow.app.presentation.ui.components.AFTopBar
 
@@ -55,8 +57,10 @@ fun SettingsScreen(
     currentThemeMode: AppThemeMode,
     onSelectThemeMode: (AppThemeMode) -> Unit,
     onNavigateToMyCategories: () -> Unit,
+    onNavigateToPermissionHelp: () -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onResetFirstRun: (() -> Unit)? = null
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -203,7 +207,7 @@ fun SettingsScreen(
                         .clip(RoundedCornerShape(AppRadius.md))
                         .clickable {
                             if (!hasSmsPermission) {
-                                openAppSettings(context)
+                                onNavigateToPermissionHelp()
                             }
                         }
                 ) {
@@ -243,11 +247,35 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(AppSpacing.xs))
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "Open App Settings",
+                                contentDescription = "Open Permission Help",
                                 tint = colors.muted
                             )
                         }
                     }
+                }
+            }
+
+            // Debug-only Section (reset first run / test permission help)
+            val isDebuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (isDebuggable && onResetFirstRun != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
+                    Text(
+                        text = "Debug",
+                        style = AutoFlowTheme.typography.titleMedium,
+                        color = colors.ink
+                    )
+                    AFButton(
+                        text = "Reset first run (Debug)",
+                        variant = AFButtonVariant.SECONDARY,
+                        onClick = onResetFirstRun,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    AFButton(
+                        text = "Toggle SMS Off/On (Debug)",
+                        variant = AFButtonVariant.SECONDARY,
+                        onClick = { hasSmsPermission = !hasSmsPermission },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

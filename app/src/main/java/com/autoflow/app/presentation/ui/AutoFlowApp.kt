@@ -7,9 +7,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.autoflow.app.presentation.ui.firstrun.PermissionPromptResult
+import com.autoflow.app.presentation.ui.firstrun.resolveNextScreenOnPermissionResult
 import com.autoflow.app.presentation.viewmodel.MainViewModel
 
 sealed class Screen {
+    data object FirstRun : Screen()
+    data class PermissionHelp(val fromSettings: Boolean = false) : Screen()
     data object Home : Screen()
     data object Review : Screen()
     data object Categories : Screen()
@@ -27,7 +31,13 @@ sealed class Screen {
 
 @Composable
 fun AutoFlowApp(viewModel: MainViewModel) {
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    val isFirstRunCompleted by viewModel.isFirstRunCompleted.collectAsState()
+
+    var currentScreen by remember(isFirstRunCompleted) {
+        mutableStateOf<Screen>(
+            if (!isFirstRunCompleted) Screen.FirstRun else Screen.Home
+        )
+    }
 
     val homeUiState by viewModel.homeUiState.collectAsState()
     val categoriesUiState by viewModel.categoriesUiState.collectAsState()
@@ -38,8 +48,12 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     val customCategoriesWithCounts by viewModel.customCategoriesWithCounts.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
 
-    BackHandler(enabled = currentScreen != Screen.Home) {
+    BackHandler(enabled = currentScreen != Screen.Home && currentScreen != Screen.FirstRun) {
         currentScreen = when (val s = currentScreen) {
+            is Screen.FirstRun -> Screen.FirstRun
+            is Screen.PermissionHelp -> {
+                if (s.fromSettings) Screen.Settings else Screen.Home
+            }
             is Screen.Edit -> {
                 when {
                     s.fromReview -> Screen.Review
@@ -59,6 +73,44 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     }
 
     when (val screen = currentScreen) {
+        is Screen.FirstRun -> {
+            FirstRunScreen(
+                onPermissionResult = { result ->
+                    val next = resolveNextScreenOnPermissionResult(result, fromSettings = false)
+                    if (result == PermissionPromptResult.Granted || result == PermissionPromptResult.Denied) {
+                        viewModel.setFirstRunCompleted(true)
+                    }
+                    currentScreen = next
+                },
+                onNotNow = {
+                    viewModel.setFirstRunCompleted(true)
+                    currentScreen = Screen.Home
+                }
+            )
+        }
+
+        is Screen.PermissionHelp -> {
+            PermissionHelpScreen(
+                fromSettings = screen.fromSettings,
+                onPermissionGranted = {
+                    if (!screen.fromSettings) {
+                        viewModel.setFirstRunCompleted(true)
+                        currentScreen = Screen.Home
+                    } else {
+                        currentScreen = Screen.Settings
+                    }
+                },
+                onNavigateBack = {
+                    if (!screen.fromSettings) {
+                        viewModel.setFirstRunCompleted(true)
+                        currentScreen = Screen.Home
+                    } else {
+                        currentScreen = Screen.Settings
+                    }
+                }
+            )
+        }
+
         is Screen.Home -> {
             HomeScreen(
                 uiState = homeUiState,
@@ -143,7 +195,13 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 currentThemeMode = themeMode,
                 onSelectThemeMode = { mode -> viewModel.setThemeMode(mode) },
                 onNavigateToMyCategories = { currentScreen = Screen.MyCategories },
-                onNavigateBack = { currentScreen = Screen.Home }
+                onNavigateToPermissionHelp = {
+                    currentScreen = Screen.PermissionHelp(fromSettings = true)
+                },
+                onNavigateBack = { currentScreen = Screen.Home },
+                onResetFirstRun = {
+                    viewModel.setFirstRunCompleted(false)
+                }
             )
         }
 
