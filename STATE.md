@@ -148,6 +148,29 @@
   - Audited git diff hunk in commit `050a25d`: Myers diff relocated `dayTotal` and `dailyTotals` from bottom of file when `fiveMonthSpendingSeries` was inserted. All S1 tests pass untouched.
   - Audited `monthlySeries` (S1 centered window `[-2..+2]` without refund deduction) vs `fiveMonthSpendingSeries` (P trailing 5-month window `[-4..0]` with net spend floored at 0). S1 tests and callers preserved without deletion pending UI integration.
 
+## 10. UI Design Foundation, Typography & WCAG Contrast (Prompts D1, D1b)
 
-
-
+- **Design Tokens & Theme Centralization (`Theme.kt`):**
+  - Semantic color system defined in `Theme.kt` with Light and Dark palettes (`bg`, `sheet`, `ink`, `muted`, `line`, `brand`, `tint`, `onTint`, `button`, `buttonText`, `amberBg`, `amberFg`, `chip`, `hero`, `field`, `red`, `bar`, `track`).
+  - Category color palettes for all 9 AutoFlow categories plus `Unknown`.
+  - All UI colors strictly resolved through `AutoFlowTheme.colors` or `LocalAutoFlowColors`; verified by `verify.ps1` regex checks forbidding hardcoded hex colors outside `Theme.kt`.
+- **WCAG 2.1 AA Contrast Ratios (Prompt D1b):**
+  - Comprehensive contrast test suite in `ThemeContrastTest.kt` verifies 36 foreground/background color combinations across Light and Dark themes.
+  - Adjusted Light category colors to satisfy WCAG 2.1 AA normal text contrast (>= 4.5:1) against 11% category tint tiles:
+    - Food: `#C2410C` -> `#B83A0B` (contrast improves from 4.41:1 to 4.86:1).
+    - Bills: `#A16207` -> `#8F5B05` (contrast improves from 4.24:1 to 4.88:1).
+  - Zero exceptions permitted: all 36 pairs strictly pass >= 4.5:1.
+  - Mutation proof verified: temporarily reverting Bills to `#A16207` causes `ThemeContrastTest` to fail with `Expected Bills on 11% tile in Light to pass >= 4.5, was 4.24`.
+- **Typography Scale & Variable Font:**
+  - Bundled single variable font `PlusJakartaSans-VariableFont_wght.ttf` as `res/font/plus_jakarta_sans.ttf` with accompanying `OFL.txt` license in root `NOTICE`.
+  - Font family declared with `@OptIn(ExperimentalTextApi::class)` and explicit `FontVariation.Settings(FontVariation.weight(wght))` for weights 400, 500, 600, 700, and 800.
+  - Material 3 `Typography` scale configured: `displayLarge` (36sp/700), `headlineLarge` (28sp/700), `titleLarge` (20sp/600), `titleMedium` (16sp/600), `bodyLarge` (15sp/400), `bodyMedium` (14sp/400), `labelLarge` (13sp/600), `labelMedium` (12sp/500), `labelSmall` (11sp/500).
+  - Tabular figures (`FontFeatureSettings("tnum")`) applied across numeric display styles for aligned monetary values.
+- **Reusable UI Building Blocks (`presentation/ui/components/`):**
+  - 10 standalone Compose components with comprehensive `@Preview` definitions for light and dark themes:
+    `AFTopBar`, `AFBottomNav`, `AFTransactionRow`, `AFCategoryTile`, `AFCategoryChip`, `AFBadge`, `AFButton`, `AFSegmented`, `AFSheet`, `AFField`.
+    Components do not yet replace production screen layouts to ensure zero behavioral disruption.
+  - 10 category vector drawables added to `res/drawable/` (`ic_cat_food`, `ic_cat_groceries`, `ic_cat_transport`, `ic_cat_shopping`, `ic_cat_bills`, `ic_cat_entertainment`, `ic_cat_health`, `ic_cat_travel`, `ic_cat_others`, `ic_cat_unknown`) with unified icon resolver `CategoryIcons.iconResFor(category)`.
+- **Physical Device & Logcat Verification:**
+  - Debug APK compiled (`assembleDebug`) and installed on test device `dfa4dd90` (`adb install -r`).
+  - App launched into foreground (`am start -n com.autoflow.app/.MainActivity`); 30-second logcat monitored with zero application errors, zero font crashes, zero Room crashes, and zero SMS leakage.
