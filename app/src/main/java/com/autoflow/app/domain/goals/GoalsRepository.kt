@@ -21,6 +21,7 @@ interface GoalsRepository {
     suspend fun getEntries(goalId: Long): List<GoalEntry>
     fun observeEntries(goalId: Long): Flow<List<GoalEntry>>
     suspend fun saveEntry(entry: GoalEntry): GoalEntry
+    suspend fun getEntriesByTransaction(transactionId: Long): List<GoalEntry>
 }
 
 /**
@@ -85,4 +86,9 @@ class InMemoryGoalsRepository : GoalsRepository {
         _entriesFlow.value = entries.values.toList()
         assignedEntry
     }
+
+    override suspend fun getEntriesByTransaction(transactionId: Long): List<GoalEntry> = mutex.withLock {
+        entries.values.filter { it.linkedTransactionId == transactionId }
+    }
 }
+

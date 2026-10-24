@@ -10,6 +10,12 @@ const val MAX_AMOUNT_PAISE: Long = 10_000_000_000L
 /** Maximum goal name length: 40 characters */
 const val MAX_GOAL_NAME_LENGTH: Int = 40
 
+/** Maximum description length for AVOIDED entries: 80 characters */
+const val MAX_AVOIDED_DESCRIPTION_LENGTH: Int = 80
+
+/** Maximum note length for SET_ASIDE and USED entries: 120 characters */
+const val MAX_NOTE_LENGTH: Int = 120
+
 /** Future tolerance window: 5 minutes in milliseconds */
 const val FUTURE_TOLERANCE_MILLIS: Long = 5 * 60 * 1000L
 
@@ -32,7 +38,7 @@ sealed interface GoalError {
     /** Amount or target exceeds MAX_AMOUNT_PAISE */
     data class OverLimit(val amountPaise: Long, val limitPaise: Long = MAX_AMOUNT_PAISE) : GoalError
 
-    /** SET_ASIDE on an AVOIDANCE goal */
+    /** SET_ASIDE or USED on an AVOIDANCE goal */
     data class WrongEntryType(val kind: GoalKind, val type: EntryType) : GoalError
 
     /** Entry occurredAt is more than 5 minutes in the future */
@@ -43,7 +49,23 @@ sealed interface GoalError {
 
     /** Referenced entry ID was not found */
     data class EntryNotFound(val entryId: Long) : GoalError
+
+    /** Description is required for AVOIDED entries */
+    data object DescriptionRequired : GoalError
+
+    /** Description exceeds 80 characters for AVOIDED entries */
+    data class DescriptionTooLong(val length: Int, val maxLength: Int = MAX_AVOIDED_DESCRIPTION_LENGTH) : GoalError
+
+    /** Note exceeds 120 characters for SET_ASIDE or USED entries */
+    data class NoteTooLong(val length: Int, val maxLength: Int = MAX_NOTE_LENGTH) : GoalError
+
+    /** Saved amount would drop below zero */
+    data class InsufficientBalance(val availablePaise: Long, val requestedPaise: Long) : GoalError
+
+    /** Amount linked to goal exceeds the expense transaction amount */
+    data class AmountExceedsExpense(val amountPaise: Long, val expenseAmountPaise: Long) : GoalError
 }
+
 
 /**
  * Sealed result type for domain operations.
