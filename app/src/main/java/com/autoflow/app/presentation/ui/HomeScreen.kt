@@ -69,6 +69,7 @@ import com.autoflow.app.presentation.ui.components.AFBottomNav
 import com.autoflow.app.presentation.ui.components.AFBottomNavItem
 import com.autoflow.app.presentation.ui.components.AFButton
 import com.autoflow.app.presentation.ui.components.AFButtonVariant
+import com.autoflow.app.presentation.ui.components.AFSmoothLineChart
 import com.autoflow.app.presentation.ui.components.AFTopBar
 import com.autoflow.app.presentation.ui.components.AFTransactionRow
 import com.autoflow.app.presentation.util.CurrencyFormatter
@@ -171,8 +172,6 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
             contentPadding = PaddingValues(
-                start = AppSpacing.md,
-                end = AppSpacing.md,
                 top = AppSpacing.md,
                 bottom = AppSpacing.xl
             ),
@@ -182,7 +181,8 @@ fun HomeScreen(
             item {
                 PeriodPill(
                     pillLabel = uiState.pillLabel,
-                    onSelectPeriod = onSelectPeriod
+                    onSelectPeriod = onSelectPeriod,
+                    modifier = Modifier.padding(horizontal = AppSpacing.md)
                 )
             }
 
@@ -191,13 +191,14 @@ fun HomeScreen(
                 BigNumberSection(
                     countedSpendPaise = uiState.countedSpendPaise,
                     countedCount = uiState.countedTransactionCount,
-                    onInfoClick = { showRefundInfoDialog = true }
+                    onInfoClick = { showRefundInfoDialog = true },
+                    modifier = Modifier.padding(horizontal = AppSpacing.md)
                 )
             }
 
-            // 3. 5-Month Spending Chart
+            // 3. 5-Month Spending Chart (Edge to edge on Home background)
             item {
-                FiveMonthChartCard(
+                AFSmoothLineChart(
                     monthlySeries = uiState.monthlySeries,
                     periodFilter = uiState.periodFilter,
                     accessibilityDescription = uiState.chartAccessibilityDescription,
@@ -211,7 +212,8 @@ fun HomeScreen(
                     SmsPermissionBanner(
                         onRequestPermission = {
                             permissionLauncher.launch(Manifest.permission.RECEIVE_SMS)
-                        }
+                        },
+                        modifier = Modifier.padding(horizontal = AppSpacing.md)
                     )
                 }
             }
@@ -219,14 +221,18 @@ fun HomeScreen(
             // 5. Grouped List or Empty State
             if (uiState.isEmpty) {
                 item {
-                    EmptyStateView(onAddExpense = onNavigateToAddCash)
+                    EmptyStateView(
+                        onAddExpense = onNavigateToAddCash,
+                        modifier = Modifier.padding(horizontal = AppSpacing.md)
+                    )
                 }
             } else {
                 uiState.groupedTransactions.forEach { dayGroup ->
                     item(key = "header_${dayGroup.date}") {
                         DayHeader(
                             date = dayGroup.date,
-                            dayTotalPaise = dayGroup.dayTotalPaise
+                            dayTotalPaise = dayGroup.dayTotalPaise,
+                            modifier = Modifier.padding(horizontal = AppSpacing.md)
                         )
                     }
 
@@ -252,6 +258,7 @@ fun HomeScreen(
                             amountText = formattedAmount,
                             category = tx.category,
                             isPositive = isRefund,
+                            modifier = Modifier.padding(horizontal = AppSpacing.md),
                             badge = if (badgeType != null) {
                                 {
                                     when (badgeType) {
@@ -307,12 +314,13 @@ fun HomeScreen(
 @Composable
 private fun PeriodPill(
     pillLabel: String,
-    onSelectPeriod: (StatsPeriod) -> Unit
+    onSelectPeriod: (StatsPeriod) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
     var menuExpanded by remember { mutableStateOf(false) }
 
-    Box {
+    Box(modifier = modifier) {
         Surface(
             shape = RoundedCornerShape(AppRadius.full),
             color = colors.chip,
@@ -376,11 +384,12 @@ private fun PeriodPill(
 private fun BigNumberSection(
     countedSpendPaise: Long,
     countedCount: Int,
-    onInfoClick: () -> Unit
+    onInfoClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = CurrencyFormatter.formatPaiseToInr(countedSpendPaise),
             style = AutoFlowTheme.typography.displaySmall,
@@ -418,105 +427,10 @@ private fun BigNumberSection(
 }
 
 @Composable
-private fun FiveMonthChartCard(
-    monthlySeries: List<MonthPoint>,
-    periodFilter: PeriodFilter,
-    accessibilityDescription: String,
-    onSelectMonth: (YearMonth) -> Unit
-) {
-    val colors = AutoFlowTheme.colors
-
-    Surface(
-        shape = RoundedCornerShape(AppRadius.lg),
-        color = colors.sheet,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { contentDescription = accessibilityDescription }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(AppSpacing.md)
-        ) {
-            val maxPaise = monthlySeries.maxOfOrNull { it.totalPaise } ?: 0L
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                monthlySeries.forEach { point ->
-                    val isSelected = when (periodFilter) {
-                        is PeriodFilter.SpecificMonth -> periodFilter.month == point.month
-                        is PeriodFilter.Predefined -> false
-                    }
-
-                    val heightFraction = if (maxPaise > 0L && point.totalPaise > 0L) {
-                        (point.totalPaise.toFloat() / maxPaise).coerceIn(0.12f, 1f)
-                    } else {
-                        0.08f
-                    }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .defaultMinSize(minWidth = AppSpacing.minTapTarget, minHeight = AppSpacing.minTapTarget)
-                            .clickable(
-                                enabled = !point.isFuture,
-                                onClick = { onSelectMonth(point.month) }
-                            )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            contentAlignment = Alignment.BottomCenter
-                        ) {
-                            val barColor = when {
-                                point.isFuture -> colors.track
-                                isSelected -> colors.bar
-                                else -> colors.line
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.48f)
-                                    .fillMaxHeight(heightFraction)
-                                    .background(barColor, RoundedCornerShape(topStart = AppRadius.xs, topEnd = AppRadius.xs))
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(AppSpacing.xs))
-
-                        val monthAbbr = point.month.month.name.take(3).lowercase(Locale.ROOT).replaceFirstChar { it.uppercase(Locale.ROOT) }
-                        val labelColor = when {
-                            point.isFuture -> colors.muted.copy(alpha = 0.4f)
-                            isSelected -> colors.ink
-                            else -> colors.muted
-                        }
-
-                        Text(
-                            text = monthAbbr,
-                            style = AutoFlowTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = labelColor
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun DayHeader(
     date: LocalDate,
-    dayTotalPaise: Long
+    dayTotalPaise: Long,
+    modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
     val today = LocalDate.now(ZoneId.systemDefault())
@@ -527,7 +441,7 @@ private fun DayHeader(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = AppSpacing.sm, bottom = AppSpacing.xxs),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -551,7 +465,8 @@ private fun DayHeader(
 
 @Composable
 private fun EmptyStateView(
-    onAddExpense: () -> Unit
+    onAddExpense: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
 
@@ -559,7 +474,7 @@ private fun EmptyStateView(
         shape = RoundedCornerShape(AppRadius.lg),
         color = colors.sheet,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
@@ -598,7 +513,8 @@ private fun EmptyStateView(
 
 @Composable
 private fun SmsPermissionBanner(
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
 
@@ -606,7 +522,7 @@ private fun SmsPermissionBanner(
         shape = RoundedCornerShape(AppRadius.md),
         color = colors.amberBg,
         border = androidx.compose.foundation.BorderStroke(1.dp, colors.amberFg.copy(alpha = 0.2f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(AppSpacing.md),
