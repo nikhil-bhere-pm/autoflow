@@ -7,7 +7,8 @@ enum class GoalKind {
 
 enum class EntryType {
     SET_ASIDE,
-    AVOIDED
+    AVOIDED,
+    USED
 }
 
 data class Goal(
@@ -26,7 +27,8 @@ data class GoalEntry(
     val amountPaise: Long,
     val note: String? = null,
     val occurredAt: Long,
-    val deletedAt: Long? = null
+    val deletedAt: Long? = null,
+    val linkedTransactionId: Long? = null
 )
 
 data class GoalProgress(
@@ -34,10 +36,13 @@ data class GoalProgress(
     val setAsidePaise: Long,
     val avoidedPaise: Long,
     val percent: Int,
-    val isReached: Boolean
+    val isReached: Boolean,
+    val usedPaise: Long = 0L,
+    val savedPaise: Long = (setAsidePaise - usedPaise).coerceAtLeast(0L)
 )
 
 data class GoalWithProgress(
     val goal: Goal,
     val progress: GoalProgress
 )
+

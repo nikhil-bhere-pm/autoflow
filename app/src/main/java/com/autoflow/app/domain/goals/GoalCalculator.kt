@@ -22,18 +22,22 @@ import java.math.BigInteger
 fun calculateProgress(goal: Goal, entries: List<GoalEntry>): GoalProgress {
     var setAsidePaise = 0L
     var avoidedPaise = 0L
+    var usedPaise = 0L
 
     for (entry in entries) {
         if (entry.deletedAt != null) continue
         when (entry.type) {
             EntryType.SET_ASIDE -> setAsidePaise = Math.addExact(setAsidePaise, entry.amountPaise)
             EntryType.AVOIDED -> avoidedPaise = Math.addExact(avoidedPaise, entry.amountPaise)
+            EntryType.USED -> usedPaise = Math.addExact(usedPaise, entry.amountPaise)
         }
     }
 
+    val savedPaise = (setAsidePaise - usedPaise).coerceAtLeast(0L)
+
     val target = goal.targetPaise
     val relevantPaise = when (goal.kind) {
-        GoalKind.SAVINGS -> setAsidePaise
+        GoalKind.SAVINGS -> savedPaise
         GoalKind.AVOIDANCE -> avoidedPaise
     }
 
@@ -53,7 +57,9 @@ fun calculateProgress(goal: Goal, entries: List<GoalEntry>): GoalProgress {
         setAsidePaise = setAsidePaise,
         avoidedPaise = avoidedPaise,
         percent = percent,
-        isReached = isReached
+        isReached = isReached,
+        usedPaise = usedPaise,
+        savedPaise = savedPaise
     )
 }
 

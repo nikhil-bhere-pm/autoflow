@@ -50,3 +50,42 @@
 - **Non-Axis/Non-HDFC Carrier SMS:** Real carrier-delivered SMS layout variations for ICICI, SBI, and Kotak banks beyond synthetic test fixtures (not verified).
 - **High-Volume Database Performance:** Room query performance and Compose list scrolling under large datasets (50,000+ transactions) on low-end hardware (not verified).
 
+## 6. Goals Domain
+
+- **Pure Kotlin Architecture:** Fully decoupled domain layer (`domain/goals/`) with zero Android, UI, or database dependencies. All monetary values use integer paise with a hard limit of 10 crore rupees (`MAX_AMOUNT_PAISE = 10_000_000_000L`).
+- **Goal Kinds & Entry Semantics:**
+  - `SAVINGS`: Tracks funds set aside toward a target; accepts `SET_ASIDE`, `AVOIDED`, and `USED` entries.
+  - `AVOIDANCE`: Tracks money saved by avoiding expenses (e.g. quitting habits); accepts only `AVOIDED` entries (`SET_ASIDE` and `USED` rejected with `GoalError.WrongEntryType`).
+- **Entry Validations & Notes:**
+  - `AVOIDED` entries require a non-blank description between 1 and 80 characters (`DescriptionRequired` / `DescriptionTooLong`).
+  - `SET_ASIDE` and `USED` entries support optional notes up to 120 characters (`NoteTooLong`). Validated on both creation and edit.
+- **Saved Balance Invariant & InsufficientBalance:**
+  - Saved balance is strictly calculated as `sum(SET_ASIDE) - sum(USED)` over non-deleted entries.
+  - Balance cannot drop below zero: any operation that would make balance negative (oversized `USED`, editing `USED` up past the balance, deleting or reducing `SET_ASIDE` below the `USED` total) is rejected with `GoalError.InsufficientBalance(availablePaise, requestedPaise)`.
+- **Expense Linking & Spending from Goals:**
+  - `linkExpense(goalId, transactionId, expenseAmountPaise, amountPaise)`: Links an existing expense transaction to a goal. Rejects `amountPaise > expenseAmountPaise` (`AmountExceedsExpense`) and `amountPaise <= 0`. Replaces earlier links for the same transaction (including across goals).
+  - `unlinkExpense(transactionId)`: Soft-deletes the linked `USED` entry and restores the goal balance.
+  - `takeOut(goalId, amountPaise, note)`: Records non-expense withdrawals from savings (`linkedTransactionId = null`).
+  - `cancelUsageForTransaction(transactionId)` & `restoreUsageForTransaction(transactionId)`: Idempotently soft-deletes and restores linked `USED` entries for expense deletion and Undo workflows.
+- **Progress Calculations:** Savings goals compute progress percent and `isReached` against net saved amount (`setAsidePaise - usedPaise`). Avoidance goals compute progress against `avoidedPaise`.
+
+## 7. Spending Statistics Domain
+
+- **Pure Kotlin Architecture:** Decoupled analytics and statistics calculation engine (`domain/stats/SpendingStats.kt`) with zero Android, UI, or database dependencies. All amounts calculated as integer paise (`Long`) with overflow-safe arithmetic (`Math.addExact`, `BigInteger`).
+- **Spending Eligibility Rules:** Reuses core criteria from `domain/totals/SpendingTotals.kt`:
+  - Active (`is_deleted = 0`), outbound (`recordType == EXPENSE`), non-excluded (`reviewStatus != EXCLUDED`).
+  - Pending review (`NEEDS_REVIEW`) items are included.
+  - `REFUND` records are excluded (not subtracted in MVP).
+- **Period Ranges (`periodRange`):** Calculates half-open intervals `[start, end)` in UTC instants based on caller-supplied `ZoneId` and `Instant` anchor:
+  - `TODAY`: Local midnight to next midnight.
+  - `THIS_WEEK`: ISO-8601 Monday midnight to next Monday midnight.
+  - `THIS_MONTH`: First day of month at midnight to first day of next month at midnight.
+- **5-Month Trend Series (`monthlySeries`):**
+  - Generates exactly 5 `MonthPoint(month, totalPaise, isFuture)` points: two preceding months, the selected month, and two following months.
+  - Months strictly after `currentMonth` are flagged `isFuture = true` with `totalPaise = 0L`.
+- **Category Breakdown (`categoryBreakdown`):**
+  - Aggregates spending per category over a given `PeriodRange`. Omits categories with zero spend.
+  - Whole-number percentage calculation using the **Largest Remainder Method** (Hamilton/Hare–Niemeyer), guaranteeing percentages sum to exactly 100% when total spend > 0.
+  - Deterministic tie-breaking: sorts by largest remainder descending, then largest spend descending, then alphabetical category name ascending.
+- **Daily Totals (`dayTotal`, `dailyTotals`):** Computes spend totals per local calendar day or across ranges, clamped at a minimum of `0L`.
+
