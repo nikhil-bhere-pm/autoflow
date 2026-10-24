@@ -130,6 +130,15 @@ class AxisBankParser : BaseIndianBankParser() {
         return false
     }
 
+    private fun isDateOrTime(candidate: String): Boolean {
+        val trimmed = candidate.trim()
+        if (trimmed.matches(Regex("""^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$"""))) return true
+        if (trimmed.matches(Regex("""^\d{1,2}[:.]\d{2}(?:[:.]\d{2})?(?:\s*(?:AM|PM|IST))?$""", RegexOption.IGNORE_CASE))) return true
+        if (trimmed.matches(Regex("""^\d{1,2}[/-][A-Za-z]{3}[/-]\d{2,4}$""", RegexOption.IGNORE_CASE))) return true
+        if (trimmed.matches(Regex("""^\d{1,2}[:.]\d{2}(?:[:.]\d{2})?\s+IST$""", RegexOption.IGNORE_CASE))) return true
+        return false
+    }
+
     override fun extractMerchant(message: String, sender: String): String? {
         // ATM withdrawal detection
         // Pattern: "debited from A/c no. XX589034 on AXIS BANK L" or similar
@@ -196,6 +205,21 @@ class AxisBankParser : BaseIndianBankParser() {
             merchant = cleanMerchantName(merchant)
             if (isValidMerchantName(merchant) && !isKnownNonMerchant(merchant)) {
                 return merchant
+            }
+        }
+
+        // Credit card "Spent ... at <merchant>" layout (both multi-line and single-line variants)
+        val spentAtPattern = Regex(
+            """(?:Spent[\s\S]*?\bat|Credit\s+Card[\s\S]*?\bat)\s+([A-Za-z0-9\s&._'*\/()#+\-]+?)(?:\s*\.\s*(?:Avl|Limit|Lmt|Not\s+you|$)|(?<=[A-Za-z0-9])\.(?:\s+|$)|(?:\s+(?:Avl\s+limit|Avl\s+lmt|Not\s+you)\b)|\n|$)""",
+            RegexOption.IGNORE_CASE
+        )
+        spentAtPattern.find(message)?.let { match ->
+            val rawCandidate = match.groupValues[1].trim()
+            if (!rawCandidate.contains(":") && !isDateOrTime(rawCandidate)) {
+                val candidate = cleanMerchantName(rawCandidate)
+                if (isValidMerchantName(candidate) && !isKnownNonMerchant(candidate) && !isDateOrTime(candidate)) {
+                    return candidate
+                }
             }
         }
 

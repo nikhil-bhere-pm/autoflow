@@ -408,6 +408,162 @@ Not you? SMS BLOCK 6018 to 919951860002""",
                 )
             ),
 
+            // Credit card "Spent ... at <merchant>" layout tests
+            ParserTestCase(
+                name = "Credit Card Spent at - Swiggy Inst multiline",
+                message = "Spent INR 130 \nusing Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at \nSWIGGY INST. \nAvl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "SWIGGY INST",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - Swiggy Inst single-space",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at SWIGGY INST. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "SWIGGY INST",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - Swiggy Inst title Avl Limit",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at SWIGGY INST. Avl Limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "SWIGGY INST",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - Swiggy Inst Avl Lmt",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at SWIGGY INST. Avl Lmt: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "SWIGGY INST",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - Swiggy Inst no trailing period",
+                message = "Spent INR 130 \nusing Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at \nSWIGGY INST \nAvl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "SWIGGY INST",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - merchant with apostrophe",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at MCDONALD'S. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "MCDONALD'S",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - merchant with period",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at AMAZON.IN. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "AMAZON.IN",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - merchant with asterisk",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at STAR*MERCHANT. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    merchant = "STAR*MERCHANT",
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4")
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - candidate is AXIS BANK",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at AXIS BANK. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4"),
+                    expectNullMerchant = true
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - candidate is time",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at 09:59:42 IST. Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4"),
+                    expectNullMerchant = true
+                )
+            ),
+            ParserTestCase(
+                name = "Credit Card Spent at - candidate is empty dot",
+                message = "Spent INR 130 using Axis Bank Credit Card no. XX1234 on 24-10-26 09:59:42 IST at . Avl limit: INR 40000.4. Not you? SMS BLOCK 1234 to +919951860002.",
+                sender = "AX-AXISBK-S",
+                expected = ExpectedTransaction(
+                    amount = BigDecimal("130"),
+                    currency = "INR",
+                    type = com.pennywiseai.parser.core.TransactionType.CREDIT,
+                    accountLast4 = "1234",
+                    isFromCard = true,
+                    creditLimit = BigDecimal("40000.4"),
+                    expectNullMerchant = true
+                )
+            ),
+
             ParserTestCase(
                 name = "Debit with UPI Ref suffix",
                 message = "INR 130.00 debited from A/c no. XX1234 to BLINKIT. Bal INR 421.00. UPI Ref: 429812345682. Not you? SMS BLOCK 1234 to 919951860002 - Axis Bank",
