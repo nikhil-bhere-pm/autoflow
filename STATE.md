@@ -238,3 +238,36 @@
   - Debug APK built (`assembleDebug`) and installed on connected device `dfa4dd90` via `adb install -r`.
   - 30-second error-filtered logcat (`*:E`) confirmed 0 app crashes, 0 Room crashes, 0 font crashes, and 0 SMS leakage.
 
+## 12. System Bar Insets & Smooth Catmull-Rom Line Chart (Prompt UI-1b)
+
+- **System Bar Edge-to-Edge Safe Insets (`AFTopBar.kt`, `AFBottomNav.kt`):**
+  - Resolved status bar and gesture navigation bar overlaps in the app frame:
+    - `AFTopBar`: Added default `windowInsets: WindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)`. The `Surface` extends behind the status bar while inner content begins safely below clock and status icons.
+    - `AFBottomNav`: Added default `windowInsets: WindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)`. The `Surface` sheet background extends behind the phone's gesture line or 3-button navigation bar, while the 64dp navigation row and round center `+` button sit completely above the gesture bar.
+    - Verified against existing screens (`AddCashExpenseScreen`, `EditTransactionScreen`) where `Scaffold` and `TopAppBar` safely manage top and bottom insets.
+    - Bottom content padding on `LazyColumn` (`bottom = AppSpacing.xl`) guarantees that the last transaction row is fully visible and not concealed behind the bottom navigation bar.
+- **Smooth Line Chart Engine (`SmoothChartGeometry.kt`, `AFSmoothLineChart.kt`):**
+  - **Catmull-Rom to Cubic Bézier Spline:** Pure geometry calculation transforms 5 monthly points into smooth cubic Bézier segments with tension 0.5. If all points are 0 or equal, renders a flat horizontal line across the vertical midpoint.
+  - **Visual Styling:** 2.75dp stroke with `StrokeCap.Round` in `colors.brand`. Soft vertical gradient under the line using `colors.bar.copy(alpha = 0.28f)` fading to 0.0f at canvas bottom.
+  - **Selected Month Indicator:** Rendered as a prominent dot centered on the curve at the selected month (sheet-filled circle of radius 7dp surrounded by a 3dp `colors.brand` ring). Dot padding ensures high points are never clipped at canvas borders.
+  - **Equal Month Columns & Touch Targets:** 5 columns of equal width spanning edge-to-edge. Each label column has a touch target >= 48dp. Tapping selects the month. Selected month displays in bold `colors.ink`; non-selected in `colors.muted`.
+  - **Future Month Handling:** Future months (e.g. Nov and Dec when current month is Oct) are muted, non-tappable, and the line cleanly terminates at the current month rather than plunging to zero.
+  - **Edge-to-Edge Placement:** Removed the enclosing Card/border around the chart; `AFSmoothLineChart` sits edge-to-edge directly on `colors.bg`.
+  - **Accessibility:** Preserves semantic accessibility content descriptions.
+- **Pure JVM Unit Tests & Production Mutation Proof (`SmoothChartGeometryTest.kt`):**
+  - 5 pure JVM tests verify:
+    1. Points land in order and within canvas bounds.
+    2. Flat data yields a centered horizontal flat line.
+    3. Spline line stops cleanly before future months.
+    4. Highest month does not clip (respects dot and stroke padding).
+    5. Selected month dot coordinates match the data point.
+  - Production mutation proof: mutator removing future point filtering in segment generation caused `SmoothChartGeometryTest.testLineStopsBeforeFutureMonths` to fail with `AssertionError: Line should stop before future months`. Reverted cleanly to green.
+- **Data Isolation Proof:**
+  - `git diff master --stat -- app/src/main/java/com/autoflow/app/data app/src/main/java/com/autoflow/app/domain app/schemas parser-core` verified completely empty.
+- **Physical Device & Visual Screenshot Verification:**
+  - Installed debug APK (`app-debug.apk`) on connected physical device `dfa4dd90` (`adb install -r`).
+  - Switched UI modes and captured screenshots via `cmd /c` to prevent PowerShell redirection corruption: `home_dark.png` and `home_light.png`.
+  - Visual inspection via `view_file` confirmed clean separation from the status bar, bottom bar and round `+` button elevated cleanly above the gesture navigation bar, and high-fidelity smooth Catmull-Rom spline curves.
+  - 30-second error logcat confirmed zero application crashes, zero Room crashes, and zero SMS leaks.
+
+
