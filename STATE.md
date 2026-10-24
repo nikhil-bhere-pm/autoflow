@@ -10,7 +10,8 @@
 - **Phase 4 (Ingestion Safety Guards & Hardening):** Conservative phrase-based guard (`isNonTransactionMessage`) in `AutoFlowParserAdapter` and `SmsMessageProcessor` rejecting non-transaction alerts while protecting legitimate spends:
   - *OTP Guard (Narrowed & Hardened):* Blocks only when an explicit OTP phrase is present (`"is the OTP"`, `"OTP is"`, `"OTP for ... is"`, `"verification code"`) or a 4–8 digit code appears within ~30 chars of `"OTP"` or `"One Time Password"`. Bare `"OTP"` and fraud warning footers (`"Never share OTP"`, `"Do not share your OTP"`, `"never disclose your One Time Password"`) do NOT block transactions.
   - *Credit Limit Guard (Narrowed):* Blocks only when `"credit limit"` is followed within ~35 chars by `"is now"`, `"increased to"`, `"enhanced to"`, `"revised to"`, or `"has been (increased|enhanced|revised)"`. Spends carrying `"Available credit limit"` or `"Avl limit"` are never blocked.
-  - *Completed Refund Precedence (Hardened):* Failed/declined/cancelled debit alerts are blocked unless they report a COMPLETED refund or reversal (`refund`, `refunded`, `reversal`, `reversed`, `returned`, `chargeback`, `money back`). Messages promising future/conditional refunds (`"will be reversed"`, `"will be refunded"`, `"will be initiated"`, `"if debited"`, `"within N days"`) remain blocked.
+  - *Completed Refund Precedence & Global Promise Guard (Prompt M):* Global phrase-based promise guard blocks messages promising a future/conditional refund or reversal (`"will (be|get) (reversed|refunded|credited|initiated|processed)"`, `"refund (has been |is )?initiated"`, `"if debited"`, `"will reflect/credit/reverse"`, or `"within N days"` without a completed refund word). Legitimate completed refunds (`refunded`, `reversed`, `credited`, `returned`, `chargeback`) remain ingested even when an informational reflection window is noted.
+  - *Adapter-Level Merchant Cleanup (Prompt M):* Replaces junk merchant strings from upstream parser-core (containing card/account fragments like `XX\d+`, starting with `"your"`, `"a/c"`, `"account"`, `"card"`, or containing `" for "`) by extracting the merchant name via `"at|from <NAME>"` message-level fallback (validated to 2–30 alphanumeric/&/space chars), defaulting to `"Unknown Merchant"` when indeterminate.
   - *Reminders & Summaries:* Blocks messages starting with `"reminder:"` or payment/mandate reminders, while allowing debits containing `"Reminder"` later in body text. Blocks monthly spend summaries, promos, card statements, and card debt repayments.
 
 ## 2. Money & Privacy Rules
@@ -33,7 +34,7 @@
 ## 4. Known Open Issues
 
 1. **Refund UI Reconciliation:** Refunds appear in the transaction feed with a badge, but do not yet automatically link to or offset specific expense rows in the totals UI.
-2. **Hardcoded Category:** Category is currently hardcoded to "Others" across all ingested and cash transactions.
+2. **Hardcoded Category:** Category is currently hardcoded to "Others" across all ingested and cash transactions (investigated in Prompt L).
 3. **Personal UPI VPA Handling:** Personal UPI VPA names (e.g. peer-to-peer handles) can appear as the merchant name.
 4. **AxisBankParser spentAtPattern Boundary:** `spentAtPattern` in `AxisBankParser` triggers on messages containing `"Credit Card"` even without the word `"Spent"` (to tighten in a future update).
 5. **OutOfScope Commit 6e8ee14:** An `extractReference` modification in commit `6e8ee14` was outside its originally requested scope.
@@ -45,3 +46,4 @@
 - **Android 14+ Doze Mode SMS Reception:** Background SMS receiver reliability under aggressive OEM battery optimizations and deep doze without a foreground service (not verified).
 - **Non-Axis/Non-HDFC Carrier SMS:** Real carrier-delivered SMS layout variations for ICICI, SBI, and Kotak banks beyond synthetic test fixtures (not verified).
 - **High-Volume Database Performance:** Room query performance and Compose list scrolling under large datasets (50,000+ transactions) on low-end hardware (not verified).
+
