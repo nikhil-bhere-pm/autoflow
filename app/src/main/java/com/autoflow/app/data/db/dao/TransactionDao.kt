@@ -100,6 +100,15 @@ interface TransactionDao {
     @Query("UPDATE transactions SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("UPDATE transactions SET category = :newCategory WHERE category = :oldCategory")
+    suspend fun updateCategory(oldCategory: String, newCategory: String): Int = 0
+
+    @Query("UPDATE transactions SET category = 'Others', categorySource = 'AUTO', updated_at = :now WHERE category = :category")
+    suspend fun reassignCategoryToOthers(category: String, now: Long = System.currentTimeMillis()): Int = 0
+
+    @Query("SELECT COUNT(*) FROM transactions WHERE is_deleted = 0 AND category = :category")
+    suspend fun countActiveTransactionsInCategory(category: String): Int = 0
+
     companion object {
         const val QUERY_GET_ALL_AUTO = """
             SELECT * FROM transactions 

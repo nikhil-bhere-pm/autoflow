@@ -7,11 +7,13 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.autoflow.app.data.db.dao.CustomCategoryDao
 import com.autoflow.app.data.db.dao.GoalContributionDao
 import com.autoflow.app.data.db.dao.GoalDao
 import com.autoflow.app.data.db.dao.MerchantCategoryDao
 import com.autoflow.app.data.db.dao.RefundMatchDao
 import com.autoflow.app.data.db.dao.TransactionDao
+import com.autoflow.app.data.db.entity.CustomCategoryEntity
 import com.autoflow.app.data.db.entity.GoalContributionEntity
 import com.autoflow.app.data.db.entity.GoalEntity
 import com.autoflow.app.data.db.entity.MerchantCategoryEntity
@@ -24,9 +26,10 @@ import com.autoflow.app.data.db.entity.TransactionEntity
         RefundMatchEntity::class,
         GoalEntity::class,
         GoalContributionEntity::class,
-        MerchantCategoryEntity::class
+        MerchantCategoryEntity::class,
+        CustomCategoryEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 @TypeConverters(AutoFlowTypeConverters::class)
@@ -37,6 +40,7 @@ abstract class AutoFlowDatabase : RoomDatabase() {
     abstract fun goalDao(): GoalDao
     abstract fun goalContributionDao(): GoalContributionDao
     abstract fun merchantCategoryDao(): MerchantCategoryDao
+    abstract fun customCategoryDao(): CustomCategoryDao
 
     companion object {
         @Volatile
@@ -76,6 +80,25 @@ abstract class AutoFlowDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4_SQL: List<String> = listOf(
+            """
+            CREATE TABLE IF NOT EXISTS `custom_categories` (
+                `name_key` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `icon_key` TEXT NOT NULL,
+                `color_key` TEXT NOT NULL,
+                `created_at` INTEGER NOT NULL,
+                PRIMARY KEY(`name_key`)
+            )
+            """.trimIndent()
+        )
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_3_4_SQL.forEach { db.execSQL(it) }
+            }
+        }
+
         fun getDatabase(context: Context): AutoFlowDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -83,7 +106,7 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                     AutoFlowDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

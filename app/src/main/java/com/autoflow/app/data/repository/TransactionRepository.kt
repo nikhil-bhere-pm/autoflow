@@ -1,5 +1,6 @@
 package com.autoflow.app.data.repository
 
+import com.autoflow.app.data.db.dao.CustomCategoryDao
 import com.autoflow.app.data.db.dao.MerchantCategoryDao
 import com.autoflow.app.data.db.dao.TransactionDao
 import com.autoflow.app.data.db.entity.MerchantCategoryEntity
@@ -8,7 +9,9 @@ import com.autoflow.app.data.model.PaymentMode
 import com.autoflow.app.data.model.ReviewStatus
 import com.autoflow.app.data.model.TransactionSource
 import com.autoflow.app.data.model.UncertaintyReason
+import com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
 import com.autoflow.app.domain.category.CategoryEngine
+import com.autoflow.app.domain.category.normalizeCategoryKey
 import com.autoflow.app.domain.model.FinancialTransaction
 import com.autoflow.app.domain.stats.CategorySpendItem
 import com.autoflow.app.domain.stats.MonthlySpendPoint
@@ -27,11 +30,13 @@ sealed interface UpdateTransactionResult {
     object InvalidAmount : UpdateTransactionResult
     object CannotEditSmsAmount : UpdateTransactionResult
     object InvalidPaymentMode : UpdateTransactionResult
+    object CategoryNotFound : UpdateTransactionResult
 }
 
 class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val merchantCategoryDao: MerchantCategoryDao? = null,
+    private val customCategoryDao: CustomCategoryDao? = null,
     private val runInTransaction: suspend (suspend () -> Unit) -> Unit = { block -> block() }
 ) {
     suspend fun insertTransaction(transaction: TransactionEntity): Long {
@@ -141,6 +146,15 @@ class TransactionRepository(
         }
 
         val categoryTrimmed = category.trim().ifBlank { existing.category }
+        val isBuiltIn = BUILT_IN_CATEGORIES.any { it.equals(categoryTrimmed, ignoreCase = true) }
+        val isCustom = if (!isBuiltIn && customCategoryDao != null) {
+            customCategoryDao.getByNameKey(normalizeCategoryKey(categoryTrimmed)) != null
+        } else false
+
+        if (!isBuiltIn && !isCustom) {
+            return UpdateTransactionResult.CategoryNotFound
+        }
+
         val categoryChanged = categoryTrimmed != existing.category
         val isRealMerchant = CategoryEngine.shouldStoreRule(finalMerchant)
 

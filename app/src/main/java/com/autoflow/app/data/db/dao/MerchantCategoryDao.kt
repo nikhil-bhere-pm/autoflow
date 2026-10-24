@@ -19,4 +19,10 @@ interface MerchantCategoryDao {
 
     @Query("SELECT * FROM merchant_categories")
     suspend fun getAll(): List<MerchantCategoryEntity>
+
+    @Query("UPDATE merchant_categories SET category = :newCategory WHERE category = :oldCategory")
+    suspend fun updateCategory(oldCategory: String, newCategory: String): Int = 0
+
+    @Query("DELETE FROM merchant_categories WHERE category = :category")
+    suspend fun deleteByCategory(category: String): Int = 0
 }

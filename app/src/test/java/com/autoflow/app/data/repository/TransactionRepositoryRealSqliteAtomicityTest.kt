@@ -136,7 +136,7 @@ class TransactionRepositoryRealSqliteAtomicityTest {
             repository.updateTransaction(
                 id = 1L,
                 merchantName = "Starbucks",
-                category = "Coffee",              // Changed
+                category = "Groceries",           // Changed
                 dateTime = 1700000050000L,         // Changed
                 paymentMode = PaymentMode.CREDIT,  // Changed
                 note = "Latte with team",          // Changed
