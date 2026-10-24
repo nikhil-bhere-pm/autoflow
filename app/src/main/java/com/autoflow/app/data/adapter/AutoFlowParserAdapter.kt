@@ -80,11 +80,21 @@ object AutoFlowParserAdapter {
     private val junkMerchantPrefixes = listOf("your", "a/c", "account", "card")
 
     private val completedSpendStatementRegex = Regex(
-        """\b(?:debited|debit\s+alert|spent|paid|sent(?:\s+to)?|transferred\s+to\s+(?!(?:your\b|a/c\b|account\b|bank\s+account\b))|withdrawn|purchase)\b"""
+        """\b(?:debited|debit\s+alert|debit\s+card|spent|paid|sent(?:\s+to)?|transferred\s+to\s+(?!(?:your\b|a/c\b|account\b|bank\s+account\b))|withdrawn|purchase|charged|deducted|used|dr\.?)\b""",
+        RegexOption.IGNORE_CASE
     )
     private val uncompletedDebitPhrasesRegex = Regex(
         """\b(?:if\s+debited|will\s+be\s+debited|scheduled\s+to\s+be\s+debited|not\s+debited|no\s+amount\s+has\s+been\s+debited)\b"""
     )
+
+    private val inboundTransferRegex = Regex(
+        """\b(?:transferred\s+to\s+(?:your\b|a/c\b|account\b|bank\s+account\b)|credit\s+alert|payout)\b""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private fun isInboundTransfer(message: String): Boolean {
+        return inboundTransferRegex.containsMatchIn(message)
+    }
 
     private val fallbackMerchantRegex = Regex(
         """\b(?:at|from|with|transferred\s+to|paid\s+to)\s+([A-Za-z0-9 &]{2,30}?)(?=[.]|\s+on\b|\s+ref\b|\s+at\b|\s+for\b|\s+credited\b|\s+debited\b|\s+reversed\b|\s+refunded\b|\s+to\b|;|$)""",
@@ -272,23 +282,21 @@ object AutoFlowParserAdapter {
         val recordType = when {
             isRefund -> RecordType.REFUND
             parsed.type == TransactionType.EXPENSE || parsed.type == TransactionType.CREDIT -> {
-                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
-                    RecordType.EXPENSE
-                } else {
+                if (isInboundTransfer(smsBodySnippet)) {
                     return null
                 }
+                RecordType.EXPENSE
             }
             parsed.type == TransactionType.TRANSFER -> {
                 // If it's an internal transfer between known accounts, ignore it.
                 if (parsed.fromAccount != null && parsed.toAccount != null && parsed.fromAccount == parsed.toAccount) {
                     return null
                 }
-                // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
-                if (hasCompletedSpend(smsBodySnippet.lowercase())) {
-                    RecordType.EXPENSE
-                } else {
+                if (isInboundTransfer(smsBodySnippet)) {
                     return null
                 }
+                // Outbound payments/transfers are expenses; inbound are ignored unless marked refund
+                RecordType.EXPENSE
             }
             // Ordinary income (salary, external deposits) without refund keywords is ignored unless outbound spend occurred
             parsed.type == TransactionType.INCOME -> {

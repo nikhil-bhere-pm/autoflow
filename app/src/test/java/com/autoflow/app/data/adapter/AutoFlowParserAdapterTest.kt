@@ -486,6 +486,34 @@ class AutoFlowParserAdapterTest {
         assertEquals("SWIGGY", entityG.merchantName)
     }
 
+    @Test
+    fun testPromptM5_expenseTypedMessage_neverDroppedByOutboundWordCheck() {
+        val parsed = createParsed(
+            amount = BigDecimal("1200.00"),
+            type = TransactionType.EXPENSE,
+            merchant = "AMAZON"
+        )
+        val snippet = "Txn of Rs 1,200.00 done on HDFC Bank Credit Card XX1234 at AMAZON on 24-10-26. Avl limit Rs 50,000."
+        val entity = AutoFlowParserAdapter.adapt(parsed, snippet, baseTimestamp)
+        assertNotNull("Expense-typed message must never be dropped by outbound-word check", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(120000L, entity.amountPaise)
+    }
+
+    @Test
+    fun testPromptM5_widenOutboundWords_incomeWithNewWords_adaptedAsExpense() {
+        val snippet = "A/c XX1234 Dr. Rs 640.00 on 24-10-26 UPI/SWIGGY/123456."
+        val parsed = createParsed(
+            amount = BigDecimal("640.00"),
+            type = TransactionType.INCOME,
+            merchant = "SWIGGY"
+        )
+        val entity = AutoFlowParserAdapter.adapt(parsed, snippet, baseTimestamp)
+        assertNotNull("INCOME message with widened word 'Dr.' must be adapted as EXPENSE", entity)
+        assertEquals(RecordType.EXPENSE, entity!!.recordType)
+        assertEquals(64000L, entity.amountPaise)
+    }
+
     private fun createParsed(
         amount: BigDecimal,
         type: TransactionType,

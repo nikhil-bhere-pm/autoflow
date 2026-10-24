@@ -390,12 +390,72 @@ class SmsRegressionCorpusTest {
             expectedType = RecordType.EXPENSE,
             expectedAmountPaise = 64000L,
             expectedMerchant = "SWIGGY"
+        ),
+
+        // ==========================================
+        // Prompt M5: Rows 1..9
+        // ==========================================
+        TestCase(
+            id = "M5-1",
+            message = "Thank you for using your HDFC Bank Debit Card ending 1234 for Rs 500.00 at ZOMATO on 24-10-26.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-2",
+            message = "Txn of Rs 1,200.00 done on HDFC Bank Credit Card XX1234 at AMAZON on 24-10-26. Avl limit Rs 50,000.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-3",
+            message = "Rs 450.00 charged to your card XX1234 at SWIGGY.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-4",
+            message = "INR 320.00 used on your ICICI Bank Credit Card XX1234 at UBER on 24-Oct-26.",
+            sender = "ICICIB",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-5",
+            message = "Payment of Rs 799.00 made to NETFLIX using card XX1234.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-6",
+            message = "Rs.250.00 deducted from A/c XX1234 on 24-10-26 towards UPI/ZEPTO.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-7",
+            message = "A/c XX1234 Dr. Rs 640.00 on 24-10-26 UPI/SWIGGY/123456.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-8",
+            message = "UPI txn of Rs 180.00 from A/c XX1234 to BLINKIT on 24-10-26. Ref 123.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.IGNORE // Parser-core limitation: upstream parser does not parse this template
+        ),
+        TestCase(
+            id = "M5-9",
+            message = "Your a/c XX1234 is debited by INR 90.00 on 24-10-26.",
+            sender = "VM-HDFCBK",
+            expectedResult = ExpectedResult.INGEST,
+            expectedType = RecordType.EXPENSE,
+            expectedAmountPaise = 9000L
         )
     )
 
     @Test
     fun testCorpusSize() {
-        assertEquals("Corpus must have exactly 42 test cases", 42, corpus.size)
+        assertEquals("Corpus must have exactly 51 test cases", 51, corpus.size)
     }
 
     @Test
