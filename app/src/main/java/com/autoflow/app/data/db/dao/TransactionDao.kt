@@ -69,6 +69,13 @@ interface TransactionDao {
 
     @Query("""
         SELECT * FROM transactions 
+        WHERE is_deleted = 0 
+        ORDER BY date_time DESC
+    """)
+    fun getAllActiveTransactions(): Flow<List<TransactionEntity>>
+
+    @Query("""
+        SELECT * FROM transactions 
         WHERE date_time BETWEEN :startTime AND :endTime 
           AND is_deleted = 0 
         ORDER BY date_time DESC

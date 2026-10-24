@@ -39,6 +39,20 @@ class TransactionRepository(
         return transactionDao.getUnreviewedCount()
     }
 
+    fun getAllActiveTransactions(): Flow<List<FinancialTransaction>> {
+        return transactionDao.getAllActiveTransactions().map { list ->
+            list.map { it.toDomain() }
+        }
+    }
+
+    suspend fun getEntityById(id: Long): TransactionEntity? {
+        return transactionDao.getById(id)
+    }
+
+    suspend fun updateTransaction(transaction: TransactionEntity) {
+        transactionDao.update(transaction)
+    }
+
     suspend fun softDelete(id: Long) {
         transactionDao.softDelete(id)
     }

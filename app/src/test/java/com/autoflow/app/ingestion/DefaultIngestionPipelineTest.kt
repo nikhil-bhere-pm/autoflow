@@ -481,6 +481,10 @@ class FakeTransactionDao : TransactionDao {
             .sortedByDescending { it.dateTime }
     }
 
+    override fun getAllActiveTransactions(): Flow<List<TransactionEntity>> {
+        return flowOf(items.filter { it.isDeleted == 0 }.sortedByDescending { it.dateTime })
+    }
+
     override fun getTransactionsForPeriod(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> {
         return flowOf(items.filter { it.dateTime in startTime..endTime && it.isDeleted == 0 })
     }
