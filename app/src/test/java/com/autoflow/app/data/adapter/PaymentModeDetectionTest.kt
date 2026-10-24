@@ -105,6 +105,36 @@ class PaymentModeDetectionTest {
             message = "Paid Rs 500 at Local Store on 24-10-26.",
             expectedMode = PaymentMode.UNKNOWN,
             description = "No payment mode signals -> UNKNOWN"
+        ),
+        ModeTestCase(
+            id = "PM-16",
+            message = "Rs 1,200.00 debited from A/c XX1234 at AMAZON. Paid by HDFC Bank Debit Card. For support email cardservices@hdfcbank.net.",
+            expectedMode = PaymentMode.BANK,
+            description = "Debit card ending with support email -> BANK (not UPI)"
+        ),
+        ModeTestCase(
+            id = "PM-17",
+            message = "Spent INR 130 using Axis Bank Credit Card no. XX7997 on 24-10-26 at SWIGGY INST. Queries: email cardservices@axisbank.com.",
+            expectedMode = PaymentMode.CREDIT,
+            description = "Credit card ending with support email -> CREDIT (not UPI)"
+        ),
+        ModeTestCase(
+            id = "PM-18",
+            message = "Paid Rs 150 to x@okaxis on 24-10-26. Ref: 12345.",
+            expectedMode = PaymentMode.UPI,
+            description = "Real UPI handle x@okaxis without dots -> UPI"
+        ),
+        ModeTestCase(
+            id = "PM-19",
+            message = "Sent Rs 250 to y@ybl on 24-10-26. UPI Ref: 67890.",
+            expectedMode = PaymentMode.UPI,
+            description = "Real UPI handle y@ybl without dots -> UPI"
+        ),
+        ModeTestCase(
+            id = "PM-20",
+            message = "Paid Rs 400 to swiggy@upi on 24-10-26. Txn: 998877.",
+            expectedMode = PaymentMode.UPI,
+            description = "Real UPI handle swiggy@upi without dots -> UPI"
         )
     )
 

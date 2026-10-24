@@ -1,6 +1,7 @@
 package com.autoflow.app.data.repository
 
 import com.autoflow.app.data.db.dao.MerchantCategoryDao
+import com.autoflow.app.data.db.dao.TransactionDao
 import com.autoflow.app.data.db.entity.MerchantCategoryEntity
 import com.autoflow.app.data.db.entity.TransactionEntity
 import com.autoflow.app.data.model.PaymentMode
@@ -269,5 +270,65 @@ class TransactionRepositoryUpdateTest {
 
         assertEquals(3, results.size)
         assertEquals(listOf(tEndMinus1, tMid, tStart), ids)
+    }
+
+    @Test
+    fun testUpdateTransaction_atomicityRollbackOnStep2Failure() = runBlocking {
+        var txSnapshot: TransactionEntity? = null
+        val baseDao = FakeTransactionDao()
+        val txDao = object : TransactionDao by baseDao {
+            override suspend fun update(transaction: TransactionEntity) {
+                if (txSnapshot == null) {
+                    txSnapshot = baseDao.items.firstOrNull { it.id == transaction.id }?.copy()
+                }
+                baseDao.update(transaction)
+            }
+        }
+        val failingRuleDao = object : MerchantCategoryDao {
+            override suspend fun getByKey(key: String): MerchantCategoryEntity? = null
+            override suspend fun getCategory(key: String): String? = null
+            override suspend fun upsert(entity: MerchantCategoryEntity) {
+                throw RuntimeException("Simulated SQLite constraint/write failure in Step 2")
+            }
+            override suspend fun getAll(): List<MerchantCategoryEntity> = emptyList()
+        }
+        val repo = TransactionRepository(
+            transactionDao = txDao,
+            merchantCategoryDao = failingRuleDao,
+            runInTransaction = { block: suspend () -> Unit ->
+                try {
+                    block()
+                } catch (e: Throwable) {
+                    // Rollback Step 1 to pre-transaction snapshot
+                    txSnapshot?.let { original ->
+                        val idx = baseDao.items.indexOfFirst { it.id == original.id }
+                        if (idx != -1) baseDao.items[idx] = original
+                    }
+                    throw e
+                }
+            }
+        )
+
+        val id = baseDao.insert(createTx(merchant = "Swiggy", category = "Food", categorySource = "AUTO"))
+
+        try {
+            repo.updateTransaction(
+                id = id,
+                merchantName = "Swiggy",
+                category = "Groceries", // triggers Step 2
+                dateTime = now - 1000L,
+                paymentMode = PaymentMode.UPI,
+                note = null,
+                now = now
+            )
+            org.junit.Assert.fail("Expected exception from Step 2")
+        } catch (e: RuntimeException) {
+            assertEquals("Simulated SQLite constraint/write failure in Step 2", e.message)
+        }
+
+        // Verify Step 1 was rolled back completely
+        val txAfterFailure = baseDao.getById(id)!!
+        assertEquals("Food", txAfterFailure.category)
+        assertEquals("AUTO", txAfterFailure.categorySource)
     }
 }

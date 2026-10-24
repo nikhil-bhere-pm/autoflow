@@ -114,7 +114,7 @@ object AutoFlowParserAdapter {
         RegexOption.IGNORE_CASE
     )
     private val upiModeRegex = Regex(
-        """\b(?:upi|vpa)\b|@[a-zA-Z0-9._-]+""",
+        """\b(?:upi|vpa)(?!@)\b|@[a-zA-Z0-9_-]+(?![a-zA-Z0-9_.-]*\.[a-zA-Z0-9])""",
         RegexOption.IGNORE_CASE
     )
     private val bankModeRegex = Regex(

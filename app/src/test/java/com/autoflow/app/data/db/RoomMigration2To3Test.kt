@@ -329,6 +329,7 @@ class RoomMigration2To3Test {
         }
 
         // Must return tx11 (3000) and tx10 (2000) in descending order
+        println("Range query returned IDs: $returnedIds")
         assertEquals(listOf(11L, 10L), returnedIds)
         assertTrue("Row at exact end (12) must NOT be returned", !returnedIds.contains(12L))
         assertTrue("Soft-deleted row (13) must NOT be returned", !returnedIds.contains(13L))
@@ -356,6 +357,36 @@ class RoomMigration2To3Test {
                 assertEquals("CREDIT", rs.getString("payment_mode"))
                 assertEquals("Dinner with friends", rs.getString("note"))
                 assertEquals(2500L, rs.getLong("date_time"))
+            }
+        }
+
+        // 10. Atomicity test on real SQLite: step 2 failure rolls back step 1
+        migratedConn.autoCommit = false
+        try {
+            // Step 1: Update transaction row
+            migratedConn.prepareStatement(
+                "UPDATE transactions SET category = 'Groceries', categorySource = 'USER' WHERE id = 1"
+            ).use { it.executeUpdate() }
+
+            // Step 2: Failing statement (violates NOT NULL PRIMARY KEY constraint on merchant_categories)
+            migratedConn.prepareStatement(
+                "INSERT INTO merchant_categories (merchantKey, category, updatedAt) VALUES (NULL, 'Groceries', 12345)"
+            ).use { it.executeUpdate() }
+
+            migratedConn.commit()
+            org.junit.Assert.fail("Step 2 must throw SQLite constraint exception")
+        } catch (e: java.sql.SQLException) {
+            migratedConn.rollback()
+        } finally {
+            migratedConn.autoCommit = true
+        }
+
+        // Verify Step 1 was rolled back completely in real SQLite:
+        migratedConn.createStatement().use { stmt ->
+            stmt.executeQuery("SELECT category, categorySource FROM transactions WHERE id = 1").use { rs ->
+                assertTrue(rs.next())
+                assertEquals("Food", rs.getString("category")) // original category retained
+                assertEquals("AUTO", rs.getString("categorySource")) // original categorySource retained
             }
         }
     }
