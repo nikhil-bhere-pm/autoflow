@@ -11,7 +11,8 @@ import com.autoflow.app.presentation.viewmodel.MainViewModel
 
 sealed class Screen {
     data object Home : Screen()
-    data class Edit(val transactionId: Long) : Screen()
+    data object Review : Screen()
+    data class Edit(val transactionId: Long, val fromReview: Boolean = false) : Screen()
     data object AddCash : Screen()
 }
 
@@ -20,10 +21,16 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val homeUiState by viewModel.homeUiState.collectAsState()
+    val reviewTransactions by viewModel.reviewTransactions.collectAsState()
     val categories by viewModel.categories.collectAsState()
 
     BackHandler(enabled = currentScreen != Screen.Home) {
-        currentScreen = Screen.Home
+        currentScreen = when (val s = currentScreen) {
+            is Screen.Edit -> if (s.fromReview) Screen.Review else Screen.Home
+            is Screen.AddCash -> Screen.Home
+            is Screen.Review -> Screen.Home
+            Screen.Home -> Screen.Home
+        }
     }
 
     when (val screen = currentScreen) {
@@ -32,8 +39,21 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 uiState = homeUiState,
                 onSelectPeriod = { period -> viewModel.selectPeriod(period) },
                 onSelectMonth = { month -> viewModel.selectMonth(month) },
-                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id) },
-                onNavigateToAddCash = { currentScreen = Screen.AddCash }
+                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = false) },
+                onNavigateToAddCash = { currentScreen = Screen.AddCash },
+                onNavigateToReview = { currentScreen = Screen.Review }
+            )
+        }
+
+        is Screen.Review -> {
+            ReviewScreen(
+                transactions = reviewTransactions,
+                categories = categories,
+                onNavigateToHome = { currentScreen = Screen.Home },
+                onNavigateToAddCash = { currentScreen = Screen.AddCash },
+                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = true) },
+                onConfirmCategory = { id, category -> viewModel.confirmCategory(id, category) },
+                onLater = { id -> viewModel.onLater(id) }
             )
         }
 
@@ -54,7 +74,7 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                     viewModel.deleteTransaction(id)
                 },
                 onNavigateBack = {
-                    currentScreen = Screen.Home
+                    currentScreen = if (screen.fromReview) Screen.Review else Screen.Home
                 },
                 categories = categories
             )

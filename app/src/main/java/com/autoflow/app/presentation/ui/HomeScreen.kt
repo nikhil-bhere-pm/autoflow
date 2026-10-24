@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
@@ -92,7 +93,8 @@ fun HomeScreen(
     onSelectMonth: (YearMonth) -> Unit,
     onNavigateToEdit: (Long) -> Unit,
     onNavigateToAddCash: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToReview: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -125,8 +127,7 @@ fun HomeScreen(
         },
         bottomBar = {
             // App Frame Bottom Bar: Home tab on left, round + button in center (opens Add Cash),
-            // Review and Categories tabs omitted because those screens do not exist yet.
-            // Floating action button removed per prompt requirements.
+            // Review tab on right with synchronized badge count.
             AFBottomNav(
                 items = listOf(
                     AFBottomNavItem(
@@ -138,10 +139,23 @@ fun HomeScreen(
                                 tint = if (selected) colors.brand else colors.muted
                             )
                         }
+                    ),
+                    AFBottomNavItem(
+                        title = "Review",
+                        badgeCount = uiState.unreviewedCount,
+                        icon = { selected ->
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Review",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
                     )
                 ),
                 selectedIndex = 0,
-                onSelect = { /* Already on Home */ },
+                onSelect = { idx ->
+                    if (idx == 1) onNavigateToReview()
+                },
                 centerButton = {
                     Surface(
                         shape = CircleShape,
@@ -184,6 +198,17 @@ fun HomeScreen(
                     onSelectPeriod = onSelectPeriod,
                     modifier = Modifier.padding(horizontal = AppSpacing.md)
                 )
+            }
+
+            // 1b. Review Check Banner (when count > 0)
+            if (uiState.showReviewBanner) {
+                item {
+                    ReviewCheckBanner(
+                        unreviewedCount = uiState.unreviewedCount,
+                        onClick = onNavigateToReview,
+                        modifier = Modifier.padding(horizontal = AppSpacing.md)
+                    )
+                }
             }
 
             // 2. One Big Number & Transaction Count
@@ -545,6 +570,58 @@ private fun SmsPermissionBanner(
                 onClick = onRequestPermission,
                 variant = AFButtonVariant.PRIMARY,
                 modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewCheckBanner(
+    unreviewedCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = AutoFlowTheme.colors
+    val label = if (unreviewedCount == 1) "1 needs a check" else "$unreviewedCount need a check"
+
+    Surface(
+        shape = RoundedCornerShape(AppRadius.md),
+        color = colors.amberBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.amberFg.copy(alpha = 0.2f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = colors.amberFg,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = label,
+                    style = AutoFlowTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.amberFg
+                )
+            }
+            Text(
+                text = "Review →",
+                style = AutoFlowTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = colors.amberFg
             )
         }
     }

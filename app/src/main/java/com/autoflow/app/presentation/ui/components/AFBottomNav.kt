@@ -23,13 +23,46 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import com.autoflow.app.presentation.theme.AppRadius
 import com.autoflow.app.presentation.theme.AppSpacing
 import com.autoflow.app.presentation.theme.AutoFlowTheme
 
 data class AFBottomNavItem(
     val title: String,
+    val badgeCount: Int = 0,
     val icon: @Composable (selected: Boolean) -> Unit
 )
+
+@Composable
+private fun AFNavIconWithBadge(
+    item: AFBottomNavItem,
+    isSelected: Boolean
+) {
+    val colors = AutoFlowTheme.colors
+    Box(contentAlignment = Alignment.Center) {
+        item.icon(isSelected)
+        if (item.badgeCount > 0) {
+            Surface(
+                shape = RoundedCornerShape(AppRadius.full),
+                color = colors.amberBg,
+                contentColor = colors.amberFg,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 10.dp, y = (-4).dp)
+            ) {
+                Text(
+                    text = if (item.badgeCount > 99) "99+" else item.badgeCount.toString(),
+                    style = AutoFlowTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun AFBottomNav(
@@ -73,7 +106,7 @@ fun AFBottomNav(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            item.icon(isSelected)
+                            AFNavIconWithBadge(item = item, isSelected = isSelected)
                             Text(
                                 text = item.title,
                                 style = AutoFlowTheme.typography.labelSmall,
@@ -98,7 +131,7 @@ fun AFBottomNav(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            item.icon(isSelected)
+                            AFNavIconWithBadge(item = item, isSelected = isSelected)
                             Text(
                                 text = item.title,
                                 style = AutoFlowTheme.typography.labelSmall,
@@ -132,7 +165,7 @@ fun AFBottomNav(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                item.icon(isSelected)
+                                AFNavIconWithBadge(item = item, isSelected = isSelected)
                                 Text(
                                     text = item.title,
                                     style = AutoFlowTheme.typography.labelSmall,
@@ -162,7 +195,7 @@ fun AFBottomNav(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                item.icon(isSelected)
+                                AFNavIconWithBadge(item = item, isSelected = isSelected)
                                 Text(
                                     text = item.title,
                                     style = AutoFlowTheme.typography.labelSmall,

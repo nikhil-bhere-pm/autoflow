@@ -211,4 +211,39 @@ class MainViewModel(
             onResult(result)
         }
     }
+
+    val unreviewedCount: StateFlow<Int> =
+        transactionRepository.getUnreviewedCount()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = 0
+            )
+
+    val reviewTransactions: StateFlow<List<FinancialTransaction>> =
+        transactionRepository.getTransactionsByReviewStatus(ReviewStatus.NEEDS_REVIEW)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    fun confirmCategory(id: Long, category: String, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            val existing = transactionRepository.getEntityById(id) ?: return@launch
+            transactionRepository.updateTransaction(
+                id = id,
+                merchantName = existing.merchantName,
+                category = category,
+                dateTime = existing.dateTime,
+                paymentMode = existing.paymentMode,
+                note = existing.note
+            )
+            onComplete()
+        }
+    }
+
+    fun onLater(id: Long) {
+        // Leaves it pending and moves on. Do not delete it.
+    }
 }

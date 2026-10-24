@@ -52,8 +52,11 @@ data class HomeUiState(
     val monthlySeries: List<MonthPoint> = emptyList(),
     val chartAccessibilityDescription: String = "",
     val groupedTransactions: List<DayGroup> = emptyList(),
-    val isEmpty: Boolean = true
-)
+    val isEmpty: Boolean = true,
+    val unreviewedCount: Int = 0
+) {
+    val showReviewBanner: Boolean get() = unreviewedCount > 0
+}
 
 fun computeHomeUiState(
     transactions: List<FinancialTransaction>,
@@ -123,6 +126,8 @@ fun computeHomeUiState(
         )
     }
 
+    val unreviewedCount = transactions.count { !it.isDeleted && it.reviewStatus == ReviewStatus.NEEDS_REVIEW }
+
     return HomeUiState(
         periodFilter = periodFilter,
         pillLabel = pillLabel,
@@ -131,6 +136,7 @@ fun computeHomeUiState(
         monthlySeries = series,
         chartAccessibilityDescription = accessibilityDesc,
         groupedTransactions = dayGroups,
-        isEmpty = periodTransactions.isEmpty()
+        isEmpty = periodTransactions.isEmpty(),
+        unreviewedCount = unreviewedCount
     )
 }
