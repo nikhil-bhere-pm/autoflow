@@ -86,6 +86,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+import androidx.compose.ui.res.painterResource
+import com.autoflow.app.R
+import com.autoflow.app.presentation.ui.components.AFPeriodPill
+
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
@@ -94,7 +98,8 @@ fun HomeScreen(
     onNavigateToEdit: (Long) -> Unit,
     onNavigateToAddCash: () -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToReview: () -> Unit = {}
+    onNavigateToReview: () -> Unit = {},
+    onNavigateToCategories: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -127,7 +132,7 @@ fun HomeScreen(
         },
         bottomBar = {
             // App Frame Bottom Bar: Home tab on left, round + button in center (opens Add Cash),
-            // Review tab on right with synchronized badge count.
+            // Review and Categories tabs on right with synchronized badge count.
             AFBottomNav(
                 items = listOf(
                     AFBottomNavItem(
@@ -150,11 +155,24 @@ fun HomeScreen(
                                 tint = if (selected) colors.brand else colors.muted
                             )
                         }
+                    ),
+                    AFBottomNavItem(
+                        title = "Categories",
+                        icon = { selected ->
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_cat_others),
+                                contentDescription = "Categories",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
                     )
                 ),
                 selectedIndex = 0,
                 onSelect = { idx ->
-                    if (idx == 1) onNavigateToReview()
+                    when (idx) {
+                        1 -> onNavigateToReview()
+                        2 -> onNavigateToCategories()
+                    }
                 },
                 centerButton = {
                     Surface(
@@ -193,9 +211,10 @@ fun HomeScreen(
         ) {
             // 1. Period Pill
             item {
-                PeriodPill(
+                AFPeriodPill(
                     pillLabel = uiState.pillLabel,
                     onSelectPeriod = onSelectPeriod,
+                    onSelectMonth = onSelectMonth,
                     modifier = Modifier.padding(horizontal = AppSpacing.md)
                 )
             }
@@ -335,74 +354,7 @@ fun HomeScreen(
     }
 }
 
-@Composable
-private fun PeriodPill(
-    pillLabel: String,
-    onSelectPeriod: (StatsPeriod) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = AutoFlowTheme.colors
-    var menuExpanded by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier) {
-        Surface(
-            shape = RoundedCornerShape(AppRadius.full),
-            color = colors.chip,
-            border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
-            modifier = Modifier
-                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
-                .clickable { menuExpanded = true }
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.xs)
-            ) {
-                Text(
-                    text = pillLabel,
-                    style = AutoFlowTheme.typography.labelLarge,
-                    color = colors.ink,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.width(AppSpacing.xs))
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = "Select period",
-                    tint = colors.muted,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        DropdownMenu(
-            expanded = menuExpanded,
-            onDismissRequest = { menuExpanded = false },
-            modifier = Modifier.background(colors.sheet)
-        ) {
-            DropdownMenuItem(
-                text = { Text("Today", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
-                onClick = {
-                    onSelectPeriod(StatsPeriod.TODAY)
-                    menuExpanded = false
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("This week", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
-                onClick = {
-                    onSelectPeriod(StatsPeriod.THIS_WEEK)
-                    menuExpanded = false
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("This month", style = AutoFlowTheme.typography.bodyMedium, color = colors.ink) },
-                onClick = {
-                    onSelectPeriod(StatsPeriod.THIS_MONTH)
-                    menuExpanded = false
-                }
-            )
-        }
-    }
-}
 
 @Composable
 private fun BigNumberSection(

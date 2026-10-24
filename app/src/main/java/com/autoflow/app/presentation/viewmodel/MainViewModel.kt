@@ -73,6 +73,34 @@ class MainViewModel(
             MutableStateFlow(com.autoflow.app.domain.category.BUILT_IN_CATEGORIES).asStateFlow()
         }
 
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
+
+    fun selectCategoryDetail(category: String?) {
+        _selectedCategory.value = category
+    }
+
+    val categoriesUiState: StateFlow<CategoriesUiState> =
+        combine(transactions, _periodFilter, _selectedCategory) { list, filter, selCat ->
+            computeCategoriesUiState(
+                transactions = list,
+                periodFilter = filter,
+                selectedCategory = selCat,
+                now = timeProvider(),
+                zone = zoneId
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = computeCategoriesUiState(
+                transactions = emptyList(),
+                periodFilter = PeriodFilter.Predefined(StatsPeriod.THIS_MONTH),
+                selectedCategory = null,
+                now = timeProvider(),
+                zone = zoneId
+            )
+        )
+
     fun selectPeriod(period: StatsPeriod) {
         _periodFilter.value = PeriodFilter.Predefined(period)
     }

@@ -12,7 +12,12 @@ import com.autoflow.app.presentation.viewmodel.MainViewModel
 sealed class Screen {
     data object Home : Screen()
     data object Review : Screen()
-    data class Edit(val transactionId: Long, val fromReview: Boolean = false) : Screen()
+    data object Categories : Screen()
+    data class Edit(
+        val transactionId: Long,
+        val fromReview: Boolean = false,
+        val fromCategories: Boolean = false
+    ) : Screen()
     data object AddCash : Screen()
 }
 
@@ -21,14 +26,23 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val homeUiState by viewModel.homeUiState.collectAsState()
+    val categoriesUiState by viewModel.categoriesUiState.collectAsState()
     val reviewTransactions by viewModel.reviewTransactions.collectAsState()
+    val unreviewedCount by viewModel.unreviewedCount.collectAsState()
     val categories by viewModel.categories.collectAsState()
 
     BackHandler(enabled = currentScreen != Screen.Home) {
         currentScreen = when (val s = currentScreen) {
-            is Screen.Edit -> if (s.fromReview) Screen.Review else Screen.Home
+            is Screen.Edit -> {
+                when {
+                    s.fromReview -> Screen.Review
+                    s.fromCategories -> Screen.Categories
+                    else -> Screen.Home
+                }
+            }
             is Screen.AddCash -> Screen.Home
             is Screen.Review -> Screen.Home
+            is Screen.Categories -> Screen.Home
             Screen.Home -> Screen.Home
         }
     }
@@ -41,7 +55,8 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 onSelectMonth = { month -> viewModel.selectMonth(month) },
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = false) },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
-                onNavigateToReview = { currentScreen = Screen.Review }
+                onNavigateToReview = { currentScreen = Screen.Review },
+                onNavigateToCategories = { currentScreen = Screen.Categories }
             )
         }
 
@@ -50,10 +65,25 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 transactions = reviewTransactions,
                 categories = categories,
                 onNavigateToHome = { currentScreen = Screen.Home },
+                onNavigateToCategories = { currentScreen = Screen.Categories },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = true) },
                 onConfirmCategory = { id, category -> viewModel.confirmCategory(id, category) },
                 onLater = { id -> viewModel.onLater(id) }
+            )
+        }
+
+        is Screen.Categories -> {
+            CategoriesScreen(
+                uiState = categoriesUiState,
+                unreviewedCount = unreviewedCount,
+                onSelectPeriod = { period -> viewModel.selectPeriod(period) },
+                onSelectMonth = { month -> viewModel.selectMonth(month) },
+                onSelectCategory = { cat -> viewModel.selectCategoryDetail(cat) },
+                onNavigateToHome = { currentScreen = Screen.Home },
+                onNavigateToReview = { currentScreen = Screen.Review },
+                onNavigateToAddCash = { currentScreen = Screen.AddCash },
+                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromCategories = true) }
             )
         }
 
@@ -74,7 +104,11 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                     viewModel.deleteTransaction(id)
                 },
                 onNavigateBack = {
-                    currentScreen = if (screen.fromReview) Screen.Review else Screen.Home
+                    currentScreen = when {
+                        screen.fromReview -> Screen.Review
+                        screen.fromCategories -> Screen.Categories
+                        else -> Screen.Home
+                    }
                 },
                 categories = categories
             )

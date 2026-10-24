@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import com.autoflow.app.R
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -107,7 +108,8 @@ fun ReviewScreen(
     onNavigateToEdit: (Long) -> Unit,
     onConfirmCategory: (Long, String) -> Unit,
     onLater: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToCategories: () -> Unit = {}
 ) {
     val colors = AutoFlowTheme.colors
     val count = transactions.size
@@ -158,11 +160,24 @@ fun ReviewScreen(
                                 tint = if (selected) colors.brand else colors.muted
                             )
                         }
+                    ),
+                    AFBottomNavItem(
+                        title = "Categories",
+                        icon = { selected ->
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_cat_others),
+                                contentDescription = "Categories",
+                                tint = if (selected) colors.brand else colors.muted
+                            )
+                        }
                     )
                 ),
                 selectedIndex = 1,
                 onSelect = { idx ->
-                    if (idx == 0) onNavigateToHome()
+                    when (idx) {
+                        0 -> onNavigateToHome()
+                        2 -> onNavigateToCategories()
+                    }
                 },
                 centerButton = {
                     Surface(
