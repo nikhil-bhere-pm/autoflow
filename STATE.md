@@ -848,3 +848,25 @@
   - In `EditTransactionScreen`, secondary button ("Not an expense" / "Count this expense") stays inside the scrollable content area.
   - Fluid sizing accommodates large font scale and display settings without clipping.
 
+## 27. Notification Rule Refinement, GitHub Sync & Main Merge — Task M3/M3b (October 25, 2026)
+
+- **Part 0: Rule Refinement (`CapturedExpenseNotificationBuilder`):**
+  - Updated `needsCategory()` logic:
+    - If `merchantName` is blank or `"Unknown Merchant"` -> `true`.
+    - If `reviewStatus == NEEDS_REVIEW` -> `true` (always needs category, rule or no rule).
+    - If `hasSavedRule == true` -> `false` (known-merchant state).
+    - Fallback: returns `true` only if category is `"Others"`, `"Unknown"`, or blank.
+    - Result: Parser-categorized rows (e.g. Swiggy -> Food) with no user rule show the known-merchant state (`"Food · counted in today's total"` with "Change" and "Not an expense"), while unmapped merchants or review items present category suggestions.
+  - Added comprehensive test matrix in `CapturedExpenseNotificationContentTest.kt`:
+    - `testRuleA_parserCategorisedFood_noRule_showsKnownState`
+    - `testRuleB_othersCategory_noRule_showsNeedsCategory`
+    - `testRuleC_reviewStatusNeedsReview_noRule_showsNeedsCategory`
+    - `testRuleD_savedRuleWithOthersCategory_showsKnownState`
+    - `testRuleE_savedRuleInReview_showsNeedsCategory`
+  - Mutation proof verified: mutating line 68 to `return !hasSavedRule` broke `testRuleA` with an `AssertionError`.
+- **Part 1: Branch Sync & Merge into Main:**
+  - Integrated `main` (`85f4caa`, `.gitignore` commit from GitHub setup) into `notif3` via standard merge commit (`d8ca415`), preserving full non-linear history without rebasing or force flags.
+  - Confirmed `git ls-files` tracks zero forbidden files (`.db`, `.keystore`, `.jks`, `local.properties`).
+  - Full suite verified via `scripts/verify.ps1`: all 7 checks passed, 2556 unit tests passing.
+
+
