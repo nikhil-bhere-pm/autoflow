@@ -869,4 +869,40 @@
   - Confirmed `git ls-files` tracks zero forbidden files (`.db`, `.keystore`, `.jks`, `local.properties`).
   - Full suite verified via `scripts/verify.ps1`: all 7 checks passed, 2556 unit tests passing.
 
+## 28. Widget Polish, Square Widget, Search, Daily Recap & Spend Widget — Task R1 (October 25, 2026)
+
+- **Part A: Home-Screen Widget Polish & Square 2x2 Widget (Commit `bbaf1ab`):**
+  - Polished original 4x1 AutoFlow widget container with 26dp rounded corner background (`widget_container_bg.xml`), 1dp subtle outline (`widget_container_stroke`), 10dp gap, and 48dp pill heights with 24dp rounded button corners.
+  - Added new 2x2 resizable "AutoFlow square" widget (`AutoFlowSquareWidgetProvider`, `widget_autoflow_square.xml`, `autoflow_square_widget_info.xml`) with stacked pill buttons (`+ Expense` over `+ Saved`).
+  - Added theme colors `widget_container_bg` and `widget_container_stroke` for light (`#F0FFFFFF`, `#E5E7EB`) and dark mode (`#FF12201C`, `#22332F`).
+  - Unit tests in `WidgetIntentHandlingTest.kt` passing 100%.
+
+- **Part B: Fast Transaction Search (Commit `05d81a5` & `3f29995`):**
+  - Added search icon in `HomeScreen` top bar routing to `SearchScreen` (`Screen.Search`).
+  - Auto-focused search input with 250ms debounce in `MainViewModel`.
+  - Searches across `merchant_name`, `note`, `category`, and amounts:
+    - Rupee amount parsing supports exact rupee/paise matching (e.g. "130", "130.5", "130.50", "₹130").
+    - Digits-only fallback matching (e.g. "50" matches ₹50, ₹50.00, ₹150, ₹500).
+    - SQL wildcard escaping (`%` and `_`) prevents unintended LIKE pattern injection.
+  - Real SQLite test suite `TransactionSearchRealSqliteTest.kt` and `TransactionSearchHelperTest.kt`.
+  - Mutation Proof 1: Mutating `TransactionSearchHelper.escapeLike` to omit `%` escaping failed `TransactionSearchRealSqliteTest.testSearch_escapePercentAndUnderscore` (`AssertionError at TransactionSearchRealSqliteTest.kt:172`).
+  - Color audit compliance: `SearchScreen` uses `Brush.verticalGradient(listOf(colors.brand, colors.brand))` for `cursorBrush`.
+
+- **Part C: Daily Spending Recap Notification & Settings (Commit `b21b4f9`):**
+  - WorkManager one-time daily worker (`DailyRecapWorker`) scheduled without `RECEIVE_BOOT_COMPLETED` or exact alarms, rescheduling self each execution and on app startup.
+  - Channel "Daily recap" with low importance (`IMPORTANCE_LOW`, silent) and lock-screen sanitization (`VISIBILITY_PRIVATE` with generic public version).
+  - Pure builder `DailyRecapContentBuilder`: summarizes today's total spend, expense count, top category breakdown, and unreviewed count; returns `null` when no spend and no review items exist.
+  - Settings UI rows for "Daily recap" toggle and "Recap time" time picker dialog (default 21:00 / 9:00 PM).
+  - Unit test suite `DailyRecapTest.kt` (10 tests).
+  - Mutation Proof 2: Mutating line 34 in `DailyRecapContentBuilder.kt` to return early if `countedExpenses.isEmpty()` (omitting `reviewCount == 0`) failed `DailyRecapTest.testRecapContent_zeroCountedExpensesWithReviewItems` (`AssertionError at DailyRecapTest.kt:124`).
+
+- **Part D: "AutoFlow this month" Spend Widget (Commit `7a6afc2`):**
+  - Built 2x1 non-resizable spend widget (`AutoFlowSpendWidgetProvider`, `widget_autoflow_spend.xml`, `autoflow_spend_widget_info.xml`) showing "This month" and formatted total (e.g. "₹8,420") using `CurrencyFormatter`.
+  - 30-minute periodic update (`updatePeriodMillis = 1800000`).
+  - Pure builder `SpendWidgetContentBuilder` filtering out soft-deleted, excluded, refund, and out-of-month rows.
+  - Live write hook (`TransactionRepository.onTransactionWritten` / `SpendWidgetUpdater.notifyDataChanged`) triggered on all write paths: insert, update, soft-delete, restore, and markNotAnExpense.
+  - Tapping the spend widget opens MainActivity (Home).
+  - Unit test suite `SpendWidgetTest.kt` passing 100%.
+
+
 
