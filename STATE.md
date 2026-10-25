@@ -683,5 +683,13 @@
     2. Broken reached status calculation in `GoalsUiState`: caught by `GoalsUiStateTest.testGoalCardCalculatesProgressAndReached`.
     3. Premature Save button enablement in `AddSavedUiState`: caught by `GoalsUiStateTest.testAddSavedUiStateValidation`.
 
+## 21. Goals (Saved Version) Merged to Master — Task M1 (October 25, 2026)
+
+- Fast-forward merged branch `goals-ui2` into `master` at commit `3bd6312a7b753e89c6e9b037d5f25a59e84b28e1`.
+- Incorporates the complete motivation jar data layer (Room v6 migration, `GoalRepository`), UI screens (`GoalsTabScreen`, `NewGoalScreen`, `GoalDetailScreen`, `AddSavedScreen`, `EditGoalScreen`, `EditEntryScreen`), and unit tests.
+- Worktrees cleaned up and merged feature branches (`ui-settings`, `ui-firstrun`, `goals-data`, `goals-simple`, `goals-ui2`) removed.
+- Full verification suite passing (2,458 tests, zero hardcoded colors, permissions and privacy checks clean).
+
+
 
 
