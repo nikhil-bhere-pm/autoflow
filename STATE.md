@@ -936,6 +936,51 @@
 - **Cleanup:** Worktree `..\autoflow-r1` removed, branch `feat1` deleted via `git branch -d`.
 - **Real App Update:** Pre-install database backup verified, debug APK installed cleanly over `com.autoflow.app` via `adb install -r`, post-install backup verified preserving database integrity and schema version 6.
 
+## 31. App Launcher Icons, Bottom-Bar Tab Icons & Home Screen Polish — Task P1 (October 25, 2026)
+
+- **Worktree & Scope:**
+  - Work executed in worktree `..\autoflow-p1` on branch `polish1` branched from `main` (`f1ee699`).
+  - Styling and icon polish only. Zero logic or state-machine changes.
+  - Zero permissions added; `parser-core` untouched; zero raw SMS logged; zero hardcoded colors in Kotlin outside `Theme.kt`.
+
+- **Part A: App Launcher Icons (Commit `b514f43`):**
+  - Adaptive launcher icon with full backward compatibility:
+    - `res/mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` referencing background, foreground, and monochrome.
+    - Main variant background: `res/drawable/ic_launcher_background.xml` (108x108 viewport, linear gradient `#0D9E71` to `#047857`).
+    - Foreground: `res/drawable/ic_launcher_foreground.xml` (crisp rupee symbol strokeWidth 6.5 within inner 66dp safe zone, white `#FFFFFF`).
+    - Monochrome: `res/drawable/ic_launcher_monochrome.xml` (black stroke for Android 13+ themed icons).
+    - QA variant: `app/src/qa/res/drawable/ic_launcher_background.xml` (amber gradient `#F59E0B` to `#B45309`) enabling instant visual distinction between QA and production builds.
+    - `AndroidManifest.xml` updated to point to `@mipmap/ic_launcher` and `@mipmap/ic_launcher_round`.
+    - Unit tests in `LauncherIconResourceTest.kt` verifying all XML drawables, vector paths, and safe-zone containment.
+
+- **Part B: Bottom-Bar Tab Icons (Commit `94d54b0`):**
+  - Custom vector drawables matching wireframe stroke silhouettes (strokeWidth 1.75 unselected, 2.0 selected):
+    - Home: `ic_nav_home.xml` / `ic_nav_home_selected.xml` (house outline with door cutout).
+    - Goals: `ic_nav_goals.xml` / `ic_nav_goals_selected.xml` (three concentric target rings).
+    - Review: `ic_nav_review.xml` / `ic_nav_review_selected.xml` (clipboard with top clip and checkmark).
+    - Categories: `ic_nav_categories.xml` / `ic_nav_categories_selected.xml` (pie chart with pulled-out slice).
+  - Helper `createStandardNavItems(unreviewedCount)` in `AFBottomNav.kt` unified across all 4 tab destinations (`HomeScreen`, `GoalsTabScreen`, `ReviewScreen`, `CategoriesScreen`).
+  - Unit tests in `NavIconResourceTest.kt` verifying all 8 vector files and resource bindings.
+
+- **Part C: Home Screen Wireframe 1/2 Layout Polish (Commit `9aca117`):**
+  - Two-section layout with top block (<40% screen height) and bottom list sheet (`weight(1f)`):
+    - Top block has subtle vertical gradient background from `Theme.colors.hero` (`#ECFDF5` light, `#0F2A22` dark) to `Theme.colors.bg`, ending at 240dp.
+    - Top row: Settings button (44dp touch area) on left, centered `AFPeriodPill` (40dp high, 16dp pad, 14.5sp bold, surface fill, 1dp line outline), Search button (44dp touch area) on right. Old "AutoFlow" title row removed.
+    - Big number section: 46sp extra-bold, tabular numbers (`fontFeatureSettings = "tnum"`), letter spacing -1sp, centered; centered count subtitle "Across N transactions" 14sp semibold muted with 44x28dp touch area refund info button.
+    - Chart: `AFSmoothLineChart` (88dp canvas + 36dp month label row), dotted muted line for future months, past/current clickable, future months unclickable.
+    - Review check pill (wireframe 2): 34dp high, amber background, 13sp bold with info icon and chevron; visible only when `unreviewedCount > 0`.
+    - Bottom list sheet: `Surface` with `Theme.colors.sheet`, 28dp rounded top corners, 6dp top shadow elevation, 36x4dp grab handle at top center (10dp from top).
+    - List rows: flat style (`isFlat = true`) with 20dp horizontal padding, min 64dp height, no card background/border, spaced items, 15sp extra-bold group header with total on right.
+    - Bottom fade: 56dp gradient overlay to `Theme.colors.sheet` at the bottom of the sheet.
+    - Empty state and SMS permission banner sit cleanly inside the bottom sheet.
+  - Unit tests in `HomeScreenTest.kt` verifying `formatReviewCheckLabel`, `formatDayHeader`, and future-month detection in `monthlySeries`.
+
+- **Verification & QA Installation:**
+  - `scripts/verify.ps1`: All 7 checks passed (2656 unit tests: 1962 parser-core, 347 app debug, 347 app release).
+  - Zero hardcoded colors outside `Theme.kt`. Zero prohibited permissions (`READ_SMS` absent).
+  - Built `assembleQa` and installed over `com.autoflow.app.qa` on device `dfa4dd90`.
+
+
 
 
 
