@@ -137,4 +137,24 @@ interface TransactionDao {
 
     @Query(QUERY_GET_IN_RANGE)
     fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>>
+
+    @Query("""
+        SELECT * FROM transactions 
+        WHERE is_deleted = 0 
+          AND (
+            merchant_name LIKE :textPattern ESCAPE '\' 
+            OR (note IS NOT NULL AND note LIKE :textPattern ESCAPE '\') 
+            OR category LIKE :textPattern ESCAPE '\' 
+            OR (:exactPaise IS NOT NULL AND amount_paise = :exactPaise) 
+            OR (:digitPattern IS NOT NULL AND CAST(amount_paise AS TEXT) LIKE :digitPattern ESCAPE '\')
+          )
+        ORDER BY date_time DESC, id DESC 
+        LIMIT :limit
+    """)
+    fun searchTransactions(
+        textPattern: String,
+        exactPaise: Long?,
+        digitPattern: String?,
+        limit: Int = 200
+    ): Flow<List<TransactionEntity>> = kotlinx.coroutines.flow.emptyFlow()
 }

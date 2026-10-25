@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -104,6 +105,7 @@ fun HomeScreen(
     onNavigateToCategories: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToGoals: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
@@ -137,6 +139,15 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Settings,
                             contentDescription = "Settings",
+                            tint = colors.ink
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToSearch) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
                             tint = colors.ink
                         )
                     }

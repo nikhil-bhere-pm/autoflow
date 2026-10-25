@@ -16,9 +16,14 @@ import com.autoflow.app.domain.stats.StatsPeriod
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import java.time.Instant
 import java.time.YearMonth
 import java.time.ZoneId
@@ -73,6 +78,25 @@ class MainViewModel(
 
     fun clearPendingEditTransaction() {
         _pendingEditTransactionId.value = null
+    }
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    val searchResults: StateFlow<List<FinancialTransaction>> = _searchQuery
+        .debounce(250)
+        .flatMapLatest { q ->
+            if (q.trim().isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                transactionRepository.searchTransactions(q)
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
     }
 
     fun getLastUsedGoalId(): Long? = goalPreferences.getLastUsedGoalId()

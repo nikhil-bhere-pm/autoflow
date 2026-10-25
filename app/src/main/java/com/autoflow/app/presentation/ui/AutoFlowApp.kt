@@ -47,8 +47,10 @@ sealed class Screen {
     data class Edit(
         val transactionId: Long,
         val fromReview: Boolean = false,
-        val fromCategories: Boolean = false
+        val fromCategories: Boolean = false,
+        val fromSearch: Boolean = false
     ) : Screen()
+    data object Search : Screen()
     data object AddCash : Screen()
     data class QuickExpense(val fromWidget: Boolean = false) : Screen()
     data object Settings : Screen()
@@ -155,9 +157,11 @@ fun AutoFlowApp(
                 when {
                     s.fromReview -> Screen.Review
                     s.fromCategories -> Screen.Categories
+                    s.fromSearch -> Screen.Search
                     else -> Screen.Home
                 }
             }
+            is Screen.Search -> Screen.Home
             is Screen.AddCash -> Screen.Home
             is Screen.QuickExpense -> {
                 if (s.fromWidget) {
@@ -247,6 +251,7 @@ fun AutoFlowApp(
                 onNavigateToReview = { currentScreen = Screen.Review },
                 onNavigateToCategories = { currentScreen = Screen.Categories },
                 onNavigateToSettings = { currentScreen = Screen.Settings },
+                onNavigateToSearch = { currentScreen = Screen.Search },
                 snackbarHostState = appSnackbarHostState
             )
         }
@@ -491,10 +496,25 @@ fun AutoFlowApp(
                     currentScreen = when {
                         screen.fromReview -> Screen.Review
                         screen.fromCategories -> Screen.Categories
+                        screen.fromSearch -> Screen.Search
                         else -> Screen.Home
                     }
                 },
                 categories = categories
+            )
+        }
+
+        is Screen.Search -> {
+            val searchQuery by viewModel.searchQuery.collectAsState()
+            val searchResults by viewModel.searchResults.collectAsState()
+            SearchScreen(
+                query = searchQuery,
+                results = searchResults,
+                onQueryChange = { viewModel.updateSearchQuery(it) },
+                onNavigateBack = { currentScreen = Screen.Home },
+                onNavigateToEdit = { id ->
+                    currentScreen = Screen.Edit(id, fromSearch = true)
+                }
             )
         }
 

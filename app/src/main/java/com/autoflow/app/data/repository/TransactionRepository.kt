@@ -63,6 +63,22 @@ class TransactionRepository(
         }
     }
 
+    fun searchTransactions(query: String, limit: Int = 200): Flow<List<FinancialTransaction>> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            return kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+        val textPattern = com.autoflow.app.domain.search.TransactionSearchHelper.buildTextPattern(trimmed)
+        val exactPaise = com.autoflow.app.domain.search.TransactionSearchHelper.parseRupeesToPaise(trimmed)
+        val digitPattern = com.autoflow.app.domain.search.TransactionSearchHelper.extractDigitsPattern(trimmed)
+        return transactionDao.searchTransactions(
+            textPattern = textPattern,
+            exactPaise = exactPaise,
+            digitPattern = digitPattern,
+            limit = limit
+        ).map { list -> list.map { it.toDomain() } }
+    }
+
     fun getFiveMonthSpendingSeries(
         records: List<FinancialTransaction>,
         selectedMonth: YearMonth,
