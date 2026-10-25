@@ -77,6 +77,8 @@
     <!-- Widget -->
     <string name="widget_name">AutoFlow</string>
     <string name="widget_description">Quickly add an expense or savings</string>
+    <string name="widget_square_name">AutoFlow square</string>
+    <string name="widget_square_description">Quick expense and saved shortcuts in a square layout</string>
     <string name="widget_btn_expense">+ Expense</string>
     <string name="widget_btn_saved">+ Saved</string>
 

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_square_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp"
+    android:paddingLeft="14dp"
+    android:paddingRight="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:background="@drawable/widget_container_bg">
+
+    <TextView
+        android:id="@+id/btn_widget_expense"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/widget_button_expense_bg"
+        android:text="@string/widget_btn_expense"
+        android:textColor="@color/widget_btn_expense_text"
+        android:textSize="14.5sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <TextView
+        android:id="@+id/btn_widget_saved"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/widget_button_saved_bg"
+        android:text="@string/widget_btn_saved"
+        android:textColor="@color/widget_btn_saved_text"
+        android:textSize="14.5sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>

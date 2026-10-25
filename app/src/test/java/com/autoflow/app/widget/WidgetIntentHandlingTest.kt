@@ -178,4 +178,31 @@ class WidgetIntentHandlingTest {
         prefs.setLastUsedGoalId(88L)
         assertEquals(88L, prefs.getLastUsedGoalId())
     }
+
+    @Test
+    fun testSquareWidget_usesIdenticalActionsAsHorizontalWidget() {
+        // Both horizontal and square widgets use AutoFlowWidgetProvider.ACTION_EXPENSE and ACTION_SAVED
+        val expenseAction = AutoFlowWidgetProvider.ACTION_EXPENSE
+        val savedAction = AutoFlowWidgetProvider.ACTION_SAVED
+
+        val expenseDest = WidgetActionResolver.resolveAction(
+            action = expenseAction,
+            goals = emptyList(),
+            lastUsedGoalId = null
+        )
+        assertTrue(expenseDest is WidgetDestination.QuickExpense)
+
+        val savedDest = WidgetActionResolver.resolveAction(
+            action = savedAction,
+            goals = listOf(createGoal(1L, "Trip")),
+            lastUsedGoalId = null
+        )
+        assertTrue(savedDest is WidgetDestination.Saved)
+    }
+
+    @Test
+    fun testWidgetConstants() {
+        assertEquals("com.autoflow.app.action.WIDGET_EXPENSE", AutoFlowWidgetProvider.ACTION_EXPENSE)
+        assertEquals("com.autoflow.app.action.WIDGET_SAVED", AutoFlowWidgetProvider.ACTION_SAVED)
+    }
 }

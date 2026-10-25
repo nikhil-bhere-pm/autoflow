@@ -13,4 +13,6 @@
     <color name="widget_btn_saved_bg">#D1FAE5</color>
     <color name="widget_btn_saved_text">#065F46</color>
     <color name="widget_bg">#00000000</color>
+    <color name="widget_container_bg">#F0FFFFFF</color>
+    <color name="widget_container_stroke">#E5E7EB</color>
 </resources>
