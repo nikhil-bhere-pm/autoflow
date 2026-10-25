@@ -690,6 +690,41 @@
 - Worktrees cleaned up and merged feature branches (`ui-settings`, `ui-firstrun`, `goals-data`, `goals-simple`, `goals-ui2`) removed.
 - Full verification suite passing (2,458 tests, zero hardcoded colors, permissions and privacy checks clean).
 
+## 22. Fix v5->v6 Migration & Live Phone Deployment — Task F1 (October 25, 2026)
+
+- **Root Cause & Fix (MIGRATION_5_6_SQL):**
+  - In Task I1, Room database migration from v5 to v6 failed on Android SQLite because `ALTER TABLE ... RENAME TO` on Android does not rewrite foreign key references from child tables (referencing `goals_new` instead of `goals`).
+  - Rewrote `MIGRATION_5_6_SQL` in `AutoFlowDatabase.kt` to completely eliminate `RENAME TO`:
+    1. Creates `_goals_stage` and `_entries_stage` staging tables via `CREATE TABLE ... AS SELECT`.
+    2. Drops legacy `goal_entries` and `goals` tables.
+    3. Creates target `goals` and `goal_entries` tables directly matching Room schema `6.json` (foreign key directly references `goals`).
+    4. Populates target tables from staging tables (`SET_ASIDE` and `AVOIDED` preserved; `USED` dropped).
+    5. Drops staging tables.
+  - Added test `testMigration5To6_foreignKeyList_referencesGoals` in `RoomMigration5To6Test.kt` verifying `PRAGMA foreign_key_list(goal_entries)` references `"goals"`.
+  - Added guard test `testMigration5To6_containsNoRenameTo_guardTest` forbidding `RENAME TO` in migration SQL.
+  - Executed mutation proof catching `RENAME TO` and verified GREEN.
+
+- **Android Device Verification (QA App):**
+  - Built QA build (`assembleQa`) and installed `com.autoflow.app.qa` on device `dfa4dd90`.
+  - Staged pre-install v5 database copy (`pre_goals_install_20261025_0848.db`).
+  - Launched QA app cleanly without crash; verified Home (₹2,579.00 across 3 transactions this month, 5 total), Goals tab empty state.
+  - SQLite verified: `user_version = 6`, `foreign_key_list` references `goals`, `integrity_check` ok, transactions count 5, sum 267900 paise.
+
+- **Real Phone Deployment (com.autoflow.app):**
+  - Took fresh read-only backup: `pre_fix_install_20261025_0905.db` (102400 bytes, user_version 5, 5 transactions, sum 267900 paise).
+  - Built debug APK (`assembleDebug`) and installed on `dfa4dd90` via `adb install -r`.
+  - Launched real app cleanly:
+    - Home screen shows ₹2,579.00 across 3 transactions this month (5 transactions total preserved).
+    - Goals tab opens in motivation jar empty state ("Add goal").
+    - Settings screen shows SMS access is On.
+  - Post-install backup `post_fix_install_20261025_0907.db` (98304 bytes, Modulo 4096 = 0):
+    - `user_version`: 6.
+    - `PRAGMA foreign_key_list(goal_entries)`: references `goals`.
+    - `PRAGMA integrity_check`: ok.
+    - `transactions`: 5 rows, sum 267900 paise.
+  - Uninstalled QA copy `com.autoflow.app.qa`; confirmed `com.autoflow.app` is the sole AutoFlow app on device.
+
+
 
 
 
