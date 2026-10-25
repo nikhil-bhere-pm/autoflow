@@ -2,6 +2,8 @@
 
 **Track your spending without typing anything, privacy first.**
 
+**[Visit the website](https://get-autoflow.vercel.app)** · [Download the app](https://get-autoflow.vercel.app/AutoFlow.apk)
+
 AutoFlow is an Android app that reads your bank's "debited" SMS on your phone, picks out the amount and the shop, and saves it as an expense. You see where your money went, and you can set goals for what you want.
 
 <p>
@@ -39,12 +41,12 @@ Most expense apps make you type every payment, so people quit after a week. Othe
 
 AutoFlow is installed from a file, not from the Play Store (a Google Play version is coming soon).
 
-1. Download [`AutoFlow.apk`](landing/AutoFlow.apk) on your Android phone and open it.
+1. Download the app from the [website](https://get-autoflow.vercel.app) (or directly: [`AutoFlow.apk`](landing/AutoFlow.apk)) on your Android phone and open it.
 2. If Android warns you about unknown apps, tap **Allow install anyway**, then **Install**.
 3. If you see **"App blocked to protect your device"**, pause Play Protect scanning (Play Store → your profile → Play Protect → gear icon → turn off "Scan apps with Play Protect") and install again.
 4. If you see **"SMS permission is blocked"**, open the app's settings, tap the three dots at the top right, choose **Allow restricted settings**, then come back and tap **Allow SMS access**.
 
-Step-by-step pictures for each of these are on the project's website, in the `landing` folder of this repo.
+Step-by-step pictures for each of these are on the [website](https://get-autoflow.vercel.app#install).
 
 ## Build from source
 
