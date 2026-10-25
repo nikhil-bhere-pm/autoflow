@@ -192,42 +192,99 @@ class CapturedExpenseNotificationContentTest {
     }
 
     @Test
-    fun testNewShopRule_firstTimeMerchant_needsCategory() {
+    fun testRuleA_parserCategorisedFood_noRule_showsKnownState() {
         val tx = createTx(
-            id = 55L,
-            amountPaise = 25000L,
-            merchant = "Fresh Mart",
+            id = 51L,
+            amountPaise = 28000L,
+            merchant = "Swiggy",
+            category = "Food",
+            reviewStatus = ReviewStatus.CONFIRMED
+        )
+
+        assertFalse(CapturedExpenseNotificationBuilder.needsCategory(tx, hasSavedRule = false))
+        val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = false)
+
+        assertEquals("₹280.00 spent at Swiggy", content.title)
+        assertEquals("Food · counted in today's total", content.text)
+        assertEquals(2, content.actions.size)
+        assertEquals("Change", content.actions[0].title)
+        assertEquals("Not an expense", content.actions[1].title)
+    }
+
+    @Test
+    fun testRuleB_othersCategory_noRule_showsNeedsCategory() {
+        val tx = createTx(
+            id = 52L,
+            amountPaise = 15000L,
+            merchant = "Local Shop",
             category = "Others",
             reviewStatus = ReviewStatus.CONFIRMED
         )
 
-        // First spend (hasSavedRule = false) -> MUST trigger needsCategory
+        assertTrue(CapturedExpenseNotificationBuilder.needsCategory(tx, hasSavedRule = false))
         val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = false)
 
-        assertEquals("₹250.00 spent at Fresh Mart", content.title)
+        assertEquals("₹150.00 spent at Local Shop", content.title)
         assertEquals("Pick a category so it is counted correctly", content.text)
         assertEquals(3, content.actions.size)
         assertEquals("More…", content.actions[2].title)
     }
 
     @Test
-    fun testNewShopRule_merchantWithSavedRule_knownMerchantState() {
+    fun testRuleC_reviewStatusNeedsReview_noRule_showsNeedsCategory() {
         val tx = createTx(
-            id = 56L,
-            amountPaise = 25000L,
-            merchant = "Fresh Mart",
-            category = "Groceries",
+            id = 53L,
+            amountPaise = 42000L,
+            merchant = "Swiggy",
+            category = "Food",
+            reviewStatus = ReviewStatus.NEEDS_REVIEW
+        )
+
+        assertTrue(CapturedExpenseNotificationBuilder.needsCategory(tx, hasSavedRule = false))
+        val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = false)
+
+        assertEquals("₹420.00 spent at Swiggy", content.title)
+        assertEquals("Pick a category so it is counted correctly", content.text)
+        assertEquals(3, content.actions.size)
+        assertEquals("More…", content.actions[2].title)
+    }
+
+    @Test
+    fun testRuleD_savedRuleWithOthersCategory_showsKnownState() {
+        val tx = createTx(
+            id = 54L,
+            amountPaise = 50000L,
+            merchant = "General Store",
+            category = "Others",
             reviewStatus = ReviewStatus.CONFIRMED
         )
 
-        // Merchant with saved rule (hasSavedRule = true) -> known-merchant state
+        assertFalse(CapturedExpenseNotificationBuilder.needsCategory(tx, hasSavedRule = true))
         val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = true)
 
-        assertEquals("₹250.00 spent at Fresh Mart", content.title)
-        assertEquals("Groceries · counted in today's total", content.text)
+        assertEquals("₹500.00 spent at General Store", content.title)
+        assertEquals("Others · counted in today's total", content.text)
         assertEquals(2, content.actions.size)
         assertEquals("Change", content.actions[0].title)
         assertEquals("Not an expense", content.actions[1].title)
+    }
+
+    @Test
+    fun testRuleE_savedRuleInReview_showsNeedsCategory() {
+        val tx = createTx(
+            id = 55L,
+            amountPaise = 50000L,
+            merchant = "General Store",
+            category = "Others",
+            reviewStatus = ReviewStatus.NEEDS_REVIEW
+        )
+
+        assertTrue(CapturedExpenseNotificationBuilder.needsCategory(tx, hasSavedRule = true))
+        val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = true)
+
+        assertEquals("Pick a category so it is counted correctly", content.text)
+        assertEquals(3, content.actions.size)
+        assertEquals("More…", content.actions[2].title)
     }
 
     @Test

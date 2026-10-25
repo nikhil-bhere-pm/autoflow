@@ -54,6 +54,9 @@ object CapturedExpenseNotificationBuilder {
                 tx.merchantName.equals("Unknown Merchant", ignoreCase = true)
         if (isBlankOrUnknownMerchant) return true
 
+        val isInReview = tx.reviewStatus == com.autoflow.app.data.model.ReviewStatus.NEEDS_REVIEW
+        if (isInReview) return true
+
         if (hasSavedRule) {
             return false
         }
@@ -61,9 +64,8 @@ object CapturedExpenseNotificationBuilder {
         val isOthersOrUnknown = tx.category.equals("Others", ignoreCase = true) ||
                 tx.category.equals("Unknown", ignoreCase = true) ||
                 tx.category.isBlank()
-        val isInReview = tx.reviewStatus == com.autoflow.app.data.model.ReviewStatus.NEEDS_REVIEW
 
-        return isOthersOrUnknown || isInReview
+        return isOthersOrUnknown
     }
 
     fun buildInitialContent(
