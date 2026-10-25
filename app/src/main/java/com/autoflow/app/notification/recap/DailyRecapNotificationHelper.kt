@@ -32,12 +32,16 @@ object DailyRecapNotificationHelper {
         }
     }
 
+    fun createOpenIntent(context: Context): Intent {
+        return com.autoflow.app.navigation.AppLaunchResolver.buildHomeIntent(
+            Intent(context, MainActivity::class.java)
+        )
+    }
+
     fun postNotification(context: Context, content: DailyRecapContent) {
         ensureChannel(context)
 
-        val openIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
+        val openIntent = createOpenIntent(context)
         val pendingIntent = PendingIntent.getActivity(
             context,
             5001,

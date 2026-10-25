@@ -341,6 +341,13 @@ class SettingsUiTest {
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> =
             flow.map { list -> list.filter { it.dateTime in startTime until endTime } }
 
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
+
         override suspend fun updateCategory(oldCategory: String, newCategory: String): Int {
             var updated = 0
             for (i in transactions.indices) {

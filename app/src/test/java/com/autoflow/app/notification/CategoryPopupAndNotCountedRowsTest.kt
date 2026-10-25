@@ -353,6 +353,12 @@ class CategoryPopupAndNotCountedRowsTest {
         override fun getTransactionsByReviewStatus(status: ReviewStatus): Flow<List<TransactionEntity>> = flowOf(emptyList())
         override fun getUnreviewedCount(): Flow<Int> = flowOf(0)
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> = flowOf(emptyList())
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> = flowOf(emptyList())
         override suspend fun updateCategory(oldCategory: String, newCategory: String): Int = 0
         override suspend fun reassignCategoryToOthers(category: String, now: Long): Int = 0
         override suspend fun countActiveTransactionsInCategory(category: String): Int = 0

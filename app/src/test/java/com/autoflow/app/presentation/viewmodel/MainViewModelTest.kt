@@ -8,12 +8,15 @@ import com.autoflow.app.data.model.TransactionSource
 import com.autoflow.app.data.repository.TransactionRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -291,6 +294,72 @@ class MainViewModelTest {
         assertEquals(pastTimestamp, entity?.dateTime)
     }
 
+    @Test
+    fun testSearchFlow_drivesSearchScreenState() = runTest {
+        // Pre-insert transaction: Chai Point, Food, 41000L (₹410.00)
+        inMemoryDao.insert(
+            TransactionEntity(
+                id = 1L,
+                amountPaise = 41000L,
+                recordType = RecordType.EXPENSE,
+                dateTime = System.currentTimeMillis(),
+                merchantName = "Chai Point",
+                category = "Food",
+                transactionHash = "hash_410",
+                source = TransactionSource.SMS_AUTO,
+                reviewStatus = ReviewStatus.CONFIRMED,
+                uncertaintyBits = 0
+            )
+        )
+        advanceUntilIdle()
+
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.searchResults.collect()
+        }
+
+        fun searchUiState(): String = when {
+            viewModel.searchQuery.value.trim().isEmpty() -> "hint"
+            viewModel.searchResults.value.isEmpty() -> "No matches"
+            else -> "results"
+        }
+
+        // 1. Initially empty -> hint
+        assertEquals("hint", searchUiState())
+
+        // 2. Query merchant name ("Chai") -> results
+        viewModel.updateSearchQuery("Chai")
+        advanceUntilIdle()
+        assertEquals("results", searchUiState())
+        assertEquals(1, viewModel.searchResults.value.size)
+        assertEquals("Chai Point", viewModel.searchResults.value[0].merchantName)
+
+        // 3. Query "410" -> results
+        viewModel.updateSearchQuery("410")
+        advanceUntilIdle()
+        assertEquals("results", searchUiState())
+        assertEquals(1, viewModel.searchResults.value.size)
+        assertEquals(41000L, viewModel.searchResults.value[0].amountPaise)
+
+        // 4. Query category ("Food") -> results
+        viewModel.updateSearchQuery("Food")
+        advanceUntilIdle()
+        assertEquals("results", searchUiState())
+        assertEquals(1, viewModel.searchResults.value.size)
+        assertEquals("Food", viewModel.searchResults.value[0].category)
+
+        // 5. Query nonsense word -> No matches
+        viewModel.updateSearchQuery("nonsensexyz")
+        advanceUntilIdle()
+        assertEquals("No matches", searchUiState())
+
+        // 6. Query empty -> hint
+        viewModel.updateSearchQuery("")
+        advanceUntilIdle()
+        assertEquals("hint", searchUiState())
+
+        collector.cancel()
+    }
+
     private class InMemoryTransactionDao : TransactionDao {
         val items = mutableListOf<TransactionEntity>()
         private val stateFlow = MutableStateFlow<List<TransactionEntity>>(emptyList())
@@ -388,6 +457,28 @@ class MainViewModelTest {
             return stateFlow.map { list ->
                 list.filter { it.isDeleted == 0 && it.dateTime >= startTime && it.dateTime < endTime }
                     .sortedByDescending { it.dateTime }
+            }
+        }
+
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> {
+            return stateFlow.map { list ->
+                val cleanPattern = textPattern.removeSurrounding("%").replace("\\%", "%").replace("\\_", "_")
+                val cleanDigits = digitPattern?.removeSurrounding("%")?.replace("\\%", "%")?.replace("\\_", "_")
+                list.filter { tx ->
+                    tx.isDeleted == 0 && (
+                        tx.merchantName.contains(cleanPattern, ignoreCase = true) ||
+                        (tx.note != null && tx.note.contains(cleanPattern, ignoreCase = true)) ||
+                        tx.category.contains(cleanPattern, ignoreCase = true) ||
+                        (exactPaise != null && tx.amountPaise == exactPaise) ||
+                        (cleanDigits != null && tx.amountPaise.toString().contains(cleanDigits))
+                    )
+                }.sortedWith(compareByDescending<TransactionEntity> { it.dateTime }.thenByDescending { it.id })
+                 .take(limit)
             }
         }
     }

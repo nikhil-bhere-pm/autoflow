@@ -290,5 +290,12 @@ class ReviewScreenTest {
                     .sortedByDescending { it.dateTime }
             }
         }
+
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> = kotlinx.coroutines.flow.flowOf(emptyList())
     }
 }

@@ -40,8 +40,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDebugIntent(intent)
-        handleNotificationIntent(intent)
-        viewModel.handleWidgetIntent(intent?.action)
+        viewModel.handleAppLaunchIntent(intent)
         enableEdgeToEdge()
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
@@ -63,17 +62,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDebugIntent(intent)
-        handleNotificationIntent(intent)
-        viewModel.handleWidgetIntent(intent.action)
-    }
-
-    private fun handleNotificationIntent(intent: Intent?) {
-        if (intent?.action == com.autoflow.app.notification.CapturedExpenseNotificationBuilder.ACTION_EDIT_TRANSACTION) {
-            val txId = intent.getLongExtra(com.autoflow.app.notification.CapturedExpenseNotificationBuilder.EXTRA_TRANSACTION_ID, -1L)
-            if (txId > 0) {
-                viewModel.openEditTransaction(txId)
-            }
-        }
+        viewModel.handleAppLaunchIntent(intent)
     }
 
     private fun handleDebugIntent(intent: Intent?) {

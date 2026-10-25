@@ -414,6 +414,12 @@ class TransactionRepositoryRealSqliteAtomicityTest {
         override suspend fun softDelete(id: Long, updatedAt: Long) = error("Not needed")
         override suspend fun undelete(id: Long, updatedAt: Long) = error("Not needed")
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> = error("Not needed")
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> = error("Not needed")
     }
 
     /**

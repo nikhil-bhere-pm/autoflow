@@ -156,5 +156,5 @@ interface TransactionDao {
         exactPaise: Long?,
         digitPattern: String?,
         limit: Int = 200
-    ): Flow<List<TransactionEntity>> = kotlinx.coroutines.flow.emptyFlow()
+    ): Flow<List<TransactionEntity>>
 }

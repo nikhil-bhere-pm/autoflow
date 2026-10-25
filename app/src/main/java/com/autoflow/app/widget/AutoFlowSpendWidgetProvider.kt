@@ -48,6 +48,12 @@ class AutoFlowSpendWidgetProvider : AppWidgetProvider() {
             }
         }
 
+        fun createHomeIntent(context: Context): Intent {
+            return com.autoflow.app.navigation.AppLaunchResolver.buildHomeIntent(
+                Intent(context, MainActivity::class.java)
+            )
+        }
+
         suspend fun updateWidgets(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -85,9 +91,7 @@ class AutoFlowSpendWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.tv_spend_title, content.title)
                 views.setTextViewText(R.id.tv_spend_amount, content.amountFormatted)
 
-                val homeIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
+                val homeIntent = createHomeIntent(context)
                 val pendingIntent = PendingIntent.getActivity(
                     context,
                     REQUEST_CODE_HOME,

@@ -521,6 +521,13 @@ class FakeTransactionDao : TransactionDao {
                 .sortedByDescending { it.dateTime }
         )
     }
+
+    override fun searchTransactions(
+        textPattern: String,
+        exactPaise: Long?,
+        digitPattern: String?,
+        limit: Int
+    ): Flow<List<TransactionEntity>> = flowOf(emptyList())
 }
 
 class FakeRefundMatchDao : RefundMatchDao {

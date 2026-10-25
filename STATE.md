@@ -904,5 +904,26 @@
   - Tapping the spend widget opens MainActivity (Home).
   - Unit test suite `SpendWidgetTest.kt` passing 100%.
 
+## 29. Fix Search Showing "No Matches" & Open Home Launch Routing — Task R2 (October 25, 2026)
+
+- **Bug 1: Search Showing "No Matches" on Device:**
+  - *Root Cause:* `TransactionDao.searchTransactions` declared a default method body `= kotlinx.coroutines.flow.emptyFlow()`. In Room with KSP, interface methods with default bodies are treated as already implemented, causing Room's symbol processor to bypass generating the `@Query` method in `TransactionDao_Impl.java`. At runtime on the phone, calling `searchTransactions` directly executed the default empty flow, returning 0 transactions and displaying "No matches" for any query.
+  - *Fix:* Removed `= kotlinx.coroutines.flow.emptyFlow()` from `TransactionDao.kt` line 159 so Room generates the full query implementation. Added explicit overrides to all unit test fake DAOs.
+  - *Unit Test:* Added `testSearchFlow_drivesSearchScreenState` in `MainViewModelTest.kt` covering the full query sequence (empty -> "hint", "Chai" -> "results", "410" -> "results", "Food" -> "results", "nonsensexyz" -> "No matches", empty -> "hint").
+  - *Mutation Proof:* Mutating `InMemoryTransactionDao.searchTransactions` to return `flowOf(emptyList())` failed at `MainViewModelTest.kt:332` (`org.junit.ComparisonFailure: expected:<[result]s> but was:<[No matche]s>`).
+
+- **Bug 2: Notification & Widget "Open Home" Resuming Old Screen:**
+  - *Root Cause:* Tapping the daily recap notification or the spend widget reopened `MainActivity` (via `onNewIntent` when already in memory), but without an intent extra or navigation event instructing the UI to return to the Home tab, Compose preserved the active `currentScreen` state (e.g. Settings or Review).
+  - *Fix:*
+    - Created pure `AppLaunchResolver` (`AppLaunchResolver.kt`) mapping incoming intents/actions to `AppLaunchTarget` (`Home`, `EditTransaction(id)`, `Saved(selectedGoalId, goals)`, `QuickExpense`, `NewGoalWithHint`, `None`).
+    - Standardized `buildHomeIntent` attaching `EXTRA_OPEN_HOME = true` and flags `Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP`.
+    - Wired `DailyRecapNotificationHelper.createOpenIntent(context)` and `AutoFlowSpendWidgetProvider.createHomeIntent(context)` through `buildHomeIntent`.
+    - Wired `MainActivity.onCreate` and `MainActivity.onNewIntent` to call `viewModel.handleAppLaunchIntent(intent)`.
+    - `MainViewModel` exposes `resetToHomeEvent: StateFlow<Int>` incremented on `resetToHome()`.
+    - `AutoFlowApp` observes `resetToHomeEvent` and transitions `currentScreen = Screen.Home` when first run is completed.
+  - *Unit Tests:* `AppLaunchResolverTest.kt` verifying all resolver targets and intent extra/flag assertions.
+  - *Mutation Proof:* Mutating `isOpenHome || action == ACTION_OPEN_HOME` to `action == ACTION_OPEN_HOME` in `AppLaunchResolver.kt` failed at `AppLaunchResolverTest.kt:63` (`java.lang.AssertionError: expected:<Home> but was:<None>`).
+
+
 
 

@@ -956,5 +956,12 @@ class CategoryRepositoryRealSqliteTest {
         }
 
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> = flowOf(emptyList())
+
+        override fun searchTransactions(
+            textPattern: String,
+            exactPaise: Long?,
+            digitPattern: String?,
+            limit: Int
+        ): Flow<List<TransactionEntity>> = flowOf(emptyList())
     }
 }

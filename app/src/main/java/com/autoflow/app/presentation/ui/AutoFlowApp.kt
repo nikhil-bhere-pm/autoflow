@@ -84,6 +84,13 @@ fun AutoFlowApp(
     val goalsWithTotals by viewModel.goalsWithTotals.collectAsState()
     val widgetDestination by viewModel.widgetDestination.collectAsState()
     val pendingEditTxId by viewModel.pendingEditTransactionId.collectAsState()
+    val resetToHomeEvent by viewModel.resetToHomeEvent.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(resetToHomeEvent) {
+        if (resetToHomeEvent > 0 && isFirstRunCompleted) {
+            currentScreen = Screen.Home
+        }
+    }
 
     androidx.compose.runtime.LaunchedEffect(pendingEditTxId) {
         val id = pendingEditTxId

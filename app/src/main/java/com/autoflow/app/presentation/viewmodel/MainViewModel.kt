@@ -51,6 +51,29 @@ class MainViewModel(
     private val _widgetDestination = MutableStateFlow<WidgetDestination?>(null)
     val widgetDestination: StateFlow<WidgetDestination?> = _widgetDestination.asStateFlow()
 
+    private val _resetToHomeEvent = MutableStateFlow(0)
+    val resetToHomeEvent: StateFlow<Int> = _resetToHomeEvent.asStateFlow()
+
+    fun resetToHome() {
+        _resetToHomeEvent.value += 1
+    }
+
+    fun handleAppLaunchIntent(intent: android.content.Intent?) {
+        if (intent == null) return
+        viewModelScope.launch {
+            val goals = goalRepository?.getAllGoals()?.filter { !it.isDeleted } ?: emptyList()
+            val lastUsedGoalId = goalPreferences.getLastUsedGoalId()
+            when (val target = com.autoflow.app.navigation.AppLaunchResolver.resolve(intent, goals, lastUsedGoalId)) {
+                is com.autoflow.app.navigation.AppLaunchTarget.Home -> resetToHome()
+                is com.autoflow.app.navigation.AppLaunchTarget.EditTransaction -> openEditTransaction(target.transactionId)
+                is com.autoflow.app.navigation.AppLaunchTarget.QuickExpense -> _widgetDestination.value = WidgetDestination.QuickExpense
+                is com.autoflow.app.navigation.AppLaunchTarget.Saved -> _widgetDestination.value = WidgetDestination.Saved(target.selectedGoalId, target.goals)
+                is com.autoflow.app.navigation.AppLaunchTarget.NewGoalWithHint -> _widgetDestination.value = WidgetDestination.NewGoalWithHint
+                is com.autoflow.app.navigation.AppLaunchTarget.None -> { /* no-op */ }
+            }
+        }
+    }
+
     fun handleWidgetIntent(action: String?) {
         if (action == null) return
         viewModelScope.launch {
