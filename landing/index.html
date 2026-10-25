@@ -503,7 +503,7 @@ footer .wrap { display: flex; flex-direction: column; gap: 10px; }
       <div class="stack">
         <span class="tag">New</span>
         <h2 id="autopay-title">Autopay, for the payments that happen on their own.</h2>
-        <p class="lede">A page for automatic payments like subscriptions. When your bank message says a payment was an automatic debit, it is meant to show up here with a tag. These are normal expenses and already count in your totals, so the page may be empty for now.</p>
+        <p class="lede">A page for automatic payments like subscriptions. When your bank message says a payment was an automatic debit, it is meant to show up here with a tag. These are normal expenses and already count in your totals.</p>
       </div>
       <div class="feature-media">
         <figure class="phone"><img src="screens/autopay.jpg" width="560" height="1161" loading="lazy" alt="Autopay page showing ₹0.00 this month and how autopay tags will work"></figure>
@@ -521,7 +521,7 @@ footer .wrap { display: flex; flex-direction: column; gap: 10px; }
           <ul class="checks">
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Your data never leaves your phone, because the app can't connect to the internet.</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>No bank account to link.</li>
-            <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>It reads only incoming bank alerts and never saves the message text.</li>
+            <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>It checks incoming messages only to find bank debit alerts, and never saves the message text.</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>You can turn the notifications and the daily recap on or off in Settings.</li>
             <li><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--band-accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>The code is public, so you can read exactly what it does: <a href="https://github.com/nikhil-bhere-pm/autoflow" target="_blank" rel="noopener">AutoFlow on GitHub</a>.</span></li>
           </ul>
@@ -733,13 +733,13 @@ footer .wrap { display: flex; flex-direction: column; gap: 10px; }
     <div class="faq">
         <details><summary>Does AutoFlow need the internet?</summary><p>No. The app has no internet access at all, so your spending and your messages stay on your phone.</p></details>
         <details><summary>Is my financial data safe? Who can see it?</summary><p>Only you. Your spending stays on your phone, and the app has no internet access, so there is no way for it to send your data anywhere. There is no account or login, so there is no server holding your information. There are no ads and no tracking, and the code is public if you want to check.</p></details>
-        <details><summary>What does it read from my SMS?</summary><p>It reads only incoming bank alerts, to pick out the amount and the shop. It never saves the message text.</p></details>
+        <details><summary>What does it read from my SMS?</summary><p>It checks each new message on your phone to see whether it is a bank debit alert, and picks out the amount and the shop. Other messages are ignored, and the text of a message is never saved.</p></details>
         <details><summary>Do I need to sign up or link my bank account?</summary><p>No. There is no login and no bank account to link. Install it, allow SMS access, and your payments start appearing.</p></details>
         <details><summary>Why does Android show warnings when I install it?</summary><p>AutoFlow installs from a file instead of the Play Store, so Android adds a few safety prompts. They are normal for apps installed this way. The pictures in the install section show what to tap at each one, and a Google Play version is coming soon.</p></details>
         <details><summary>What if a payment is wrong or isn't really an expense?</summary><p>Tap “Change category” or “Not an expense” on the notification, or edit the payment inside the app. Payments AutoFlow isn't sure about wait in the Review tab, and they already count in your total until you decide.</p></details>
         <details><summary>What about cash payments?</summary><p>Add them with Quick expense in the app, or with the “+ Expense” widget on your home screen. Both take a few seconds.</p></details>
         <details><summary>What are Goals? Does AutoFlow move my money?</summary><p>Never. A goal is a motivation jar: you pick something you want and record what you save towards it. AutoFlow cannot move or touch your real money.</p></details>
-        <details><summary>What is the Autopay page?</summary><p>It is for automatic payments like subscriptions. These are normal expenses and already count in your totals. The page is new, so it may be empty at first.</p></details>
+        <details><summary>What is the Autopay page?</summary><p>It is for automatic payments like subscriptions. These are normal expenses and already count in your totals.</p></details>
         <details><summary>Does it work on iPhone?</summary><p>Not right now. AutoFlow is an Android app.</p></details>
         <details><summary>Is it free? Can I check what the app does?</summary><p>It is free, with no ads. The code is public, so you can read exactly what it does on GitHub.</p></details>
     </div>

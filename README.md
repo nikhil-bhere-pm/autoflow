@@ -28,13 +28,13 @@ Most expense apps make you type every payment, so people quit after a week. Othe
 - **Home-screen widgets.** Add an expense or a saving in one tap, and see this month's total.
 - **Daily recap.** A summary of the day's spending, which you can turn off in Settings.
 - **Light and dark themes.**
-- **Autopay (first preview).** A page for automatic payments like subscriptions.
+- **Autopay.** A page for automatic payments like subscriptions.
 
 ## Privacy
 
 - The app has **no internet access**, so your data has nowhere to go.
 - No login, no ads, no tracking, and no bank account to link.
-- It reads only incoming bank alerts and never saves the message text.
+- It checks incoming messages only to find bank debit alerts, and never saves the message text.
 - The code is public, so you can check all of this yourself.
 
 ## Install
