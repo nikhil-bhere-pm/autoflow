@@ -924,6 +924,19 @@
   - *Unit Tests:* `AppLaunchResolverTest.kt` verifying all resolver targets and intent extra/flag assertions.
   - *Mutation Proof:* Mutating `isOpenHome || action == ACTION_OPEN_HOME` to `action == ACTION_OPEN_HOME` in `AppLaunchResolver.kt` failed at `AppLaunchResolverTest.kt:63` (`java.lang.AssertionError: expected:<Home> but was:<None>`).
 
+## 30. Merge Tasks R1 & R2 into Main & Update Real App — Task M4 (October 25, 2026)
+
+- **Merge:** Fast-forward merged `feat1` into `main` (commit `489651e`), bringing in:
+  - Part A: Home-screen widget polish & square 2x2 widget.
+  - Part B: Fast transaction search screen, DAO query, amount matching and real SQLite tests.
+  - Part C: Daily spending recap notification, scheduler, and settings rows.
+  - Part D: "AutoFlow this month" 2x1 spend widget with live repository write hooks.
+  - Task R2: Room DAO query generation fix (Bug 1) and intent open-home launch resolver (Bug 2).
+- **Verification:** Ran `scripts/verify.ps1` on `main`: all 7 checks passed, 2642 unit tests passing (1962 parser-core, 340 app debug, 340 app release).
+- **Cleanup:** Worktree `..\autoflow-r1` removed, branch `feat1` deleted via `git branch -d`.
+- **Real App Update:** Pre-install database backup verified, debug APK installed cleanly over `com.autoflow.app` via `adb install -r`, post-install backup verified preserving database integrity and schema version 6.
+
+
 
 
 
