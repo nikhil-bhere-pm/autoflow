@@ -30,7 +30,8 @@ class MainActivity : ComponentActivity() {
                     categoryRepository = app.categoryRepository,
                     goalRepository = app.goalRepository,
                     themePreferences = SharedPreferencesThemePreferences.fromContext(app),
-                    firstRunPreferences = SharedPreferencesFirstRunPreferences.fromContext(app)
+                    firstRunPreferences = SharedPreferencesFirstRunPreferences.fromContext(app),
+                    goalPreferences = com.autoflow.app.presentation.preferences.SharedPreferencesGoalPreferences.fromContext(app)
                 ) as T
             }
         }
@@ -39,6 +40,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         handleDebugIntent(intent)
+        viewModel.handleWidgetIntent(intent?.action)
         enableEdgeToEdge()
         setContent {
             val themeMode by viewModel.themeMode.collectAsState()
@@ -48,14 +50,19 @@ class MainActivity : ComponentActivity() {
                 AppThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
             AutoFlowTheme(darkTheme = isDark) {
-                AutoFlowApp(viewModel = viewModel)
+                AutoFlowApp(
+                    viewModel = viewModel,
+                    onFinishActivity = { finish() }
+                )
             }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         handleDebugIntent(intent)
+        viewModel.handleWidgetIntent(intent.action)
     }
 
     private fun handleDebugIntent(intent: Intent?) {

@@ -28,6 +28,8 @@ import com.autoflow.app.domain.goals.GoalEntry
 import com.autoflow.app.domain.goals.GoalError
 import com.autoflow.app.domain.goals.GoalResult
 import com.autoflow.app.domain.goals.GoalWithTotals
+import com.autoflow.app.widget.WidgetActionResolver
+import com.autoflow.app.widget.WidgetDestination
 import java.util.UUID
 
 class MainViewModel(
@@ -36,9 +38,31 @@ class MainViewModel(
     private val goalRepository: GoalRepository? = null,
     private val themePreferences: com.autoflow.app.presentation.theme.ThemePreferences = InMemoryThemePreferences(),
     private val firstRunPreferences: com.autoflow.app.presentation.preferences.FirstRunPreferences = com.autoflow.app.presentation.preferences.InMemoryFirstRunPreferences(initialCompleted = true),
+    private val goalPreferences: com.autoflow.app.presentation.preferences.GoalPreferences = com.autoflow.app.presentation.preferences.InMemoryGoalPreferences(),
     private val timeProvider: () -> Instant = { Instant.now() },
     private val zoneId: ZoneId = ZoneId.systemDefault()
 ) : ViewModel() {
+
+    private val _widgetDestination = MutableStateFlow<WidgetDestination?>(null)
+    val widgetDestination: StateFlow<WidgetDestination?> = _widgetDestination.asStateFlow()
+
+    fun handleWidgetIntent(action: String?) {
+        if (action == null) return
+        viewModelScope.launch {
+            val goals = goalRepository?.getAllGoals()?.filter { !it.isDeleted } ?: emptyList()
+            val lastUsedGoalId = goalPreferences.getLastUsedGoalId()
+            val destination = WidgetActionResolver.resolveAction(action, goals, lastUsedGoalId)
+            if (destination != null) {
+                _widgetDestination.value = destination
+            }
+        }
+    }
+
+    fun clearWidgetDestination() {
+        _widgetDestination.value = null
+    }
+
+    fun getLastUsedGoalId(): Long? = goalPreferences.getLastUsedGoalId()
 
     val themeMode: StateFlow<com.autoflow.app.presentation.theme.AppThemeMode> = themePreferences.themeMode
 
@@ -418,7 +442,11 @@ class MainViewModel(
         note: String
     ): GoalResult<GoalEntry> {
         val repo = goalRepository ?: return GoalResult.Error(GoalError.GoalNotFound(goalId))
-        return repo.addSaved(goalId = goalId, amountPaise = amountPaise, note = note)
+        val result = repo.addSaved(goalId = goalId, amountPaise = amountPaise, note = note)
+        if (result is GoalResult.Success) {
+            goalPreferences.setLastUsedGoalId(goalId)
+        }
+        return result
     }
 
     suspend fun editEntry(

@@ -724,7 +724,48 @@
     - `transactions`: 5 rows, sum 267900 paise.
   - Uninstalled QA copy `com.autoflow.app.qa`; confirmed `com.autoflow.app` is the sole AutoFlow app on device.
 
+## 23. Home-Screen Widget (+ Expense, + Saved) & Quick Expense — Task W1 (October 25, 2026)
 
-
-
+- **Home-Screen Widget (`AutoFlowWidgetProvider`):**
+  - Built 4x1 AppWidgetProvider home-screen widget "AutoFlow" with two pill buttons side by side: `+ Expense` (strong green, left) and `+ Saved` (light green, right).
+  - Resizable horizontally and vertically (`resizeMode="horizontal|vertical"`).
+  - Full privacy compliance: displays zero transaction data, zero amounts, and zero goal names on the home screen.
+  - Automatic system light and dark mode adaptation via native resource qualifiers (`res/values/colors.xml` and `res/values-night/colors.xml`) with rounded shape drawables (`widget_button_expense_bg.xml`, `widget_button_saved_bg.xml`).
+  - Widget picker metadata (`res/xml/autoflow_widget_info.xml`): short title "AutoFlow", description "Quickly log an expense or saved money", preview drawable (`widget_preview.xml`).
+- **Quick Expense Screen (`QuickExpenseScreen`):**
+  - Dedicated fast-logging screen launched only from widget `+ Expense`.
+  - Header: Close 'X' button at top left, title "Quick expense".
+  - Large amount display with `AFNumberPad` (Indian rupee format).
+  - Optional note field: "Merchant or note (optional)" with placeholder "e.g. Tea, auto fare".
+  - Full category selection chips (all standard categories plus user-created custom categories).
+  - "Save expense" primary button (disabled until valid amount is entered).
+  - Footnote: "Saved as Cash, now. Use + in the app for date, time and mode."
+  - Direct database row equivalence: inserts manual cash transaction using identical validation rules as standard Add expense.
+  - Returns to launcher/caller immediately upon save or close.
+- **Saved Action Routing (`WidgetActionResolver`, `GoalPreferences`):**
+  - Pure Kotlin resolver handles destination routing for widget intents.
+  - Tracks `lastUsedGoalId` in `GoalPreferences` (SharedPreferences).
+  - When 0 active goals exist: routes to `NewGoalScreen` with hint banner "Create a goal first, then tap Saved". Creating a goal navigates directly to `AddSavedScreen` for that goal.
+  - When 1 active goal exists: routes directly to `AddSavedScreen` with that goal preselected.
+  - When >1 active goals exist: routes to `AddSavedScreen` displaying "Which goal?" selection chips, preselecting `lastUsedGoalId` (or falling back to the first goal).
+  - Tapping Saved from inside a goal card in the app remains locked to that goal (chips hidden).
+  - Returns cleanly to phone launcher upon cancel or completion when launched from widget.
+- **Wording Cleanup:**
+  - Removed the word "Avoided" from all widget/related UI and placeholder text across the codebase (e.g. updated placeholder to "e.g. Skipped ordering food").
+- **Security & Lifecycle Safety:**
+  - Registered `AutoFlowWidgetProvider` as the only exported component.
+  - PendingIntents configured with `FLAG_IMMUTABLE` and `Intent.FLAG_ACTIVITY_SINGLE_TOP`.
+  - Safe intent routing in `MainActivity.kt` handles cold start (`onCreate`) and background resume (`onNewIntent`).
+  - Unknown, malformed, or null intent actions are safely ignored without navigation.
+- **Unit Testing & Mutation Proofs:**
+  - Added `WidgetIntentHandlingTest.kt` (12 tests covering all intent routing, cold start, single top, goal resolution, and fallback branches).
+  - Added `QuickExpenseEquivalenceTest.kt` (verifies amount parsing, boundary limits, note length limits, custom categories, and row equivalence with manual cash).
+  - Two automated mutation proofs executed:
+    1. Replaced fallback `else -> null` in `WidgetActionResolver.resolveDestination` with `QuickExpense`: caught by 3 tests (`testNullAction_isIgnored`, `testMalformedAction_isIgnored`, `testUnknownAction_isIgnored`).
+    2. Disabled `lastUsedGoalId` lookup in `WidgetActionResolver.resolveDestination`: caught by `testActionSaved_withManyGoals_andLastUsedSet_preselectsLastUsedGoal`.
+- **Physical Phone Verification (`dfa4dd90`):**
+  - Verified on real hardware using QA package `com.autoflow.app.qa` (production app `com.autoflow.app` left untouched).
+  - Widget successfully placed and tested in light and dark mode.
+  - Quick expense logged ₹120.00 cash expense ("Chai", Food category); verified reflected on Home screen.
+  - Saved flow verified with 0 goals (hint banner), 1 goal (direct), and 2 goals (chips pre-selection).
 

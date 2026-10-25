@@ -70,7 +70,7 @@ class InvariantConstraintsTest {
                 id = 2L,
                 goalId = 1L,
                 amountPaise = 120000L, // ₹1,200
-                note = "Avoided cab ride",
+                note = "Skipped cab ride",
                 occurredAt = 1700000100000L,
                 isDeleted = 0
             ),

@@ -127,7 +127,7 @@ class GoalsUiStateTest {
     @Test
     fun testSavedDisabledUntilValid() {
         // Bad amount (<= 0)
-        val zeroAmount = validateSavedEntry(amountPaise = 0L, note = "Avoided takeout")
+        val zeroAmount = validateSavedEntry(amountPaise = 0L, note = "Skipped takeout")
         assertFalse(zeroAmount.isValid)
         assertEquals("Amount must be greater than zero", zeroAmount.amountError)
 
@@ -142,7 +142,7 @@ class GoalsUiStateTest {
         assertTrue(tooLongNote.noteError!!.contains("too long"))
 
         // Valid
-        val valid = validateSavedEntry(amountPaise = 25000L, note = "Avoided ordering dessert")
+        val valid = validateSavedEntry(amountPaise = 25000L, note = "Skipped ordering dessert")
         assertTrue(valid.isValid)
     }
 

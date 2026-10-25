@@ -32,7 +32,7 @@
     <!-- Saved Screen -->
     <string name="saved_screen_title">Saved</string>
     <string name="saved_screen_note_label">How did you save? (required)</string>
-    <string name="saved_screen_note_placeholder">e.g. Avoided ordering food</string>
+    <string name="saved_screen_note_placeholder">e.g. Skipped ordering food</string>
     <string name="saved_screen_save_button">Save</string>
     <string name="saved_screen_helper_hint">Counts towards the goal. It is not real money moved.</string>
     <string name="saved_badge">Saved</string>
@@ -73,4 +73,22 @@
     <string name="goal_undo_name_taken">Can\'t undo: that name is now used by another goal</string>
     <string name="entry_deleted_message">Entry deleted</string>
     <string name="entry_undo_failed">Can\'t undo entry deletion</string>
+
+    <!-- Widget -->
+    <string name="widget_name">AutoFlow</string>
+    <string name="widget_description">Quickly add an expense or savings</string>
+    <string name="widget_btn_expense">+ Expense</string>
+    <string name="widget_btn_saved">+ Saved</string>
+
+    <!-- Quick Expense -->
+    <string name="quick_expense_title">Quick expense</string>
+    <string name="quick_expense_merchant_label">Merchant or note (optional)</string>
+    <string name="quick_expense_merchant_placeholder">e.g. Tea, auto fare</string>
+    <string name="quick_expense_category_label">Category</string>
+    <string name="quick_expense_save_button">Save expense</string>
+    <string name="quick_expense_footnote">Saved as Cash, now. Use + in the app for date, time and mode.</string>
+
+    <!-- Saved from Widget -->
+    <string name="saved_screen_which_goal">Which goal?</string>
+    <string name="widget_create_goal_first">Create a goal first, then tap Saved</string>
 </resources>

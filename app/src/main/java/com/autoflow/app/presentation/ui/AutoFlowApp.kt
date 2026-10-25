@@ -30,8 +30,16 @@ sealed class Screen {
     data object Home : Screen()
     data object Goals : Screen()
     data class GoalDetail(val goalId: Long) : Screen()
-    data class AddSaved(val goalId: Long) : Screen()
-    data object NewGoal : Screen()
+    data class AddSaved(
+        val goalId: Long,
+        val fromWidget: Boolean = false,
+        val availableGoals: List<com.autoflow.app.domain.goals.Goal> = emptyList(),
+        val showGoalChips: Boolean = false
+    ) : Screen()
+    data class NewGoal(
+        val fromWidget: Boolean = false,
+        val hintMessage: String? = null
+    ) : Screen()
     data class EditGoal(val goalId: Long) : Screen()
     data class EditGoalEntry(val goalId: Long, val entryId: Long) : Screen()
     data object Review : Screen()
@@ -42,6 +50,7 @@ sealed class Screen {
         val fromCategories: Boolean = false
     ) : Screen()
     data object AddCash : Screen()
+    data class QuickExpense(val fromWidget: Boolean = false) : Screen()
     data object Settings : Screen()
     data object MyCategories : Screen()
     data object AddCategory : Screen()
@@ -49,7 +58,10 @@ sealed class Screen {
 }
 
 @Composable
-fun AutoFlowApp(viewModel: MainViewModel) {
+fun AutoFlowApp(
+    viewModel: MainViewModel,
+    onFinishActivity: () -> Unit = {}
+) {
     val isFirstRunCompleted by viewModel.isFirstRunCompleted.collectAsState()
 
     var currentScreen by remember(isFirstRunCompleted) {
@@ -68,6 +80,33 @@ fun AutoFlowApp(viewModel: MainViewModel) {
     val themeMode by viewModel.themeMode.collectAsState()
     val goalsUiState by viewModel.goalsUiState.collectAsState()
     val goalsWithTotals by viewModel.goalsWithTotals.collectAsState()
+    val widgetDestination by viewModel.widgetDestination.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(widgetDestination) {
+        when (val dest = widgetDestination) {
+            is com.autoflow.app.widget.WidgetDestination.QuickExpense -> {
+                currentScreen = Screen.QuickExpense(fromWidget = true)
+                viewModel.clearWidgetDestination()
+            }
+            is com.autoflow.app.widget.WidgetDestination.Saved -> {
+                currentScreen = Screen.AddSaved(
+                    goalId = dest.selectedGoalId,
+                    fromWidget = true,
+                    availableGoals = dest.goals,
+                    showGoalChips = dest.goals.size > 1
+                )
+                viewModel.clearWidgetDestination()
+            }
+            is com.autoflow.app.widget.WidgetDestination.NewGoalWithHint -> {
+                currentScreen = Screen.NewGoal(
+                    fromWidget = true,
+                    hintMessage = "Create a goal first, then tap Saved"
+                )
+                viewModel.clearWidgetDestination()
+            }
+            null -> {}
+        }
+    }
 
     val coroutineScope = rememberCoroutineScope()
     val goalsSnackbarHostState = remember { SnackbarHostState() }
@@ -87,10 +126,32 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 }
             }
             is Screen.AddCash -> Screen.Home
+            is Screen.QuickExpense -> {
+                if (s.fromWidget) {
+                    onFinishActivity()
+                    Screen.Home
+                } else {
+                    Screen.Home
+                }
+            }
             is Screen.Goals -> Screen.Home
             is Screen.GoalDetail -> Screen.Goals
-            is Screen.AddSaved -> Screen.GoalDetail(s.goalId)
-            is Screen.NewGoal -> Screen.Goals
+            is Screen.AddSaved -> {
+                if (s.fromWidget) {
+                    onFinishActivity()
+                    Screen.Home
+                } else {
+                    Screen.GoalDetail(s.goalId)
+                }
+            }
+            is Screen.NewGoal -> {
+                if (s.fromWidget) {
+                    onFinishActivity()
+                    Screen.Home
+                } else {
+                    Screen.Goals
+                }
+            }
             is Screen.EditGoal -> Screen.GoalDetail(s.goalId)
             is Screen.EditGoalEntry -> Screen.GoalDetail(s.goalId)
             is Screen.Review -> Screen.Home
@@ -161,7 +222,7 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 uiState = goalsUiState,
                 unreviewedCount = unreviewedCount,
                 snackbarHostState = goalsSnackbarHostState,
-                onNavigateToNewGoal = { currentScreen = Screen.NewGoal },
+                onNavigateToNewGoal = { currentScreen = Screen.NewGoal() },
                 onNavigateToGoalDetail = { id -> currentScreen = Screen.GoalDetail(id) },
                 onNavigateToHome = { currentScreen = Screen.Home },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
@@ -211,10 +272,32 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 onSave = { amountPaise, note ->
                     coroutineScope.launch {
                         viewModel.addSaved(screen.goalId, amountPaise, note)
+                        if (screen.fromWidget) {
+                            onFinishActivity()
+                        } else {
+                            currentScreen = Screen.GoalDetail(screen.goalId)
+                        }
+                    }
+                },
+                onSaveWithGoal = { targetGoalId, amountPaise, note ->
+                    coroutineScope.launch {
+                        viewModel.addSaved(targetGoalId, amountPaise, note)
+                        if (screen.fromWidget) {
+                            onFinishActivity()
+                        } else {
+                            currentScreen = Screen.GoalDetail(targetGoalId)
+                        }
+                    }
+                },
+                onNavigateBack = {
+                    if (screen.fromWidget) {
+                        onFinishActivity()
+                    } else {
                         currentScreen = Screen.GoalDetail(screen.goalId)
                     }
                 },
-                onNavigateBack = { currentScreen = Screen.GoalDetail(screen.goalId) }
+                availableGoals = screen.availableGoals,
+                showGoalChips = screen.showGoalChips
             )
         }
 
@@ -224,9 +307,28 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                     viewModel.createGoal(name, targetPaise, deadlineAt)
                 },
                 onGoalCreated = {
-                    currentScreen = Screen.Goals
+                    if (!screen.fromWidget) {
+                        currentScreen = Screen.Goals
+                    }
                 },
-                onNavigateBack = { currentScreen = Screen.Goals }
+                onGoalCreatedWithResult = { newGoal ->
+                    if (screen.fromWidget) {
+                        currentScreen = Screen.AddSaved(
+                            goalId = newGoal.id,
+                            fromWidget = true,
+                            availableGoals = listOf(newGoal),
+                            showGoalChips = true
+                        )
+                    }
+                },
+                onNavigateBack = {
+                    if (screen.fromWidget) {
+                        onFinishActivity()
+                    } else {
+                        currentScreen = Screen.Goals
+                    }
+                },
+                hintMessage = screen.hintMessage
             )
         }
 
@@ -357,6 +459,27 @@ fun AutoFlowApp(viewModel: MainViewModel) {
                 },
                 onNavigateBack = {
                     currentScreen = Screen.Home
+                },
+                categories = categories
+            )
+        }
+
+        is Screen.QuickExpense -> {
+            QuickExpenseScreen(
+                onSave = { amountPaise, merchant, category ->
+                    viewModel.addCashExpense(amountPaise, merchant, category)
+                    if (screen.fromWidget) {
+                        onFinishActivity()
+                    } else {
+                        currentScreen = Screen.Home
+                    }
+                },
+                onNavigateBack = {
+                    if (screen.fromWidget) {
+                        onFinishActivity()
+                    } else {
+                        currentScreen = Screen.Home
+                    }
                 },
                 categories = categories
             )

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="250dp"
+    android:height="48dp"
+    android:viewportWidth="250"
+    android:viewportHeight="48">
+    <!-- Left pill: + Expense (strong green) -->
+    <path
+        android:fillColor="#047857"
+        android:pathData="M 28,4 L 102,4 A 20,20 0 0 1 122,24 A 20,20 0 0 1 102,44 L 28,44 A 20,20 0 0 1 8,24 A 20,20 0 0 1 28,4 Z" />
+    <!-- Right pill: + Saved (light green) -->
+    <path
+        android:fillColor="#D1FAE5"
+        android:pathData="M 148,4 L 222,4 A 20,20 0 0 1 242,24 A 20,20 0 0 1 222,44 L 148,44 A 20,20 0 0 1 128,24 A 20,20 0 0 1 148,4 Z" />
+</vector>

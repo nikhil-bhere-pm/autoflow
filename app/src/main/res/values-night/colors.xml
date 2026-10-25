@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget Dark Colors matching Theme.kt tokens -->
+    <color name="widget_btn_expense_bg">#34D399</color>
+    <color name="widget_btn_expense_text">#052E22</color>
+    <color name="widget_btn_saved_bg">#0F3D2E</color>
+    <color name="widget_btn_saved_text">#A7F3D0</color>
+    <color name="widget_bg">#00000000</color>
+</resources>

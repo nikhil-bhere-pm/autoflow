@@ -2,6 +2,8 @@ package com.autoflow.app.presentation.ui.goals
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,22 +34,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.autoflow.app.R
+import com.autoflow.app.domain.goals.Goal
 import com.autoflow.app.presentation.theme.AppSpacing
 import com.autoflow.app.presentation.theme.AutoFlowTheme
 import com.autoflow.app.presentation.ui.components.AFButton
+import com.autoflow.app.presentation.ui.components.AFCategoryChip
 import com.autoflow.app.presentation.ui.components.AFField
 import com.autoflow.app.presentation.ui.components.AFNumberPad
 import com.autoflow.app.presentation.ui.components.AFTopBar
 import com.autoflow.app.presentation.util.CurrencyFormatter
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddSavedScreen(
     goalId: Long,
     onSave: (amountPaise: Long, note: String) -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    availableGoals: List<Goal> = emptyList(),
+    showGoalChips: Boolean = false,
+    onSaveWithGoal: ((selectedGoalId: Long, amountPaise: Long, note: String) -> Unit)? = null
 ) {
     val colors = AutoFlowTheme.colors
+    var selectedGoalId by remember(goalId) { mutableLongStateOf(goalId) }
     var amountInput by remember { mutableStateOf("") }
     var noteInput by remember { mutableStateOf("") }
     val scrollState = rememberScrollState()
@@ -55,7 +65,7 @@ fun AddSavedScreen(
         CurrencyFormatter.parseRupeesToPaise(amountInput) ?: 0L
     }
 
-    val isSaveEnabled = amountPaise > 0L && noteInput.trim().isNotBlank()
+    val isSaveEnabled = amountPaise > 0L && noteInput.trim().isNotBlank() && selectedGoalId > 0L
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -106,6 +116,33 @@ fun AddSavedScreen(
                 )
             }
 
+            // Goal selection chips ("Which goal?") when opened from widget
+            if (showGoalChips && availableGoals.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = stringResource(R.string.saved_screen_which_goal),
+                        style = AutoFlowTheme.typography.labelLarge,
+                        color = colors.ink,
+                        modifier = Modifier.padding(bottom = AppSpacing.xs)
+                    )
+
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+                    ) {
+                        availableGoals.forEach { goal ->
+                            val isSelected = goal.id == selectedGoalId
+                            AFCategoryChip(
+                                text = goal.name,
+                                selected = isSelected,
+                                onClick = { selectedGoalId = goal.id }
+                            )
+                        }
+                    }
+                }
+            }
+
             // Note input field
             AFField(
                 value = noteInput,
@@ -147,7 +184,11 @@ fun AddSavedScreen(
                 text = stringResource(R.string.saved_screen_save_button),
                 onClick = {
                     if (isSaveEnabled) {
-                        onSave(amountPaise, noteInput.trim())
+                        if (onSaveWithGoal != null) {
+                            onSaveWithGoal(selectedGoalId, amountPaise, noteInput.trim())
+                        } else {
+                            onSave(amountPaise, noteInput.trim())
+                        }
                     }
                 },
                 enabled = isSaveEnabled,

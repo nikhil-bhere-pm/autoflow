@@ -65,7 +65,9 @@ fun NewGoalScreen(
     onCreateGoal: suspend (name: String, targetPaise: Long, deadlineAt: Long?) -> GoalResult<Goal>,
     onGoalCreated: () -> Unit,
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hintMessage: String? = null,
+    onGoalCreatedWithResult: ((Goal) -> Unit)? = null
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -144,6 +146,20 @@ fun NewGoalScreen(
                 .padding(AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
+            // Optional hint message (e.g. from widget: "Create a goal first, then tap Saved")
+            if (!hintMessage.isNullOrBlank()) {
+                Text(
+                    text = hintMessage,
+                    style = AutoFlowTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.brand,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = AppSpacing.xs)
+                )
+            }
+
             // Goal name field
             AFField(
                 value = nameInput,
@@ -305,7 +321,10 @@ fun NewGoalScreen(
                             val result = onCreateGoal(nameInput.trim(), targetPaise, deadlineAt)
                             isSubmitting = false
                             when (result) {
-                                is GoalResult.Success -> onGoalCreated()
+                                is GoalResult.Success -> {
+                                    onGoalCreatedWithResult?.invoke(result.data)
+                                    onGoalCreated()
+                                }
                                 is GoalResult.Error -> {
                                     when (val err = result.error) {
                                         GoalError.BlankName -> nameError = "Name can't be blank"
