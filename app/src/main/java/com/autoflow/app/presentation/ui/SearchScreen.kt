@@ -33,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -128,7 +128,7 @@ fun SearchScreen(
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester),
                             textStyle = AutoFlowTheme.typography.bodyMedium.copy(color = colors.ink),
-                            cursorBrush = SolidColor(colors.brand),
+                            cursorBrush = Brush.verticalGradient(listOf(colors.brand, colors.brand)),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = {})
