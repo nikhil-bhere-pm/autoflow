@@ -70,4 +70,4 @@ Found something confusing or broken? [Open an issue](../../issues/new). Please d
 
 ## Credits and license
 
-The SMS parsing core comes from PennyWise and is used under its AGPL license. See `LICENSE` and `NOTICE` in this repo for the license terms and credits.
+The SMS parsing core is referenced from PennyWise and is used under its AGPL license. See `LICENSE` and `NOTICE` in this repo for the license terms and credits.
