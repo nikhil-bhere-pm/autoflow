@@ -13,15 +13,38 @@ android {
         applicationId = "com.autoflow.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "0.1.0-test1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val ksPath = System.getenv("AUTOFLOW_KS_PATH")
+    val ksPass = System.getenv("AUTOFLOW_KS_PASS")
+    val keyAlias = System.getenv("AUTOFLOW_KEY_ALIAS")
+    val keyPass = System.getenv("AUTOFLOW_KEY_PASS")
+    val hasReleaseSigning = !ksPath.isNullOrBlank() && File(ksPath).exists()
+
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = File(ksPath)
+                storePassword = ksPass
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPass
+            }
+        }
+    }
+
     buildTypes {
         release {
+            isDebuggable = false
+            // Disabled for first tester build: lower crash risk with Room and WorkManager
             isMinifyEnabled = false
+            isShrinkResources = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

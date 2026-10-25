@@ -56,6 +56,7 @@ google-services.json
 *.key
 *.pem
 signing.properties
+keystore.properties
 
 # Database & SQLite files
 *.db
