@@ -135,7 +135,13 @@ class RoomMigration5To6Test {
             stmt.execute(
                 """
                 INSERT INTO goal_entries (id, goal_id, type, amount_paise, note, occurred_at, linked_transaction_id, is_deleted, created_at, updated_at)
-                VALUES (4, 1, 'USED', 100000, 'Spent on repair', 1300, 999, 0, 1300, 1300)
+                VALUES (4, 2, 'AVOIDED', 50000, 'Skipped takeout', 2200, NULL, 0, 2200, 2200)
+                """.trimIndent()
+            )
+            stmt.execute(
+                """
+                INSERT INTO goal_entries (id, goal_id, type, amount_paise, note, occurred_at, linked_transaction_id, is_deleted, created_at, updated_at)
+                VALUES (5, 1, 'USED', 100000, 'Spent on repair', 1300, 999, 0, 1300, 1300)
                 """.trimIndent()
             )
         }
@@ -199,8 +205,15 @@ class RoomMigration5To6Test {
                 assertEquals(150000L, rs.getLong("amount_paise"))
                 assertEquals("Saved", rs.getString("note"))
 
-                // Entry 4: USED must be DROPPED!
-                assertFalse("Entry 4 (USED) must be dropped and no more entries should exist", rs.next())
+                // Entry 4: AVOIDED with real note kept
+                assertTrue("Entry 4 must exist", rs.next())
+                assertEquals(4L, rs.getLong("id"))
+                assertEquals(2L, rs.getLong("goal_id"))
+                assertEquals(50000L, rs.getLong("amount_paise"))
+                assertEquals("Skipped takeout", rs.getString("note"))
+
+                // Entry 5: USED must be DROPPED!
+                assertFalse("Entry 5 (USED) must be dropped and no more entries should exist", rs.next())
             }
         }
 
@@ -280,5 +293,52 @@ class RoomMigration5To6Test {
 
         migratedConn.close()
         referenceConn.close()
+    }
+
+    @Test
+    fun testMigration5To6_foreignKeyList_referencesGoals() {
+        val fileV5 = findSchemaFile(5)
+        val v5CreateStatements = extractCreateStatements(fileV5.readText())
+
+        val conn = DriverManager.getConnection("jdbc:sqlite::memory:")
+        conn.createStatement().use { stmt ->
+            stmt.execute("PRAGMA foreign_keys = ON")
+            for (sql in v5CreateStatements) {
+                stmt.execute(sql)
+            }
+            for (sql in AutoFlowDatabase.MIGRATION_5_6_SQL) {
+                stmt.execute(sql)
+            }
+
+            stmt.executeQuery("PRAGMA foreign_key_list(`goal_entries`)").use { rs ->
+                assertTrue("Foreign key must exist on goal_entries", rs.next())
+                val refTable = rs.getString("table")
+                val fromCol = rs.getString("from")
+                val toCol = rs.getString("to")
+                val onDelete = rs.getString("on_delete")
+
+                assertEquals("Foreign key referenced table must be exactly 'goals'", "goals", refTable)
+                assertEquals("Foreign key from column must be 'goal_id'", "goal_id", fromCol)
+                assertEquals("Foreign key to column must be 'id'", "id", toCol)
+                assertEquals("Foreign key on_delete must be 'CASCADE'", "CASCADE", onDelete)
+                assertFalse("Only one foreign key expected", rs.next())
+            }
+
+            // Verify temporary staging tables are completely removed
+            stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '\\_%' ESCAPE '\\'").use { rs ->
+                assertFalse("No staging tables should remain after migration", rs.next())
+            }
+        }
+        conn.close()
+    }
+
+    @Test
+    fun testMigration5To6_containsNoRenameTo_guardTest() {
+        for (sql in AutoFlowDatabase.MIGRATION_5_6_SQL) {
+            assertFalse(
+                "MIGRATION_5_6_SQL must not contain 'RENAME TO' to prevent Android SQLite FK corruption: $sql",
+                sql.uppercase().contains("RENAME TO")
+            )
+        }
     }
 }

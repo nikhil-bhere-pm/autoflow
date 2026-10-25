@@ -161,8 +161,19 @@ abstract class AutoFlowDatabase : RoomDatabase() {
         }
 
         val MIGRATION_5_6_SQL: List<String> = listOf(
+            "CREATE TABLE IF NOT EXISTS `_goals_stage` AS SELECT `id`, `name`, `name_key`, `target_paise`, `created_at`, `updated_at` FROM `goals`",
             """
-            CREATE TABLE IF NOT EXISTS `goals_new` (
+            CREATE TABLE IF NOT EXISTS `_entries_stage` AS
+            SELECT `id`, `goal_id`, `amount_paise`,
+                   CASE WHEN `note` IS NULL OR trim(`note`) = '' THEN 'Saved' ELSE trim(`note`) END AS `note`,
+                   `occurred_at`, `is_deleted`, `created_at`, `updated_at`
+            FROM `goal_entries`
+            WHERE `type` IN ('SET_ASIDE', 'AVOIDED')
+            """.trimIndent(),
+            "DROP TABLE IF EXISTS `goal_entries`",
+            "DROP TABLE IF EXISTS `goals`",
+            """
+            CREATE TABLE IF NOT EXISTS `goals` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 `name` TEXT NOT NULL,
                 `name_key` TEXT NOT NULL,
@@ -173,13 +184,9 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                 `updated_at` INTEGER NOT NULL
             )
             """.trimIndent(),
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_name_key` ON `goals` (`name_key`)",
             """
-            INSERT INTO `goals_new` (`id`, `name`, `name_key`, `target_paise`, `deadline_at`, `is_deleted`, `created_at`, `updated_at`)
-            SELECT `id`, `name`, `name_key`, `target_paise`, NULL, 0, `created_at`, `updated_at`
-            FROM `goals`
-            """.trimIndent(),
-            """
-            CREATE TABLE IF NOT EXISTS `goal_entries_new` (
+            CREATE TABLE IF NOT EXISTS `goal_entries` (
                 `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                 `goal_id` INTEGER NOT NULL,
                 `amount_paise` INTEGER NOT NULL,
@@ -188,21 +195,22 @@ abstract class AutoFlowDatabase : RoomDatabase() {
                 `is_deleted` INTEGER NOT NULL DEFAULT 0,
                 `created_at` INTEGER NOT NULL,
                 `updated_at` INTEGER NOT NULL,
-                FOREIGN KEY(`goal_id`) REFERENCES `goals_new`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                FOREIGN KEY(`goal_id`) REFERENCES `goals`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
             )
             """.trimIndent(),
+            "CREATE INDEX IF NOT EXISTS `index_goal_entries_goal_id` ON `goal_entries` (`goal_id`)",
             """
-            INSERT INTO `goal_entries_new` (`id`, `goal_id`, `amount_paise`, `note`, `occurred_at`, `is_deleted`, `created_at`, `updated_at`)
-            SELECT `id`, `goal_id`, `amount_paise`, CASE WHEN `note` IS NULL OR trim(`note`) = '' THEN 'Saved' ELSE trim(`note`) END, `occurred_at`, `is_deleted`, `created_at`, `updated_at`
-            FROM `goal_entries`
-            WHERE `type` IN ('SET_ASIDE', 'AVOIDED')
+            INSERT INTO `goals` (`id`, `name`, `name_key`, `target_paise`, `deadline_at`, `is_deleted`, `created_at`, `updated_at`)
+            SELECT `id`, `name`, `name_key`, `target_paise`, NULL, 0, `created_at`, `updated_at`
+            FROM `_goals_stage`
             """.trimIndent(),
-            "DROP TABLE `goal_entries`",
-            "DROP TABLE `goals`",
-            "ALTER TABLE `goals_new` RENAME TO `goals`",
-            "ALTER TABLE `goal_entries_new` RENAME TO `goal_entries`",
-            "CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_name_key` ON `goals` (`name_key`)",
-            "CREATE INDEX IF NOT EXISTS `index_goal_entries_goal_id` ON `goal_entries` (`goal_id`)"
+            """
+            INSERT INTO `goal_entries` (`id`, `goal_id`, `amount_paise`, `note`, `occurred_at`, `is_deleted`, `created_at`, `updated_at`)
+            SELECT `id`, `goal_id`, `amount_paise`, `note`, `occurred_at`, `is_deleted`, `created_at`, `updated_at`
+            FROM `_entries_stage`
+            """.trimIndent(),
+            "DROP TABLE IF EXISTS `_goals_stage`",
+            "DROP TABLE IF EXISTS `_entries_stage`"
         )
 
         val MIGRATION_5_6 = object : Migration(5, 6) {
