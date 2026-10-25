@@ -1036,6 +1036,37 @@
   - Post-install backup `..\backups\post_p2_install_20261025_1714.db`: 98,304 bytes (% 4096 == 0), `PRAGMA user_version = 6`, transactions = 5, goals = 0, sum counted spend = 257900 paise, integrity_check = ok (100% byte-for-byte and row-for-row match).
 - **QA App Update:** Built `assembleQa` and installed over `com.autoflow.app.qa` via `adb install -r`. Both packages verified installed via `pm list packages`.
 
+## 34. Signed Release Build Setup for Testers — Task R3 (October 25, 2026)
+
+- **Worktree & Scope:**
+  - Work executed in worktree `..\autoflow-r3` on branch `release1` branched from `main` (`340824b`).
+  - Strict tester build setup with zero phone interaction (no adb commands, no phone testing).
+  - Keystore kept outside repo (`C:\Users\solop\Downloads\AutoFlow\keys\autoflow-release.jks`, alias `autoflow`). Zero keystore passwords read, logged, printed, or committed.
+  - Zero permissions added (`READ_SMS` absent, `RECEIVE_SMS` only); `parser-core` untouched; zero hardcoded colors outside `Theme.kt`.
+
+- **Part A: Release Signing Configuration & Build Metadata (Commit `7b7d0fe`):**
+  - Updated `app/build.gradle.kts` to define `signingConfigs { create("release") { ... } }` powered strictly by environment variables: `AUTOFLOW_KS_PATH`, `AUTOFLOW_KS_PASS`, `AUTOFLOW_KEY_ALIAS`, `AUTOFLOW_KEY_PASS`.
+  - Graceful unsigned fallback: if `AUTOFLOW_KS_PATH` is unset or blank, `release` build type leaves `signingConfig` unset, building unsigned APKs without build failures.
+  - Release build type configured with `isDebuggable = false`, `isMinifyEnabled = false`, and `isShrinkResources = false` (ProGuard/R8 minify disabled for first tester build to avoid Room/WorkManager reflection crashes).
+  - Bumped `versionCode = 2` (was 1) and updated `versionName = "0.1.0-test1"`.
+  - Added `keystore.properties` to `.gitignore`. Verified zero tracked keystore files via `git ls-files`.
+  - Verified `QaFakeSmsReceiver` is restricted to `app/src/qa/` and excluded from `src/main`.
+
+- **Part B: Build & Verify Release APK:**
+  - Ran `./gradlew assembleRelease` without environment variables; successfully produced unsigned release APK `app/build/outputs/apk/release/app-release-unsigned.apk` (7,834,527 bytes).
+  - Inspected APK with `aapt dump badging` and `aapt dump xmltree`:
+    - Package: `com.autoflow.app`
+    - Version: `versionCode='2'`, `versionName='0.1.0-test1'`
+    - Debuggable: `false` (omitted from application tag in merged manifest)
+    - Permissions: `RECEIVE_SMS`, `POST_NOTIFICATIONS` (plus standard WorkManager and AndroidX library permissions; `READ_SMS` absent)
+    - QA components: `QaFakeSmsReceiver` verified completely absent from release manifest.
+  - Ran `scripts\verify.ps1`: all 7 verification checks passed (2,668 unit tests: 1,962 parser-core, 353 app debug, 353 app release).
+
+- **Part C: Tester Guide & Secure Build Script:**
+  - Created `docs/TESTER_GUIDE.md`: non-technical guide explaining APK sideloading, permission purposes (`RECEIVE_SMS` and `POST_NOTIFICATIONS`), 100% on-device privacy guarantee (no internet permission, zero server communication, zero OTP reading), 8 specific testing tasks, and screenshot security guidance.
+  - Created `scripts/build-signed-release.ps1`: prompts for keystore password securely via `Read-Host -AsSecureString` without echoing, sets transient session env vars, checks `..\releases\AutoFlow-0.1.0-test1.apk` does not already exist, builds `assembleRelease`, copies signed APK, clears session env vars in a `finally` block, runs `apksigner verify`, and outputs file size and SHA-256 hash.
+
+
 
 
 
