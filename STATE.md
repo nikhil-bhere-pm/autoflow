@@ -769,3 +769,8 @@
   - Quick expense logged ₹120.00 cash expense ("Chai", Food category); verified reflected on Home screen.
   - Saved flow verified with 0 goals (hint banner), 1 goal (direct), and 2 goals (chips pre-selection).
 
+## 24. Widget Merged to Master — Task M2 (October 25, 2026)
+
+- Fast-forward merged branch `widget1` into `master` at commit `7ad9ddf1805e6d83c8554b9934734cceb16e0ad3`.
+- Worktree `..\autoflow-w1` cleanly removed and feature branch `widget1` deleted.
+- All 7 verification checks passed on `master` (2,496 tests passing: 1,962 parser-core, 267 app debug, 267 app release; 0 hardcoded colors, RECEIVE_SMS only, 0 message body leaks).
