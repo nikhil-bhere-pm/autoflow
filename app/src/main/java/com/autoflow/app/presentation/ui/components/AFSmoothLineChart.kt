@@ -50,11 +50,11 @@ fun AFSmoothLineChart(
             .fillMaxWidth()
             .semantics { contentDescription = accessibilityDescription }
     ) {
-        // Chart drawing area: height 120.dp
+        // Chart drawing area: height 88.dp
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(88.dp)
         ) {
             val canvasWidth = size.width
             val canvasHeight = size.height
@@ -124,6 +124,32 @@ fun AFSmoothLineChart(
                     )
                 }
 
+                // Dotted muted line continuing at current level across future months, ending before right edge
+                if (monthlySeries.any { it.isFuture }) {
+                    val lastPt = geometry.nonFuturePoints.lastOrNull()
+                    if (lastPt != null) {
+                        val endX = canvasWidth - 16.dp.toPx()
+                        if (endX > lastPt.x) {
+                            val dottedPath = Path().apply {
+                                moveTo(lastPt.x, lastPt.y)
+                                lineTo(endX, lastPt.y)
+                            }
+                            drawPath(
+                                path = dottedPath,
+                                color = colors.muted.copy(alpha = 0.45f),
+                                style = Stroke(
+                                    width = 1.75.dp.toPx(),
+                                    cap = StrokeCap.Round,
+                                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                                        floatArrayOf(6.dp.toPx(), 6.dp.toPx()),
+                                        0f
+                                    )
+                                )
+                            )
+                        }
+                    }
+                }
+
                 // Dot on selected month: filled with sheet color, brand-color ring ~3dp, radius ~7dp
                 geometry.selectedDot?.let { dot ->
                     val center = Offset(dot.x, dot.y)
@@ -142,7 +168,7 @@ fun AFSmoothLineChart(
             }
         }
 
-        // Month labels row under the chart, five equal columns, each at least 48dp high
+        // Month labels row under the chart, five equal columns, each 36dp high
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -166,7 +192,7 @@ fun AFSmoothLineChart(
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .defaultMinSize(minHeight = 48.dp)
+                        .height(36.dp)
                         .clickable(
                             enabled = !point.isFuture,
                             onClick = { onSelectMonth(point.month) }

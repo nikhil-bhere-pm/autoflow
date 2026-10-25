@@ -305,6 +305,51 @@ class HomeScreenTest {
         assertEquals(4, state.groupedTransactions[0].transactions.size) // all 4 transactions shown in list
     }
 
+    @Test
+    fun testReviewCheckPillLabelLogic() {
+        assertEquals("1 needs a check", formatReviewCheckLabel(1))
+        assertEquals("2 need a check", formatReviewCheckLabel(2))
+        assertEquals("5 need a check", formatReviewCheckLabel(5))
+    }
+
+    @Test
+    fun testDayHeaderFormatLogic() {
+        val today = LocalDate.of(2026, 10, 24)
+        val yesterday = LocalDate.of(2026, 10, 23)
+        val pastDate = LocalDate.of(2026, 10, 20)
+
+        assertEquals("Today", formatDayHeader(today, today))
+        assertEquals("Yesterday", formatDayHeader(yesterday, today))
+        assertEquals("Tuesday, 20 Oct", formatDayHeader(pastDate, today))
+    }
+
+    @Test
+    fun testMonthlySeriesMarksFutureMonthsCorrectly() = runTest {
+        backgroundScope.launch(kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.homeUiState.collect()
+        }
+        advanceUntilIdle()
+
+        val series = viewModel.homeUiState.value.monthlySeries
+        assertEquals(5, series.size)
+        // Current month is October 2026 (based on fixedNow)
+        // Series should be: Aug (past), Sep (past), Oct (current), Nov (future), Dec (future)
+        assertEquals(YearMonth.of(2026, 8), series[0].month)
+        assertFalse(series[0].isFuture)
+
+        assertEquals(YearMonth.of(2026, 9), series[1].month)
+        assertFalse(series[1].isFuture)
+
+        assertEquals(YearMonth.of(2026, 10), series[2].month)
+        assertFalse(series[2].isFuture)
+
+        assertEquals(YearMonth.of(2026, 11), series[3].month)
+        assertTrue(series[3].isFuture)
+
+        assertEquals(YearMonth.of(2026, 12), series[4].month)
+        assertTrue(series[4].isFuture)
+    }
+
     private fun createEntity(
         id: Long,
         amountPaise: Long,

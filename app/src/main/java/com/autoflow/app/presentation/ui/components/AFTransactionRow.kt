@@ -42,6 +42,7 @@ fun AFTransactionRow(
     modifier: Modifier = Modifier,
     isPositive: Boolean = false,
     isNotCounted: Boolean = false,
+    isFlat: Boolean = false,
     badge: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null
 ) {
@@ -76,7 +77,7 @@ fun AFTransactionRow(
     }
 
     Surface(
-        color = colors.sheet,
+        color = if (isFlat) androidx.compose.ui.graphics.Color.Transparent else colors.sheet,
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 64.dp)
@@ -86,7 +87,10 @@ fun AFTransactionRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+                .padding(
+                    horizontal = if (isFlat) 20.dp else AppSpacing.md,
+                    vertical = AppSpacing.sm
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isNotCounted) {

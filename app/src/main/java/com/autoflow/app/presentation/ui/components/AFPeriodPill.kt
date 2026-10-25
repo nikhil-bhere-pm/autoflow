@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DropdownMenu
@@ -50,22 +52,24 @@ fun AFPeriodPill(
     Box(modifier = modifier) {
         Surface(
             shape = RoundedCornerShape(AppRadius.full),
-            color = colors.chip,
+            color = colors.sheet,
             border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
             modifier = Modifier
-                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                .height(40.dp)
                 .clickable { menuExpanded = true }
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.xs)
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 Text(
                     text = pillLabel,
-                    style = AutoFlowTheme.typography.labelLarge,
-                    color = colors.ink,
-                    fontWeight = FontWeight.SemiBold
+                    style = AutoFlowTheme.typography.labelLarge.copy(
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = colors.ink
                 )
                 Spacer(modifier = Modifier.width(AppSpacing.xs))
                 Icon(

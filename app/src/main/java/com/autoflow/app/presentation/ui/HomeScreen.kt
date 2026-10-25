@@ -15,28 +15,22 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -50,7 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -70,12 +67,12 @@ import com.autoflow.app.presentation.theme.AutoFlowTheme
 import com.autoflow.app.presentation.ui.components.AFBadge
 import com.autoflow.app.presentation.ui.components.AFBadgeVariant
 import com.autoflow.app.presentation.ui.components.AFBottomNav
-import com.autoflow.app.presentation.ui.components.AFBottomNavItem
 import com.autoflow.app.presentation.ui.components.AFButton
 import com.autoflow.app.presentation.ui.components.AFButtonVariant
+import com.autoflow.app.presentation.ui.components.AFPeriodPill
 import com.autoflow.app.presentation.ui.components.AFSmoothLineChart
-import com.autoflow.app.presentation.ui.components.AFTopBar
 import com.autoflow.app.presentation.ui.components.AFTransactionRow
+import com.autoflow.app.presentation.ui.components.createStandardNavItems
 import com.autoflow.app.presentation.util.CurrencyFormatter
 import com.autoflow.app.presentation.viewmodel.DayGroup
 import com.autoflow.app.presentation.viewmodel.HomeBadgeType
@@ -87,11 +84,18 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
-import androidx.compose.ui.res.painterResource
-import com.autoflow.app.R
-import com.autoflow.app.presentation.ui.components.AFPeriodPill
+fun formatDayHeader(date: LocalDate, now: LocalDate = LocalDate.now(ZoneId.systemDefault())): String {
+    return when (date) {
+        now -> "Today"
+        now.minusDays(1) -> "Yesterday"
+        else -> date.format(DateTimeFormatter.ofPattern("EEEE, d MMM"))
+    }
+}
+
+fun formatReviewCheckLabel(count: Int): String {
+    return if (count == 1) "1 needs a check" else "$count need a check"
+}
 
 @Composable
 fun HomeScreen(
@@ -131,33 +135,9 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
         snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            AFTopBar(
-                title = "AutoFlow",
-                navigationIcon = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = colors.ink
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToSearch) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = colors.ink
-                        )
-                    }
-                },
-                showDivider = true
-            )
-        },
         bottomBar = {
             AFBottomNav(
-                items = com.autoflow.app.presentation.ui.components.createStandardNavItems(unreviewedCount = uiState.unreviewedCount),
+                items = createStandardNavItems(unreviewedCount = uiState.unreviewedCount),
                 selectedIndex = 0,
                 onSelect = { idx ->
                     when (idx) {
@@ -192,124 +172,208 @@ fun HomeScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
+        val density = LocalDensity.current
+        val gradientEndY = with(density) { 240.dp.toPx() }
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(
-                top = AppSpacing.md,
-                bottom = AppSpacing.xl
-            ),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
-        ) {
-            // 1. Period Pill
-            item {
-                AFPeriodPill(
-                    pillLabel = uiState.pillLabel,
-                    onSelectPeriod = onSelectPeriod,
-                    onSelectMonth = onSelectMonth,
-                    modifier = Modifier.padding(horizontal = AppSpacing.md)
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = paddingValues.calculateBottomPadding()
                 )
-            }
-
-            // 1b. Review Check Banner (when count > 0)
-            if (uiState.showReviewBanner) {
-                item {
-                    ReviewCheckBanner(
-                        unreviewedCount = uiState.unreviewedCount,
-                        onClick = onNavigateToReview,
-                        modifier = Modifier.padding(horizontal = AppSpacing.md)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(colors.hero, colors.bg),
+                        startY = 0f,
+                        endY = gradientEndY
                     )
-                }
-            }
+                )
+        ) {
+            // TOP BLOCK (max 40% screen height)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Top Row: Settings (left, 44dp), Period Pill (center), Search (right, 44dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = colors.ink
+                        )
+                    }
 
-            // 2. One Big Number & Transaction Count
-            item {
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    AFPeriodPill(
+                        pillLabel = uiState.pillLabel,
+                        onSelectPeriod = onSelectPeriod,
+                        onSelectMonth = onSelectMonth
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    IconButton(
+                        onClick = onNavigateToSearch,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = colors.ink
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Big Number Section
                 BigNumberSection(
                     countedSpendPaise = uiState.countedSpendPaise,
                     countedCount = uiState.countedTransactionCount,
-                    onInfoClick = { showRefundInfoDialog = true },
-                    modifier = Modifier.padding(horizontal = AppSpacing.md)
+                    onInfoClick = { showRefundInfoDialog = true }
                 )
-            }
 
-            // 3. 5-Month Spending Chart (Edge to edge on Home background)
-            item {
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 5-Month Spending Chart
                 AFSmoothLineChart(
                     monthlySeries = uiState.monthlySeries,
                     periodFilter = uiState.periodFilter,
                     accessibilityDescription = uiState.chartAccessibilityDescription,
                     onSelectMonth = onSelectMonth
                 )
-            }
 
-            // 4. SMS Permission Card (Shown ONLY when permission is NOT granted)
-            if (!hasSmsPermission) {
-                item {
-                    SmsPermissionBanner(
-                        onRequestPermission = {
-                            permissionLauncher.launch(Manifest.permission.RECEIVE_SMS)
-                        },
-                        modifier = Modifier.padding(horizontal = AppSpacing.md)
+                // "N need a check" pill (wireframe 2)
+                if (uiState.unreviewedCount > 0) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    ReviewCheckPill(
+                        unreviewedCount = uiState.unreviewedCount,
+                        onClick = onNavigateToReview
                     )
                 }
             }
 
-            // 5. Grouped List or Empty State
-            if (uiState.isEmpty) {
-                item {
-                    EmptyStateView(
-                        onAddExpense = onNavigateToAddCash,
-                        modifier = Modifier.padding(horizontal = AppSpacing.md)
-                    )
-                }
-            } else {
-                uiState.groupedTransactions.forEach { dayGroup ->
-                    item(key = "header_${dayGroup.date}") {
-                        DayHeader(
-                            date = dayGroup.date,
-                            dayTotalPaise = dayGroup.dayTotalPaise,
-                            modifier = Modifier.padding(horizontal = AppSpacing.md)
-                        )
-                    }
-
-                    items(
-                        items = dayGroup.transactions,
-                        key = { it.id }
-                    ) { tx ->
-                        val isRefund = tx.recordType == RecordType.REFUND
-                        val formattedAmount = if (isRefund) {
-                            "+${CurrencyFormatter.formatPaiseToInr(tx.amountPaise)}"
-                        } else {
-                            CurrencyFormatter.formatPaiseToInr(tx.amountPaise)
+            // BOTTOM LIST SHEET (remaining height)
+            Surface(
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = colors.sheet,
+                shadowElevation = 6.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 24.dp, bottom = 64.dp)
+                    ) {
+                        if (!hasSmsPermission) {
+                            item {
+                                SmsPermissionBanner(
+                                    onRequestPermission = {
+                                        permissionLauncher.launch(Manifest.permission.RECEIVE_SMS)
+                                    },
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                )
+                            }
                         }
 
-                        val isNotCounted = tx.reviewStatus == ReviewStatus.EXCLUDED
-                        val timeString = formatTime(tx.dateTime)
-                        val subtitle = if (isNotCounted) "Not counted · $timeString" else "${tx.category} · $timeString"
-                        val merchant = tx.merchantName.trim().ifBlank { "Unknown merchant" }
-                        val badgeType = tx.getHomeBadgeType()
-
-                        AFTransactionRow(
-                            title = merchant,
-                            subtitle = subtitle,
-                            amountText = formattedAmount,
-                            category = tx.category,
-                            isPositive = isRefund,
-                            isNotCounted = isNotCounted,
-                            modifier = Modifier.padding(horizontal = AppSpacing.md),
-                            badge = if (!isNotCounted && badgeType != null) {
-                                {
-                                    when (badgeType) {
-                                        HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)
-                                        HomeBadgeType.NOT_COUNTED -> AFBadge(text = "Not counted", variant = AFBadgeVariant.MUTED)
-                                        HomeBadgeType.REFUND -> AFBadge(text = "Refund", variant = AFBadgeVariant.REFUND)
-                                    }
+                        if (uiState.isEmpty) {
+                            item {
+                                EmptyStateView(
+                                    onAddExpense = onNavigateToAddCash,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
+                                )
+                            }
+                        } else {
+                            uiState.groupedTransactions.forEach { dayGroup ->
+                                item(key = "header_${dayGroup.date}") {
+                                    DayHeader(
+                                        date = dayGroup.date,
+                                        dayTotalPaise = dayGroup.dayTotalPaise,
+                                        modifier = Modifier.padding(horizontal = 20.dp)
+                                    )
                                 }
-                            } else null,
-                            onClick = { onNavigateToEdit(tx.id) }
-                        )
+
+                                items(
+                                    items = dayGroup.transactions,
+                                    key = { it.id }
+                                ) { tx ->
+                                    val isRefund = tx.recordType == RecordType.REFUND
+                                    val formattedAmount = if (isRefund) {
+                                        "+${CurrencyFormatter.formatPaiseToInr(tx.amountPaise)}"
+                                    } else {
+                                        CurrencyFormatter.formatPaiseToInr(tx.amountPaise)
+                                    }
+
+                                    val isNotCounted = tx.reviewStatus == ReviewStatus.EXCLUDED
+                                    val timeString = formatTime(tx.dateTime)
+                                    val subtitle = if (isNotCounted) "Not counted · $timeString" else "${tx.category} · $timeString"
+                                    val merchant = tx.merchantName.trim().ifBlank { "Unknown merchant" }
+                                    val badgeType = tx.getHomeBadgeType()
+
+                                    AFTransactionRow(
+                                        title = merchant,
+                                        subtitle = subtitle,
+                                        amountText = formattedAmount,
+                                        category = tx.category,
+                                        isPositive = isRefund,
+                                        isNotCounted = isNotCounted,
+                                        isFlat = true,
+                                        badge = if (!isNotCounted && badgeType != null) {
+                                            {
+                                                when (badgeType) {
+                                                    HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)
+                                                    HomeBadgeType.NOT_COUNTED -> AFBadge(text = "Not counted", variant = AFBadgeVariant.MUTED)
+                                                    HomeBadgeType.REFUND -> AFBadge(text = "Refund", variant = AFBadgeVariant.REFUND)
+                                                }
+                                            }
+                                        } else null,
+                                        onClick = { onNavigateToEdit(tx.id) }
+                                    )
+                                }
+                            }
+                        }
                     }
+
+                    // Grab handle at top centre: 36x4dp, Theme line color, 10dp from sheet top
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .size(width = 36.dp, height = 4.dp)
+                            .background(color = colors.line, shape = RoundedCornerShape(2.dp))
+                            .align(Alignment.TopCenter)
+                    )
+
+                    // 56dp fade to transparent at the bottom
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .align(Alignment.BottomCenter)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        colors.sheet
+                                    )
+                                )
+                            )
+                    )
                 }
             }
         }
@@ -349,8 +413,6 @@ fun HomeScreen(
     }
 }
 
-
-
 @Composable
 private fun BigNumberSection(
     countedSpendPaise: Long,
@@ -360,39 +422,94 @@ private fun BigNumberSection(
 ) {
     val colors = AutoFlowTheme.colors
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
             text = CurrencyFormatter.formatPaiseToInr(countedSpendPaise),
-            style = AutoFlowTheme.typography.displaySmall,
-            fontWeight = FontWeight.Bold,
-            color = colors.ink
+            style = AutoFlowTheme.typography.displaySmall.copy(
+                fontSize = 46.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFeatureSettings = "tnum",
+                letterSpacing = (-1).sp
+            ),
+            color = colors.ink,
+            textAlign = TextAlign.Center
         )
 
-        Spacer(modifier = Modifier.height(AppSpacing.xxs))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Row(
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             val countText = if (countedCount == 1) "Across 1 transaction" else "Across $countedCount transactions"
             Text(
                 text = countText,
-                style = AutoFlowTheme.typography.bodyMedium,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = colors.muted
             )
 
             IconButton(
                 onClick = onInfoClick,
                 modifier = Modifier
-                    .size(AppSpacing.minTapTarget)
+                    .size(width = 44.dp, height = 28.dp)
                     .semantics { contentDescription = "Refund information" }
             ) {
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = null,
                     tint = colors.muted,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ReviewCheckPill(
+    unreviewedCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = AutoFlowTheme.colors
+    val label = formatReviewCheckLabel(unreviewedCount)
+
+    Surface(
+        shape = RoundedCornerShape(17.dp),
+        color = colors.amberBg,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.amberFg.copy(alpha = 0.2f)),
+        modifier = modifier
+            .height(34.dp)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = colors.amberFg,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.amberFg
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = colors.amberFg,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
@@ -404,30 +521,25 @@ private fun DayHeader(
     modifier: Modifier = Modifier
 ) {
     val colors = AutoFlowTheme.colors
-    val today = LocalDate.now(ZoneId.systemDefault())
-    val headerDateString = when (date) {
-        today -> "Today"
-        today.minusDays(1) -> "Yesterday"
-        else -> date.format(DateTimeFormatter.ofPattern("EEEE, d MMM"))
-    }
+    val headerDateString = formatDayHeader(date)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(top = AppSpacing.sm, bottom = AppSpacing.xxs),
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = headerDateString,
-            style = AutoFlowTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = colors.ink
         )
 
         Text(
             text = CurrencyFormatter.formatPaiseToInr(dayTotalPaise),
-            style = AutoFlowTheme.typography.labelLarge,
+            fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold,
             color = colors.muted
         )
@@ -441,44 +553,37 @@ private fun EmptyStateView(
 ) {
     val colors = AutoFlowTheme.colors
 
-    Surface(
-        shape = RoundedCornerShape(AppRadius.lg),
-        color = colors.sheet,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
-        modifier = modifier.fillMaxWidth()
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = AppSpacing.xl, horizontal = AppSpacing.md),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "No transactions found",
-                style = AutoFlowTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.ink
-            )
+        Text(
+            text = "No transactions found",
+            style = AutoFlowTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = colors.ink
+        )
 
-            Spacer(modifier = Modifier.height(AppSpacing.xs))
+        Spacer(modifier = Modifier.height(AppSpacing.xs))
 
-            Text(
-                text = "Expenses detected from bank SMS or added manually will appear here.",
-                style = AutoFlowTheme.typography.bodyMedium,
-                color = colors.muted,
-                textAlign = TextAlign.Center
-            )
+        Text(
+            text = "Expenses detected from bank SMS or added manually will appear here.",
+            style = AutoFlowTheme.typography.bodyMedium,
+            color = colors.muted,
+            textAlign = TextAlign.Center
+        )
 
-            Spacer(modifier = Modifier.height(AppSpacing.md))
+        Spacer(modifier = Modifier.height(AppSpacing.md))
 
-            AFButton(
-                text = "Add expense",
-                onClick = onAddExpense,
-                variant = AFButtonVariant.PRIMARY,
-                modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
-            )
-        }
+        AFButton(
+            text = "Add expense",
+            onClick = onAddExpense,
+            variant = AFButtonVariant.PRIMARY,
+            modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
+        )
     }
 }
 
@@ -522,58 +627,6 @@ private fun SmsPermissionBanner(
     }
 }
 
-@Composable
-private fun ReviewCheckBanner(
-    unreviewedCount: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = AutoFlowTheme.colors
-    val label = if (unreviewedCount == 1) "1 needs a check" else "$unreviewedCount need a check"
-
-    Surface(
-        shape = RoundedCornerShape(AppRadius.md),
-        color = colors.amberBg,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.amberFg.copy(alpha = 0.2f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = label }
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = colors.amberFg,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = label,
-                    style = AutoFlowTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.amberFg
-                )
-            }
-            Text(
-                text = "Review →",
-                style = AutoFlowTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = colors.amberFg
-            )
-        }
-    }
-}
-
 private fun formatTime(epochMillis: Long): String {
     val zone = ZoneId.systemDefault()
     return Instant.ofEpochMilli(epochMillis)
@@ -590,6 +643,7 @@ private fun HomeScreenLightPreview() {
             pillLabel = "This month",
             countedSpendPaise = 1845000L,
             countedTransactionCount = 4,
+            unreviewedCount = 2,
             monthlySeries = listOf(
                 MonthPoint(YearMonth.of(2026, 8), 1200000L, false),
                 MonthPoint(YearMonth.of(2026, 9), 1540000L, false),
