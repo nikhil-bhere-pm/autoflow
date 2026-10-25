@@ -49,25 +49,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         when (action) {
             CapturedExpenseNotificationBuilder.ACTION_ASSIGN_CATEGORY -> {
                 val category = intent.getStringExtra(CapturedExpenseNotificationBuilder.EXTRA_CATEGORY) ?: return
-                val snapshot = app.transactionRepository.assignCategory(txId, category) ?: return
-
-                val content = CapturedExpenseNotificationBuilder.buildCategorySavedContent(
-                    txId = txId,
-                    amountPaise = tx.amountPaise,
-                    category = category
-                )
-                val undoExtras = mutableMapOf<String, Any?>()
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_CATEGORY] = snapshot.previousCategory
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_CATEGORY_SOURCE] = snapshot.previousCategorySource
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_REVIEW_STATUS] = snapshot.previousReviewStatus.name
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_UNCERTAINTY_BITS] = snapshot.previousUncertaintyBits
-                if (snapshot.previousMerchantRuleCategory != null) {
-                    undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_MERCHANT_RULE] = snapshot.previousMerchantRuleCategory
-                }
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_ASSIGNED_CATEGORY] = snapshot.assignedCategory
-                undoExtras[CapturedExpenseNotificationBuilder.EXTRA_NORMALIZED_MERCHANT_KEY] = snapshot.normalizedMerchantKey
-
-                CapturedExpenseNotificationHelper.postNotification(context, content, txId, undoExtras)
+                CapturedExpenseNotificationHelper.applyCategoryAndNotify(context, txId, category)
             }
 
             CapturedExpenseNotificationBuilder.ACTION_UNDO_CATEGORY -> {
@@ -107,17 +89,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             }
 
             CapturedExpenseNotificationBuilder.ACTION_MARK_NOT_EXPENSE -> {
-                val snapshot = app.transactionRepository.markNotAnExpense(txId) ?: return
-
-                val content = CapturedExpenseNotificationBuilder.buildNotExpenseContent(
-                    txId = txId,
-                    amountPaise = tx.amountPaise,
-                    merchantName = tx.merchantName
-                )
-                val undoExtras = mapOf<String, Any?>(
-                    CapturedExpenseNotificationBuilder.EXTRA_PREV_REVIEW_STATUS to snapshot.previousReviewStatus.name
-                )
-                CapturedExpenseNotificationHelper.postNotification(context, content, txId, undoExtras)
+                CapturedExpenseNotificationHelper.markNotAnExpenseAndNotify(context, txId)
             }
 
             CapturedExpenseNotificationBuilder.ACTION_UNDO_NOT_EXPENSE -> {

@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.autoflow.app.data.model.RecordType
+import com.autoflow.app.data.model.ReviewStatus
 import com.autoflow.app.domain.model.FinancialTransaction
 import com.autoflow.app.domain.stats.MonthPoint
 import com.autoflow.app.domain.stats.StatsPeriod
@@ -102,7 +103,8 @@ fun HomeScreen(
     onNavigateToReview: () -> Unit = {},
     onNavigateToCategories: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
-    onNavigateToGoals: () -> Unit = {}
+    onNavigateToGoals: () -> Unit = {},
+    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
     val context = LocalContext.current
@@ -126,6 +128,7 @@ fun HomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             AFTopBar(
                 title = "AutoFlow",
@@ -312,8 +315,9 @@ fun HomeScreen(
                             CurrencyFormatter.formatPaiseToInr(tx.amountPaise)
                         }
 
+                        val isNotCounted = tx.reviewStatus == ReviewStatus.EXCLUDED
                         val timeString = formatTime(tx.dateTime)
-                        val subtitle = "${tx.category} · $timeString"
+                        val subtitle = if (isNotCounted) "Not counted · $timeString" else "${tx.category} · $timeString"
                         val merchant = tx.merchantName.trim().ifBlank { "Unknown merchant" }
                         val badgeType = tx.getHomeBadgeType()
 
@@ -323,8 +327,9 @@ fun HomeScreen(
                             amountText = formattedAmount,
                             category = tx.category,
                             isPositive = isRefund,
+                            isNotCounted = isNotCounted,
                             modifier = Modifier.padding(horizontal = AppSpacing.md),
-                            badge = if (badgeType != null) {
+                            badge = if (!isNotCounted && badgeType != null) {
                                 {
                                     when (badgeType) {
                                         HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)

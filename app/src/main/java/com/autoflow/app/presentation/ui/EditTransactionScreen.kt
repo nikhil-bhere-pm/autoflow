@@ -273,6 +273,37 @@ fun EditTransactionScreen(
                 .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
+            // NOT COUNTED IN YOUR TOTALS BANNER
+            if (formState.isExcluded) {
+                Surface(
+                    shape = RoundedCornerShape(AppRadius.md),
+                    color = colors.chip,
+                    border = BorderStroke(1.dp, colors.line),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = com.autoflow.app.R.drawable.ic_ban),
+                            contentDescription = null,
+                            tint = colors.muted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(AppSpacing.sm))
+                        Text(
+                            text = "Not counted in your totals",
+                            style = AutoFlowTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.muted
+                        )
+                    }
+                }
+            }
+
             // 1. TOP CARD (Amount, Source, and Lock note)
             Surface(
                 shape = RoundedCornerShape(AppRadius.lg),

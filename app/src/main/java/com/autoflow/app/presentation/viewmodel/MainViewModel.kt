@@ -299,6 +299,10 @@ class MainViewModel(
         }
     }
 
+    suspend fun undeleteTransaction(id: Long) {
+        transactionRepository.undelete(id)
+    }
+
     fun addCashExpense(
         amountPaise: Long,
         merchantName: String,

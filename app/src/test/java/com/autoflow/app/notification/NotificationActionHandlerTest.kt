@@ -247,6 +247,10 @@ class NotificationActionHandlerTest {
             val idx = list.indexOfFirst { it.id == id }
             if (idx != -1) list[idx] = list[idx].copy(isDeleted = 1, updatedAt = updatedAt)
         }
+        override suspend fun undelete(id: Long, updatedAt: Long) {
+            val idx = list.indexOfFirst { it.id == id }
+            if (idx != -1) list[idx] = list[idx].copy(isDeleted = 0, updatedAt = updatedAt)
+        }
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> = flowOf(emptyList())
         override suspend fun updateCategory(oldCategory: String, newCategory: String): Int = 0
         override suspend fun reassignCategoryToOthers(category: String, now: Long): Int = 0

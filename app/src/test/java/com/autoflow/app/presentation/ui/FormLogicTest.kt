@@ -201,7 +201,7 @@ class FormLogicTest {
             now = now
         )
         assertTrue(baseState.isExcluded)
-        assertEquals("Restore", baseState.secondaryButtonText)
+        assertEquals("Count this expense", baseState.secondaryButtonText)
 
         val confirmedState = baseState.copy(
             initialReviewStatus = ReviewStatus.CONFIRMED

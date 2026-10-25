@@ -412,6 +412,7 @@ class TransactionRepositoryRealSqliteAtomicityTest {
         override fun getTransactionsByReviewStatus(status: ReviewStatus): Flow<List<TransactionEntity>> = error("Not needed")
         override fun getUnreviewedCount(): Flow<Int> = error("Not needed")
         override suspend fun softDelete(id: Long, updatedAt: Long) = error("Not needed")
+        override suspend fun undelete(id: Long, updatedAt: Long) = error("Not needed")
         override fun getTransactionsInRange(startTime: Long, endTime: Long): Flow<List<TransactionEntity>> = error("Not needed")
     }
 

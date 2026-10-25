@@ -83,7 +83,7 @@ data class EditTransactionFormState(
     val isSaveEnabled: Boolean = isDirty && isAmountValid && !isFutureDate && isNoteValid && selectedCategory.isNotBlank()
     val shouldShowDiscardDialog: Boolean = isDirty
     val noteCounterText: String = "${noteInput.length}/${ExpenseFormLogic.MAX_NOTE_LENGTH}"
-    val secondaryButtonText: String = if (isExcluded) "Restore" else "Not an expense"
+    val secondaryButtonText: String = if (isExcluded) "Count this expense" else "Not an expense"
 
     val modeSelectedIndex: Int = when (selectedPaymentMode.uppercase()) {
         "CASH" -> 0

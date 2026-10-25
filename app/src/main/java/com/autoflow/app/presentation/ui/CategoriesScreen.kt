@@ -32,6 +32,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.autoflow.app.data.model.ReviewStatus
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,7 +83,8 @@ fun CategoriesScreen(
     onNavigateToAddCash: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    onNavigateToGoals: () -> Unit = {}
+    onNavigateToGoals: () -> Unit = {},
+    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
 
@@ -96,7 +99,8 @@ fun CategoriesScreen(
             pillLabel = uiState.pillLabel,
             onBack = { onSelectCategory(null) },
             onNavigateToEdit = onNavigateToEdit,
-            modifier = modifier
+            modifier = modifier,
+            snackbarHostState = snackbarHostState
         )
         return
     }
@@ -104,6 +108,7 @@ fun CategoriesScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             AFTopBar(
                 title = "Categories",
@@ -393,7 +398,8 @@ private fun CategoryDetailScreen(
     pillLabel: String,
     onBack: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
     val totalPaise = transactions.fold(0L) { acc, tx ->
@@ -407,6 +413,7 @@ private fun CategoryDetailScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             AFTopBar(
                 title = category,
@@ -471,17 +478,20 @@ private fun CategoryDetailScreen(
                         CurrencyFormatter.formatPaiseToInr(tx.amountPaise)
                     }
 
+                    val isNotCounted = tx.reviewStatus == ReviewStatus.EXCLUDED
                     val timeString = formatCategoryTxTime(tx.dateTime)
+                    val subtitle = if (isNotCounted) "Not counted · $timeString" else timeString
                     val merchant = tx.merchantName.trim().ifBlank { "Unknown merchant" }
                     val badgeType = tx.getHomeBadgeType()
 
                     AFTransactionRow(
                         title = merchant,
-                        subtitle = timeString,
+                        subtitle = subtitle,
                         amountText = formattedAmount,
                         category = tx.category,
                         isPositive = isRefund,
-                        badge = if (badgeType != null) {
+                        isNotCounted = isNotCounted,
+                        badge = if (!isNotCounted && badgeType != null) {
                             {
                                 when (badgeType) {
                                     HomeBadgeType.CHECK -> AFBadge(text = "Check", variant = AFBadgeVariant.AMBER)

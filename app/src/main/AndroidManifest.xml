@@ -23,6 +23,15 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".presentation.ui.CategoryPopupActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AutoFlow.TranslucentPopup"
+            android:launchMode="singleTask" />
+
         <receiver
             android:name=".widget.AutoFlowWidgetProvider"
             android:exported="true"

@@ -226,6 +226,10 @@ class TransactionRepository(
         transactionDao.softDelete(id)
     }
 
+    suspend fun undelete(id: Long, now: Long = System.currentTimeMillis()) {
+        transactionDao.undelete(id, now)
+    }
+
     suspend fun assignCategory(
         id: Long,
         category: String,

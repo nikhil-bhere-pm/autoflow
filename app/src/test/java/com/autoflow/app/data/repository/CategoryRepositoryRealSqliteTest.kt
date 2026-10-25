@@ -893,6 +893,7 @@ class CategoryRepositoryRealSqliteTest {
         override fun getTransactionsByReviewStatus(status: ReviewStatus): Flow<List<TransactionEntity>> = flowOf(emptyList())
         override fun getUnreviewedCount(): Flow<Int> = flowOf(0)
         override suspend fun softDelete(id: Long, updatedAt: Long) {}
+        override suspend fun undelete(id: Long, updatedAt: Long) {}
 
         override suspend fun updateCategory(oldCategory: String, newCategory: String): Int {
             conn.prepareStatement("UPDATE transactions SET category = ? WHERE category = ?").use { stmt ->

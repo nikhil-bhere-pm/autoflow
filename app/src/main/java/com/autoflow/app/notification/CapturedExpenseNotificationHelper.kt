@@ -119,10 +119,15 @@ object CapturedExpenseNotificationHelper {
         // Action buttons
         content.actions.forEachIndexed { index, action ->
             val pendingIntent = if (action.isActivity) {
-                val actIntent = Intent(context, MainActivity::class.java).apply {
+                val targetClass = if (action.actionType == CapturedExpenseNotificationBuilder.ACTION_CATEGORY_POPUP) {
+                    com.autoflow.app.presentation.ui.CategoryPopupActivity::class.java
+                } else {
+                    MainActivity::class.java
+                }
+                val actIntent = Intent(context, targetClass).apply {
                     this.action = action.actionType
                     putExtra(CapturedExpenseNotificationBuilder.EXTRA_TRANSACTION_ID, transactionId)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 PendingIntent.getActivity(
                     context,
@@ -168,6 +173,57 @@ object CapturedExpenseNotificationHelper {
         } catch (e: SecurityException) {
             // Permission missing
         }
+    }
+
+    suspend fun applyCategoryAndNotify(
+        context: Context,
+        transactionId: Long,
+        category: String
+    ): Boolean {
+        val app = context.applicationContext as? AutoFlowApplication ?: return false
+        val tx = app.transactionRepository.getTransactionById(transactionId) ?: return false
+        if (tx.isDeleted) return false
+
+        val snapshot = app.transactionRepository.assignCategory(transactionId, category) ?: return false
+        val content = CapturedExpenseNotificationBuilder.buildCategorySavedContent(
+            txId = transactionId,
+            amountPaise = tx.amountPaise,
+            category = category
+        )
+        val undoExtras = mutableMapOf<String, Any?>()
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_CATEGORY] = snapshot.previousCategory
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_CATEGORY_SOURCE] = snapshot.previousCategorySource
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_REVIEW_STATUS] = snapshot.previousReviewStatus.name
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_UNCERTAINTY_BITS] = snapshot.previousUncertaintyBits
+        if (snapshot.previousMerchantRuleCategory != null) {
+            undoExtras[CapturedExpenseNotificationBuilder.EXTRA_PREV_MERCHANT_RULE] = snapshot.previousMerchantRuleCategory
+        }
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_ASSIGNED_CATEGORY] = snapshot.assignedCategory
+        undoExtras[CapturedExpenseNotificationBuilder.EXTRA_NORMALIZED_MERCHANT_KEY] = snapshot.normalizedMerchantKey
+
+        postNotification(context, content, transactionId, undoExtras)
+        return true
+    }
+
+    suspend fun markNotAnExpenseAndNotify(
+        context: Context,
+        transactionId: Long
+    ): Boolean {
+        val app = context.applicationContext as? AutoFlowApplication ?: return false
+        val tx = app.transactionRepository.getTransactionById(transactionId) ?: return false
+        if (tx.isDeleted) return false
+
+        val snapshot = app.transactionRepository.markNotAnExpense(transactionId) ?: return false
+        val content = CapturedExpenseNotificationBuilder.buildNotExpenseContent(
+            txId = transactionId,
+            amountPaise = tx.amountPaise,
+            merchantName = tx.merchantName
+        )
+        val undoExtras = mapOf<String, Any?>(
+            CapturedExpenseNotificationBuilder.EXTRA_PREV_REVIEW_STATUS to snapshot.previousReviewStatus.name
+        )
+        postNotification(context, content, transactionId, undoExtras)
+        return true
     }
 
     private fun scheduleAutoDismiss(context: Context, notificationId: Int, delayMs: Long) {

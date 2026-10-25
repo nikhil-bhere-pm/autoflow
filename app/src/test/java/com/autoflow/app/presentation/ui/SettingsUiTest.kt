@@ -327,6 +327,14 @@ class SettingsUiTest {
             }
         }
 
+        override suspend fun undelete(id: Long, updatedAt: Long) {
+            val idx = transactions.indexOfFirst { it.id == id }
+            if (idx != -1) {
+                transactions[idx] = transactions[idx].copy(isDeleted = 0, updatedAt = updatedAt)
+                flow.value = transactions.toList()
+            }
+        }
+
         override suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity> =
             transactions.filter { it.categorySource == "AUTO" }
 

@@ -110,7 +110,8 @@ fun ReviewScreen(
     onLater: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToCategories: () -> Unit = {},
-    onNavigateToGoals: () -> Unit = {}
+    onNavigateToGoals: () -> Unit = {},
+    snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
     val count = transactions.size
@@ -132,6 +133,7 @@ fun ReviewScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             AFTopBar(
                 title = "Needs a check ($count)",

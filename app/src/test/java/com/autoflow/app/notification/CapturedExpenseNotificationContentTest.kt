@@ -63,6 +63,7 @@ class CapturedExpenseNotificationContentTest {
         // 3 buttons: 2 categories + "More…"
         assertEquals(3, content.actions.size)
         assertEquals("More…", content.actions[2].title)
+        assertEquals(CapturedExpenseNotificationBuilder.ACTION_CATEGORY_POPUP, content.actions[2].actionType)
         assertTrue(content.actions[2].isActivity)
         assertFalse(content.actions[0].isActivity)
         assertFalse(content.actions[1].isActivity)
@@ -113,6 +114,7 @@ class CapturedExpenseNotificationContentTest {
         // 2 buttons: "Change" and "Not an expense"
         assertEquals(2, content.actions.size)
         assertEquals("Change", content.actions[0].title)
+        assertEquals(CapturedExpenseNotificationBuilder.ACTION_CATEGORY_POPUP, content.actions[0].actionType)
         assertTrue(content.actions[0].isActivity)
         assertEquals("Not an expense", content.actions[1].title)
         assertFalse(content.actions[1].isActivity)

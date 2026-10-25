@@ -26,6 +26,7 @@ data class NotificationContent(
 object CapturedExpenseNotificationBuilder {
     const val CHANNEL_ID = "captured_expenses"
     const val ACTION_EDIT_TRANSACTION = "com.autoflow.app.ACTION_EDIT_TRANSACTION"
+    const val ACTION_CATEGORY_POPUP = "com.autoflow.app.ACTION_CATEGORY_POPUP"
     const val ACTION_ASSIGN_CATEGORY = "com.autoflow.app.notification.ACTION_ASSIGN_CATEGORY"
     const val ACTION_MARK_NOT_EXPENSE = "com.autoflow.app.notification.ACTION_MARK_NOT_EXPENSE"
     const val ACTION_UNDO_CATEGORY = "com.autoflow.app.notification.ACTION_UNDO_CATEGORY"
@@ -80,7 +81,7 @@ object CapturedExpenseNotificationBuilder {
             actions = listOf(
                 NotificationActionContent(title = cat1, actionType = ACTION_ASSIGN_CATEGORY, isActivity = false, category = cat1),
                 NotificationActionContent(title = cat2, actionType = ACTION_ASSIGN_CATEGORY, isActivity = false, category = cat2),
-                NotificationActionContent(title = "More…", actionType = ACTION_EDIT_TRANSACTION, isActivity = true)
+                NotificationActionContent(title = "More…", actionType = ACTION_CATEGORY_POPUP, isActivity = true)
             ),
             publicTitle = "AutoFlow",
             publicText = "New expense captured",
@@ -98,7 +99,7 @@ object CapturedExpenseNotificationBuilder {
             text = "${tx.category} · counted in today's total",
             channelId = CHANNEL_ID,
             actions = listOf(
-                NotificationActionContent(title = "Change", actionType = ACTION_EDIT_TRANSACTION, isActivity = true),
+                NotificationActionContent(title = "Change", actionType = ACTION_CATEGORY_POPUP, isActivity = true),
                 NotificationActionContent(title = "Not an expense", actionType = ACTION_MARK_NOT_EXPENSE, isActivity = false)
             ),
             publicTitle = "AutoFlow",

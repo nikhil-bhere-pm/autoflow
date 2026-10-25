@@ -100,6 +100,9 @@ interface TransactionDao {
     @Query("UPDATE transactions SET is_deleted = 1, updated_at = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("UPDATE transactions SET is_deleted = 0, updated_at = :updatedAt WHERE id = :id")
+    suspend fun undelete(id: Long, updatedAt: Long = System.currentTimeMillis())
+
     @Query("UPDATE transactions SET category = :newCategory WHERE category = :oldCategory")
     suspend fun updateCategory(oldCategory: String, newCategory: String): Int = 0
 

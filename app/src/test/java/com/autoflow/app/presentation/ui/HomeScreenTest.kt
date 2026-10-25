@@ -400,6 +400,14 @@ class HomeScreenTest {
             }
         }
 
+        override suspend fun undelete(id: Long, updatedAt: Long) {
+            val idx = items.indexOfFirst { it.id == id }
+            if (idx != -1) {
+                items[idx] = items[idx].copy(isDeleted = 0, updatedAt = updatedAt)
+                emit()
+            }
+        }
+
         override suspend fun getAllAutoCategorizedTransactions(): List<TransactionEntity> {
             return items.filter { it.isDeleted == 0 && it.categorySource == "AUTO" }
         }

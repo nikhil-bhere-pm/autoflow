@@ -143,6 +143,7 @@ fun AutoFlowApp(
     val coroutineScope = rememberCoroutineScope()
     val goalsSnackbarHostState = remember { SnackbarHostState() }
     val detailSnackbarHostState = remember { SnackbarHostState() }
+    val appSnackbarHostState = remember { SnackbarHostState() }
 
     BackHandler(enabled = currentScreen != Screen.Home && currentScreen != Screen.FirstRun) {
         currentScreen = when (val s = currentScreen) {
@@ -245,7 +246,8 @@ fun AutoFlowApp(
                 onNavigateToGoals = { currentScreen = Screen.Goals },
                 onNavigateToReview = { currentScreen = Screen.Review },
                 onNavigateToCategories = { currentScreen = Screen.Categories },
-                onNavigateToSettings = { currentScreen = Screen.Settings }
+                onNavigateToSettings = { currentScreen = Screen.Settings },
+                snackbarHostState = appSnackbarHostState
             )
         }
 
@@ -438,7 +440,8 @@ fun AutoFlowApp(
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromReview = true) },
                 onConfirmCategory = { id, category -> viewModel.confirmCategory(id, category) },
-                onLater = { id -> viewModel.onLater(id) }
+                onLater = { id -> viewModel.onLater(id) },
+                snackbarHostState = appSnackbarHostState
             )
         }
 
@@ -453,7 +456,8 @@ fun AutoFlowApp(
                 onNavigateToGoals = { currentScreen = Screen.Goals },
                 onNavigateToReview = { currentScreen = Screen.Review },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
-                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromCategories = true) }
+                onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromCategories = true) },
+                snackbarHostState = appSnackbarHostState
             )
         }
 
@@ -471,7 +475,17 @@ fun AutoFlowApp(
                     viewModel.restoreTransaction(id)
                 },
                 onDelete = { id ->
-                    viewModel.deleteTransaction(id)
+                    coroutineScope.launch {
+                        viewModel.deleteTransaction(id)
+                        val result = appSnackbarHostState.showSnackbar(
+                            message = "Expense deleted",
+                            actionLabel = "Undo",
+                            duration = SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.undeleteTransaction(id)
+                        }
+                    }
                 },
                 onNavigateBack = {
                     currentScreen = when {
