@@ -1,5 +1,6 @@
 # Built application files and build output
 *.apk
+!landing/AutoFlow.apk
 *.aar
 *.ap_
 *.aab
