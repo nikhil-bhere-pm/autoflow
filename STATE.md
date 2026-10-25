@@ -1012,8 +1012,13 @@
   - Added sealed interface `AutopayUiState` with `data object Empty`.
   - Added unit test suite `AutopayScreenTest.kt` (4 tests) covering navigation resolution, default empty state, zero-paise currency formatting, and complete strings validation.
 
+- **Part 0 Polish (Commit `abdfebc`):**
+  - Minimal settings icon: Added vector drawable `res/drawable/ic_settings_sliders.xml` (24dp viewport, strokeWidth 1.75, round caps/joins, outline sliders). Replaced gear icon in `HomeScreen` top row with `ic_settings_sliders` at 20dp in `colors.ink` inside 44dp touch target.
+  - Categories header unification: Refactored `CategoriesScreen` topBar to use shared `AFTopBar` matching `GoalsTabScreen` and `ReviewScreen` (same `titleLarge` 18sp bold text, 56dp minHeight, horizontal padding, `colors.sheet` surface with 1dp line divider). Vertically centered Autopay button and `AFPeriodPill` in `actions` slot.
+  - Unit tests in `SettingsIconResourceTest.kt` verifying XML vector paths and properties.
+
 - **Verification & QA Installation:**
-  - `scripts/verify.ps1`: All 7 checks passed (2666 unit tests: 1962 parser-core, 352 app debug, 352 app release).
+  - `scripts/verify.ps1`: All 7 checks passed (2668 unit tests: 1962 parser-core, 353 app debug, 353 app release).
   - Built `assembleQa` and installed over `com.autoflow.app.qa` on device `dfa4dd90`.
 
 
