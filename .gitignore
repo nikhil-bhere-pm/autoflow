@@ -1,17 +1,61 @@
-*.iml
-.gradle
-**/.gradle/
-**/build/
+# Built application files and build output
+*.apk
+*.aar
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
 build/
 /build
 /app/build
-/local.properties
-local.properties
-/.idea/
-.DS_Store
-/captures
+**/build/
+captures/
 .externalNativeBuild
 .cxx
+
+# Gradle files
+.gradle
+.gradle/
+**/.gradle/
+buildOutputCleanup/
+
+# Local configuration file (SDK path, machine-specific)
+local.properties
+/local.properties
+
+# Proguard / Obfuscation
+proguard/
+
+# Log files
+*.log
+
+# Android Studio / IntelliJ IDEA / VS Code
+*.iml
+.idea/
+/.idea/
+*.ipr
+*.iws
+.DS_Store
+.vscode/
+
+# Secrets, Environment, and API Key files
+.env
+.env.*
+*.env
+*api_key*
+*apikey*
+google-services.json
+
+# Keystores & Signing credentials
+*.jks
+*.keystore
+*.p12
+*.key
+*.pem
+signing.properties
 
 # Database & SQLite files
 *.db
@@ -22,10 +66,6 @@ local.properties
 ondevice_autoflow.db
 ondevice_*.db
 
-# Keystore & Signing
-*.jks
-*.keystore
-
-# Exported files & Context summary
+# Exported files, SMS dumps & Context summaries
 *.sms
 AUTOFLOW_CONTEXT_SUMMARY.md
