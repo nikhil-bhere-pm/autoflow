@@ -1021,6 +1021,22 @@
   - `scripts/verify.ps1`: All 7 checks passed (2668 unit tests: 1962 parser-core, 353 app debug, 353 app release).
   - Built `assembleQa` and installed over `com.autoflow.app.qa` on device `dfa4dd90`.
 
+## 33. Merge polish1 into main & Real App Update — Task M5 (October 25, 2026)
+
+- **Part 0 Polish (Commit `abdfebc`):**
+  - Minimal settings icon: Replaced gear icon in `HomeScreen` top row with custom vector drawable `res/drawable/ic_settings_sliders.xml` (24dp viewport, strokeWidth 1.75, round caps/joins) at 20dp in `colors.ink` inside 44dp touch target.
+  - Categories header unification: Refactored `CategoriesScreen` topBar to use shared `AFTopBar` matching `GoalsTabScreen` and `ReviewScreen` (same `titleLarge` 18sp bold text, 56dp minHeight, horizontal padding, `colors.sheet` surface with 1dp line divider). Vertically centered Autopay button and `AFPeriodPill` in `actions` slot.
+  - Unit tests in `SettingsIconResourceTest.kt` verifying XML vector paths and properties.
+- **Verification:** Ran `scripts/verify.ps1` on `polish1`: all 7 checks passed, 2668 unit tests passing (1962 parser-core, 353 app debug, 353 app release).
+- **Fast-Forward Merge:** Fast-forward merged `polish1` into `main` (commit `122d396`).
+- **Cleanup:** Worktree `..\autoflow-p1` removed cleanly; branch `polish1` deleted via `git branch -d`. Branches `goals-ui` and `goals-domain` left untouched.
+- **Real App Update:**
+  - Pre-install backup `..\backups\pre_p2_install_20261025_1713.db`: 98,304 bytes (% 4096 == 0), `PRAGMA user_version = 6`, transactions = 5, goals = 0, sum counted spend = 257900 paise, integrity_check = ok.
+  - Assembled debug APK and installed over `com.autoflow.app` via `adb install -r`.
+  - Post-install backup `..\backups\post_p2_install_20261025_1714.db`: 98,304 bytes (% 4096 == 0), `PRAGMA user_version = 6`, transactions = 5, goals = 0, sum counted spend = 257900 paise, integrity_check = ok (100% byte-for-byte and row-for-row match).
+- **QA App Update:** Built `assembleQa` and installed over `com.autoflow.app.qa` via `adb install -r`. Both packages verified installed via `pm list packages`.
+
+
 
 
 
