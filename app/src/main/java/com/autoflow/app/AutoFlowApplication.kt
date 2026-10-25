@@ -44,5 +44,6 @@ class AutoFlowApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.autoflow.app.notification.CapturedExpenseNotificationHelper.ensureChannel(this)
     }
 }

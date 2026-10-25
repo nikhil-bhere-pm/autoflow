@@ -62,6 +62,19 @@ class MainViewModel(
         _widgetDestination.value = null
     }
 
+    private val _pendingEditTransactionId = MutableStateFlow<Long?>(null)
+    val pendingEditTransactionId: StateFlow<Long?> = _pendingEditTransactionId.asStateFlow()
+
+    fun openEditTransaction(txId: Long) {
+        if (txId > 0) {
+            _pendingEditTransactionId.value = txId
+        }
+    }
+
+    fun clearPendingEditTransaction() {
+        _pendingEditTransactionId.value = null
+    }
+
     fun getLastUsedGoalId(): Long? = goalPreferences.getLastUsedGoalId()
 
     val themeMode: StateFlow<com.autoflow.app.presentation.theme.AppThemeMode> = themePreferences.themeMode

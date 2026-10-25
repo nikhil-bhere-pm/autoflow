@@ -774,3 +774,57 @@
 - Fast-forward merged branch `widget1` into `master` at commit `7ad9ddf1805e6d83c8554b9934734cceb16e0ad3`.
 - Worktree `..\autoflow-w1` cleanly removed and feature branch `widget1` deleted.
 - All 7 verification checks passed on `master` (2,496 tests passing: 1,962 parser-core, 267 app debug, 267 app release; 0 hardcoded colors, RECEIVE_SMS only, 0 message body leaks).
+
+## 25. Captured-Expense Notification with Category Buttons — Task N1 (October 25, 2026)
+
+- **Initial Audit:**
+  - Audited existing codebase for captured-SMS notification channels, builders, broadcast receivers, and settings switches.
+  - Confirmed none existed; built clean, decoupled notification architecture without duplication.
+- **Notification Channel & Core States (`CapturedExpenseNotificationBuilder`, `CapturedExpenseNotificationHelper`):**
+  - Notification channel `"Captured expenses"` (`channel_captured_expenses`) with importance `LOW` (no sound, zero vibration).
+  - Four distinct notification states:
+    1. **State 1 (Needs a category):** For unknown merchants or transactions requiring review.
+       - Title: `"₹320.00 spent at <merchant>"` (fallback `"Unknown Merchant"`).
+       - Text: `"Pick a category so it is counted correctly"`.
+       - Actions: Top 2 predicted category chips using existing review suggestion logic (`getTopLikelyCategories`) + `"More…"`.
+    2. **State 2 (Merchant already known):** For merchants with an existing rule/category.
+       - Title: `"₹130.00 spent at <merchant>"`.
+       - Text: `"<Category> · counted in today's total"`.
+       - Actions: `"Change"` and `"Not an expense"`.
+    3. **State 3 (Category chosen):** In-place notification update following category selection.
+       - Title: `"Saved: ₹320.00 · <Category>"`.
+       - Text: `"Future spends at this merchant will use <Category>"`.
+       - Actions: `"Undo"`. Auto-dismisses after 15 seconds (`setTimeoutAfter(15000)` and background handler).
+    4. **State 4 (Not an expense):** In-place notification update when excluded.
+       - Title: `"Marked as not an expense"`.
+       - Text: `"<Amount> at <Merchant> not counted"`.
+       - Actions: `"Undo"`. Auto-dismisses after 15 seconds.
+- **Deep Linking & Interaction:**
+  - Tapping notification body, `"Change"`, or `"More…"` triggers `ACTION_EDIT_TRANSACTION` (`com.autoflow.app.ACTION_EDIT_TRANSACTION`) with `EXTRA_TRANSACTION_ID`.
+  - Opens `EditTransactionScreen` directly with fixed, read-only amount for SMS expenses, enabling full category picker and note editing. Auto-cancels notification on tap.
+- **Background Action Handling (`NotificationActionReceiver`, `TransactionRepository`):**
+  - Non-exported BroadcastReceiver executes when the app UI is closed or backgrounded.
+  - Validates transaction ID against SQLite database before performing operations.
+  - Category assignment updates transaction, saves merchant category rule, and retroactively updates matching active AUTO rows. Undo restores previous category and deletes saved rule.
+  - Mark not an expense excludes transaction (`reviewStatus = EXCLUDED`), dropping it from spend totals. Undo restores previous review status.
+- **Privacy & Security Guarantees:**
+  - Zero raw SMS body retention: notifications, PendingIntent extras, and log outputs never contain SMS body text.
+  - Lock screen privacy: Set to `VISIBILITY_PRIVATE` with a sanitized public notification (`"AutoFlow"`, `"New expense captured"`).
+  - No `READ_SMS` permission declared.
+- **Settings Toggle (`SettingsScreen`, `NotificationPreferences`):**
+  - Added "Notifications" section with switch `"Notify me when an expense is captured"` and subtitle `"Shows amount and merchant"`.
+  - Defaults to `ON`. When toggled `OFF`, expenses continue to be ingested silently into SQLite with zero notifications posted.
+  - Dynamically displays `"Notifications are disabled in system settings"` if system-level app notification permissions are revoked.
+- **Safe QA Testing Hook (Isolated in `src/qa`):**
+  - Implemented `QaFakeSmsReceiver` (`com.autoflow.app.qa.ACTION_INJECT_FAKE_SMS`) strictly within `src/qa` for SIM-free device verification.
+  - Verified completely absent from `app-debug.apk` and `app-release-unsigned.apk` manifests and dex files.
+- **Unit Testing & Mutation Proofs:**
+  - Unit tests: `NotificationPreferencesTest` (3 tests), `CapturedExpenseNotificationContentTest` (6 tests), `NotificationActionHandlerTest` (6 tests).
+  - Executed 3 mutation proofs:
+    1. Mutated State 1 text to `"Please pick a category"`: caught by `CapturedExpenseNotificationContentTest.testBuildNeedsCategory_contentAndActions` and `NotificationActionHandlerTest.testUndoAssignCategory_revertsCategoryAndDeletesSavedRule`.
+    2. Deleted `merchantCategoryDao.deleteByKey` in `undoAssignCategory`: caught by `NotificationActionHandlerTest.testUndoAssignCategory_revertsCategoryAndDeletesSavedRule`.
+    3. Nullified `timeoutMs` in `buildCategorySaved`: caught by `CapturedExpenseNotificationContentTest.testBuildCategorySaved_contentAndActions`.
+- **Physical Device Verification (`dfa4dd90`):**
+  - Verified on physical phone using isolated QA package `com.autoflow.app.qa` (production app `com.autoflow.app` left untouched).
+  - Tested all notification states, undo flows, background execution with force-stopped app, lock screen rendering, and Home screen balance updates.
+

@@ -91,4 +91,25 @@
     <!-- Saved from Widget -->
     <string name="saved_screen_which_goal">Which goal?</string>
     <string name="widget_create_goal_first">Create a goal first, then tap Saved</string>
+
+    <!-- Captured Expense Notifications -->
+    <string name="notification_channel_captured_expenses">Captured expenses</string>
+    <string name="notification_channel_captured_expenses_desc">Notifications for expenses captured from bank SMS</string>
+    <string name="notification_needs_category_title">%1$s spent at %2$s</string>
+    <string name="notification_needs_category_text">Pick a category so it is counted correctly</string>
+    <string name="notification_action_more">More…</string>
+    <string name="notification_known_text">%1$s · counted in today\'s total</string>
+    <string name="notification_action_change">Change</string>
+    <string name="notification_action_not_expense">Not an expense</string>
+    <string name="notification_saved_title">Saved: %1$s · %2$s</string>
+    <string name="notification_saved_text">Future spends at this merchant will use %1$s</string>
+    <string name="notification_action_undo">Undo</string>
+    <string name="notification_not_expense_title">Marked as not an expense</string>
+    <string name="notification_not_expense_text">%1$s at %2$s not counted</string>
+    <string name="notification_public_text">New expense captured</string>
+
+    <!-- Settings Notification Row -->
+    <string name="settings_notify_captured_title">Notify me when an expense is captured</string>
+    <string name="settings_notify_captured_subtitle">Shows amount and merchant</string>
+    <string name="settings_notify_permission_missing">Allow notifications in Android settings</string>
 </resources>

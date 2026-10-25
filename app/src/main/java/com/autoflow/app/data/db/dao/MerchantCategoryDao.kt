@@ -25,4 +25,7 @@ interface MerchantCategoryDao {
 
     @Query("DELETE FROM merchant_categories WHERE category = :category")
     suspend fun deleteByCategory(category: String): Int = 0
+
+    @Query("DELETE FROM merchant_categories WHERE merchantKey = :key")
+    suspend fun deleteByKey(key: String): Int = 0
 }

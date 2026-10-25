@@ -25,11 +25,6 @@ import kotlinx.coroutines.withTimeout
  */
 class SmsBroadcastReceiver : BroadcastReceiver() {
 
-    companion object {
-        private const val TAG = "AutoFlow_SmsReceiver"
-        private const val TIMEOUT_MS = 8000L
-    }
-
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent == null || intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) {
             return
@@ -57,7 +52,6 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
             return
         }
 
-        val processor = SmsMessageProcessor(app.ingestionPipeline)
         val pendingResult = goAsync()
         val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -71,7 +65,9 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
                         }
                         val timestamp = parts.firstOrNull()?.timestampMillis ?: System.currentTimeMillis()
 
-                        processor.processMessage(
+                        processIncomingSmsMessage(
+                            context = context,
+                            app = app,
                             sender = sender,
                             body = fullBody,
                             timestamp = timestamp
@@ -84,6 +80,33 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
             } finally {
                 pendingResult.finish()
             }
+        }
+    }
+
+    companion object {
+        private const val TAG = "AutoFlow_SmsReceiver"
+        private const val TIMEOUT_MS = 8000L
+
+        suspend fun processIncomingSmsMessage(
+            context: Context,
+            app: AutoFlowApplication,
+            sender: String,
+            body: String,
+            timestamp: Long = System.currentTimeMillis()
+        ): ProcessSmsResult {
+            val processor = SmsMessageProcessor(app.ingestionPipeline)
+            val result = processor.processMessage(
+                sender = sender,
+                body = body,
+                timestamp = timestamp
+            )
+            if (result is ProcessSmsResult.Success) {
+                com.autoflow.app.notification.CapturedExpenseNotificationHelper.notifyIfEnabled(
+                    context = context,
+                    transactionId = result.transactionId
+                )
+            }
+            return result
         }
     }
 }

@@ -66,6 +66,26 @@ fun SettingsScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    val notificationPrefs = remember {
+        com.autoflow.app.presentation.preferences.SharedPreferencesNotificationPreferences.fromContext(context)
+    }
+
+    var isNotificationEnabled by remember {
+        mutableStateOf(notificationPrefs.isCapturedExpenseNotificationEnabled())
+    }
+
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+        )
+    }
+
+    val postNotificationLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasNotificationPermission = granted
+    }
+
     var hasSmsPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -82,6 +102,7 @@ fun SettingsScreen(
                     context,
                     Manifest.permission.RECEIVE_SMS
                 ) == PackageManager.PERMISSION_GRANTED
+                hasNotificationPermission = androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -255,6 +276,108 @@ fun SettingsScreen(
                 }
             }
 
+            // Notifications Section
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
+                Text(
+                    text = "Notifications",
+                    style = AutoFlowTheme.typography.titleMedium,
+                    color = colors.ink
+                )
+                Surface(
+                    shape = RoundedCornerShape(AppRadius.md),
+                    color = colors.sheet,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(AppRadius.md))
+                        .clickable {
+                            if (!hasNotificationPermission) {
+                                val activity = context as? android.app.Activity
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                    activity != null &&
+                                    androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+                                        activity,
+                                        Manifest.permission.POST_NOTIFICATIONS
+                                    )
+                                ) {
+                                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                    !notificationPrefs.hasRequestedNotificationPermission()
+                                ) {
+                                    notificationPrefs.setHasRequestedNotificationPermission(true)
+                                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    openAppNotificationSettings(context)
+                                }
+                            } else {
+                                val newEnabled = !isNotificationEnabled
+                                isNotificationEnabled = newEnabled
+                                notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                            .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Notify me when an expense is captured",
+                                style = AutoFlowTheme.typography.bodyLarge,
+                                color = colors.ink
+                            )
+                            Spacer(modifier = Modifier.height(AppSpacing.xxs))
+                            Text(
+                                text = if (!hasNotificationPermission) {
+                                    "Allow notifications in Android settings"
+                                } else {
+                                    "Shows amount and merchant"
+                                },
+                                style = AutoFlowTheme.typography.bodySmall,
+                                color = if (!hasNotificationPermission) colors.amberFg else colors.muted
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(AppSpacing.sm))
+                        androidx.compose.material3.Switch(
+                            checked = hasNotificationPermission && isNotificationEnabled,
+                            onCheckedChange = { _ ->
+                                if (!hasNotificationPermission) {
+                                    val activity = context as? android.app.Activity
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                        activity != null &&
+                                        androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+                                            activity,
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        )
+                                    ) {
+                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                                        !notificationPrefs.hasRequestedNotificationPermission()
+                                    ) {
+                                        notificationPrefs.setHasRequestedNotificationPermission(true)
+                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    } else {
+                                        openAppNotificationSettings(context)
+                                    }
+                                } else {
+                                    val newEnabled = !isNotificationEnabled
+                                    isNotificationEnabled = newEnabled
+                                    notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
+                                }
+                            },
+                            colors = androidx.compose.material3.SwitchDefaults.colors(
+                                checkedThumbColor = colors.buttonText,
+                                checkedTrackColor = colors.button,
+                                uncheckedThumbColor = colors.muted,
+                                uncheckedTrackColor = colors.track
+                            )
+                        )
+                    }
+                }
+            }
+
             // Debug-only Section (reset first run / test permission help)
             val isDebuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
             if (isDebuggable && onResetFirstRun != null) {
@@ -289,3 +412,19 @@ private fun openAppSettings(context: Context) {
     }
     context.startActivity(intent)
 }
+
+private fun openAppNotificationSettings(context: Context) {
+    val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        }
+    } else {
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", context.packageName, null)
+        }
+    }.apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(intent)
+}
+

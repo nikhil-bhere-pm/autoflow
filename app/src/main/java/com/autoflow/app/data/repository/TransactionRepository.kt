@@ -226,6 +226,134 @@ class TransactionRepository(
         transactionDao.softDelete(id)
     }
 
+    suspend fun assignCategory(
+        id: Long,
+        category: String,
+        now: Long = System.currentTimeMillis()
+    ): CategoryUndoSnapshot? {
+        val existing = transactionDao.getById(id) ?: return null
+        if (existing.isDeleted != 0) return null
+        val normalizedKey = CategoryEngine.normalizeKey(existing.merchantName)
+        val isRealMerchant = CategoryEngine.shouldStoreRule(existing.merchantName)
+        val previousRule = if (isRealMerchant && merchantCategoryDao != null) {
+            merchantCategoryDao.getByKey(normalizedKey)?.category
+        } else {
+            null
+        }
+        val snapshot = CategoryUndoSnapshot(
+            transactionId = id,
+            previousCategory = existing.category,
+            previousCategorySource = existing.categorySource,
+            previousReviewStatus = existing.reviewStatus,
+            previousUncertaintyBits = existing.uncertaintyBits,
+            previousMerchantRuleCategory = previousRule,
+            assignedCategory = category.trim(),
+            normalizedMerchantKey = normalizedKey
+        )
+
+        updateTransaction(
+            id = id,
+            merchantName = existing.merchantName,
+            category = category,
+            dateTime = existing.dateTime,
+            paymentMode = existing.paymentMode,
+            note = existing.note,
+            now = now
+        )
+
+        return snapshot
+    }
+
+    suspend fun undoAssignCategory(
+        snapshot: CategoryUndoSnapshot,
+        now: Long = System.currentTimeMillis()
+    ) {
+        val existing = transactionDao.getById(snapshot.transactionId) ?: return
+        runInTransaction {
+            val reverted = existing.copy(
+                category = snapshot.previousCategory,
+                categorySource = snapshot.previousCategorySource,
+                reviewStatus = snapshot.previousReviewStatus,
+                uncertaintyBits = snapshot.previousUncertaintyBits,
+                updatedAt = now
+            )
+            transactionDao.update(reverted)
+
+            if (merchantCategoryDao != null && snapshot.normalizedMerchantKey.isNotBlank()) {
+                if (snapshot.previousMerchantRuleCategory == null) {
+                    merchantCategoryDao.deleteByKey(snapshot.normalizedMerchantKey)
+                    val autoRows = transactionDao.getAllAutoCategorizedTransactions()
+                    for (other in autoRows) {
+                        if (other.id != snapshot.transactionId &&
+                            CategoryEngine.normalizeKey(other.merchantName) == snapshot.normalizedMerchantKey &&
+                            other.category == snapshot.assignedCategory
+                        ) {
+                            transactionDao.update(
+                                other.copy(
+                                    category = snapshot.previousCategory,
+                                    updatedAt = now
+                                )
+                            )
+                        }
+                    }
+                } else {
+                    merchantCategoryDao.upsert(
+                        MerchantCategoryEntity(
+                            merchantKey = snapshot.normalizedMerchantKey,
+                            category = snapshot.previousMerchantRuleCategory,
+                            updatedAt = now
+                        )
+                    )
+                    val autoRows = transactionDao.getAllAutoCategorizedTransactions()
+                    for (other in autoRows) {
+                        if (other.id != snapshot.transactionId &&
+                            CategoryEngine.normalizeKey(other.merchantName) == snapshot.normalizedMerchantKey
+                        ) {
+                            transactionDao.update(
+                                other.copy(
+                                    category = snapshot.previousMerchantRuleCategory,
+                                    updatedAt = now
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun markNotAnExpense(
+        id: Long,
+        now: Long = System.currentTimeMillis()
+    ): NotExpenseUndoSnapshot? {
+        val existing = transactionDao.getById(id) ?: return null
+        if (existing.isDeleted != 0) return null
+        val snapshot = NotExpenseUndoSnapshot(
+            transactionId = id,
+            previousReviewStatus = existing.reviewStatus
+        )
+        transactionDao.update(
+            existing.copy(
+                reviewStatus = ReviewStatus.EXCLUDED,
+                updatedAt = now
+            )
+        )
+        return snapshot
+    }
+
+    suspend fun undoMarkNotAnExpense(
+        snapshot: NotExpenseUndoSnapshot,
+        now: Long = System.currentTimeMillis()
+    ) {
+        val existing = transactionDao.getById(snapshot.transactionId) ?: return
+        transactionDao.update(
+            existing.copy(
+                reviewStatus = snapshot.previousReviewStatus,
+                updatedAt = now
+            )
+        )
+    }
+
     private fun TransactionEntity.toDomain(): FinancialTransaction {
         return FinancialTransaction(
             id = id,
@@ -250,3 +378,20 @@ class TransactionRepository(
         )
     }
 }
+
+data class CategoryUndoSnapshot(
+    val transactionId: Long,
+    val previousCategory: String,
+    val previousCategorySource: String,
+    val previousReviewStatus: ReviewStatus,
+    val previousUncertaintyBits: Int,
+    val previousMerchantRuleCategory: String?,
+    val assignedCategory: String,
+    val normalizedMerchantKey: String
+)
+
+data class NotExpenseUndoSnapshot(
+    val transactionId: Long,
+    val previousReviewStatus: ReviewStatus
+)
+

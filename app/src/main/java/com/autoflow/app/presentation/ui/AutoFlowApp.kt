@@ -81,6 +81,38 @@ fun AutoFlowApp(
     val goalsUiState by viewModel.goalsUiState.collectAsState()
     val goalsWithTotals by viewModel.goalsWithTotals.collectAsState()
     val widgetDestination by viewModel.widgetDestination.collectAsState()
+    val pendingEditTxId by viewModel.pendingEditTransactionId.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(pendingEditTxId) {
+        val id = pendingEditTxId
+        if (id != null) {
+            currentScreen = Screen.Edit(id, fromReview = false)
+            viewModel.clearPendingEditTransaction()
+        }
+    }
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val notificationPrefs = androidx.compose.runtime.remember {
+            com.autoflow.app.presentation.preferences.SharedPreferencesNotificationPreferences.fromContext(context)
+        }
+        val postNotifLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+            contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { _ -> }
+
+        androidx.compose.runtime.LaunchedEffect(currentScreen) {
+            if (currentScreen is Screen.Home && !notificationPrefs.hasRequestedNotificationPermission()) {
+                notificationPrefs.setHasRequestedNotificationPermission(true)
+                if (androidx.core.content.ContextCompat.checkSelfPermission(
+                        context,
+                        android.Manifest.permission.POST_NOTIFICATIONS
+                    ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
+                    postNotifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
 
     androidx.compose.runtime.LaunchedEffect(widgetDestination) {
         when (val dest = widgetDestination) {
