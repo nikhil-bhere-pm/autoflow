@@ -157,49 +157,7 @@ fun HomeScreen(
         },
         bottomBar = {
             AFBottomNav(
-                items = listOf(
-                    AFBottomNavItem(
-                        title = "Home",
-                        icon = { selected ->
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Home",
-                                tint = if (selected) colors.brand else colors.muted
-                            )
-                        }
-                    ),
-                    AFBottomNavItem(
-                        title = "Goals",
-                        icon = { selected ->
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_nav_goals),
-                                contentDescription = "Goals",
-                                tint = if (selected) colors.brand else colors.muted
-                            )
-                        }
-                    ),
-                    AFBottomNavItem(
-                        title = "Review",
-                        badgeCount = uiState.unreviewedCount,
-                        icon = { selected ->
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Review",
-                                tint = if (selected) colors.brand else colors.muted
-                            )
-                        }
-                    ),
-                    AFBottomNavItem(
-                        title = "Categories",
-                        icon = { selected ->
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_cat_others),
-                                contentDescription = "Categories",
-                                tint = if (selected) colors.brand else colors.muted
-                            )
-                        }
-                    )
-                ),
+                items = com.autoflow.app.presentation.ui.components.createStandardNavItems(unreviewedCount = uiState.unreviewedCount),
                 selectedIndex = 0,
                 onSelect = { idx ->
                     when (idx) {

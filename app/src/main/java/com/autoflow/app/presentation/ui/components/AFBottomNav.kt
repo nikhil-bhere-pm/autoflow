@@ -37,6 +37,64 @@ data class AFBottomNavItem(
 )
 
 @Composable
+fun createStandardNavItems(
+    unreviewedCount: Int = 0
+): List<AFBottomNavItem> {
+    val colors = AutoFlowTheme.colors
+    return listOf(
+        AFBottomNavItem(
+            title = "Home",
+            icon = { selected ->
+                androidx.compose.material3.Icon(
+                    painter = androidx.compose.ui.res.painterResource(
+                        id = if (selected) com.autoflow.app.R.drawable.ic_nav_home_selected else com.autoflow.app.R.drawable.ic_nav_home
+                    ),
+                    contentDescription = "Home",
+                    tint = if (selected) colors.brand else colors.muted
+                )
+            }
+        ),
+        AFBottomNavItem(
+            title = "Goals",
+            icon = { selected ->
+                androidx.compose.material3.Icon(
+                    painter = androidx.compose.ui.res.painterResource(
+                        id = if (selected) com.autoflow.app.R.drawable.ic_nav_goals_selected else com.autoflow.app.R.drawable.ic_nav_goals
+                    ),
+                    contentDescription = "Goals",
+                    tint = if (selected) colors.brand else colors.muted
+                )
+            }
+        ),
+        AFBottomNavItem(
+            title = "Review",
+            badgeCount = unreviewedCount,
+            icon = { selected ->
+                androidx.compose.material3.Icon(
+                    painter = androidx.compose.ui.res.painterResource(
+                        id = if (selected) com.autoflow.app.R.drawable.ic_nav_review_selected else com.autoflow.app.R.drawable.ic_nav_review
+                    ),
+                    contentDescription = "Review",
+                    tint = if (selected) colors.brand else colors.muted
+                )
+            }
+        ),
+        AFBottomNavItem(
+            title = "Categories",
+            icon = { selected ->
+                androidx.compose.material3.Icon(
+                    painter = androidx.compose.ui.res.painterResource(
+                        id = if (selected) com.autoflow.app.R.drawable.ic_nav_categories_selected else com.autoflow.app.R.drawable.ic_nav_categories
+                    ),
+                    contentDescription = "Categories",
+                    tint = if (selected) colors.brand else colors.muted
+                )
+            }
+        )
+    )
+}
+
+@Composable
 private fun AFNavIconWithBadge(
     item: AFBottomNavItem,
     isSelected: Boolean
