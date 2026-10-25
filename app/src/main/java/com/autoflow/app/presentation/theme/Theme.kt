@@ -34,6 +34,12 @@ object AppSpacing {
     val xl: Dp = 32.dp
     val xxl: Dp = 48.dp
     val minTapTarget: Dp = 48.dp
+
+    // Compact form & chip tokens (Task N3)
+    val chipVisualHeight: Dp = 36.dp
+    val chipMinTouchTarget: Dp = 40.dp
+    val chipHorizontalPadding: Dp = 12.dp
+    val chipGap: Dp = 6.dp
 }
 
 object AppRadius {

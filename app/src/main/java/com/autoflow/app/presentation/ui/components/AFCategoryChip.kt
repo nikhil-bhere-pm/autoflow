@@ -20,9 +20,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.autoflow.app.presentation.theme.AppRadius
 import com.autoflow.app.presentation.theme.AppSpacing
 import com.autoflow.app.presentation.theme.AutoFlowTheme
+
+object AFChipTokens {
+    val visualHeight = AppSpacing.chipVisualHeight
+    val minTouchTarget = AppSpacing.chipMinTouchTarget
+    val horizontalPadding = AppSpacing.chipHorizontalPadding
+    val gap = AppSpacing.chipGap
+    val fontSize = 13.sp
+    val lineHeight = 18.sp
+}
 
 @Composable
 fun AFCategoryChip(
@@ -37,22 +47,26 @@ fun AFCategoryChip(
     val containerColor = if (selected) colors.brand else colors.chip
     val contentColor = if (selected) colors.buttonText else colors.ink
     val border = if (selected) null else BorderStroke(1.dp, colors.line)
+    val shape = RoundedCornerShape(AppRadius.full)
 
-    Surface(
-        shape = RoundedCornerShape(AppRadius.full),
-        color = containerColor,
-        contentColor = contentColor,
-        border = border,
+    Box(
         modifier = modifier
-            .defaultMinSize(minHeight = AppSpacing.minTapTarget, minWidth = AppSpacing.minTapTarget)
-            .clip(RoundedCornerShape(AppRadius.full))
-            .clickable(onClick = onClick)
+            .defaultMinSize(minHeight = AFChipTokens.minTouchTarget, minWidth = AFChipTokens.minTouchTarget)
+            .clip(shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
-            contentAlignment = Alignment.Center
+        Surface(
+            shape = shape,
+            color = containerColor,
+            contentColor = contentColor,
+            border = border,
+            modifier = Modifier.defaultMinSize(minHeight = AFChipTokens.visualHeight)
         ) {
             Row(
+                modifier = Modifier
+                    .defaultMinSize(minHeight = AFChipTokens.visualHeight)
+                    .padding(horizontal = AFChipTokens.horizontalPadding, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -62,7 +76,10 @@ fun AFCategoryChip(
                 }
                 Text(
                     text = text,
-                    style = AutoFlowTheme.typography.labelLarge
+                    style = AutoFlowTheme.typography.labelLarge.copy(
+                        fontSize = AFChipTokens.fontSize,
+                        lineHeight = AFChipTokens.lineHeight
+                    )
                 )
             }
         }

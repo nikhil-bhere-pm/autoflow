@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -262,13 +263,69 @@ fun EditTransactionScreen(
                 },
                 showDivider = true
             )
+        },
+        bottomBar = {
+            Surface(
+                color = colors.bg,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
+                ) {
+                    AFButton(
+                        text = "Save changes",
+                        onClick = {
+                            val amountPaiseToSave = if (formState.isAmountEditable) formState.parsedAmountPaise else null
+                            onSave(
+                                currentTx.id,
+                                merchantInput,
+                                selectedCategory,
+                                selectedDateTime,
+                                selectedPaymentMode,
+                                noteInput,
+                                amountPaiseToSave
+                            ) { result ->
+                                when (result) {
+                                    is UpdateTransactionResult.Success -> {
+                                        onNavigateBack()
+                                    }
+                                    is UpdateTransactionResult.FutureDateNotAllowed -> {
+                                        serverError = "Future date and time not allowed"
+                                    }
+                                    is UpdateTransactionResult.NoteTooLong -> {
+                                        serverError = "Note cannot exceed 200 characters"
+                                    }
+                                    is UpdateTransactionResult.InvalidAmount,
+                                    is UpdateTransactionResult.CannotEditSmsAmount -> {
+                                        serverError = "Invalid transaction amount"
+                                    }
+                                    is UpdateTransactionResult.CategoryNotFound -> {
+                                        serverError = "Selected category does not exist"
+                                    }
+                                    is UpdateTransactionResult.InvalidPaymentMode -> {
+                                        serverError = "Invalid payment mode selected"
+                                    }
+                                    is UpdateTransactionResult.NotFound -> {
+                                        serverError = "Transaction not found"
+                                    }
+                                }
+                            }
+                        },
+                        variant = AFButtonVariant.PRIMARY,
+                        enabled = formState.isSaveEnabled,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
@@ -446,8 +503,8 @@ fun EditTransactionScreen(
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.chipGap)
                 ) {
                     categories.forEach { categoryName ->
                         val isSelected = categoryName.equals(selectedCategory, ignoreCase = true)
@@ -532,52 +589,8 @@ fun EditTransactionScreen(
                 )
             }
 
-            // 7. BOTTOM ACTION BUTTONS
+            // 7. SECONDARY ACTION BUTTON
             Spacer(modifier = Modifier.height(AppSpacing.sm))
-
-            AFButton(
-                text = "Save changes",
-                onClick = {
-                    val amountPaiseToSave = if (formState.isAmountEditable) formState.parsedAmountPaise else null
-                    onSave(
-                        currentTx.id,
-                        merchantInput,
-                        selectedCategory,
-                        selectedDateTime,
-                        selectedPaymentMode,
-                        noteInput,
-                        amountPaiseToSave
-                    ) { result ->
-                        when (result) {
-                            is UpdateTransactionResult.Success -> {
-                                onNavigateBack()
-                            }
-                            is UpdateTransactionResult.FutureDateNotAllowed -> {
-                                serverError = "Future date and time not allowed"
-                            }
-                            is UpdateTransactionResult.NoteTooLong -> {
-                                serverError = "Note cannot exceed 200 characters"
-                            }
-                            is UpdateTransactionResult.InvalidAmount,
-                            is UpdateTransactionResult.CannotEditSmsAmount -> {
-                                serverError = "Invalid transaction amount"
-                            }
-                            is UpdateTransactionResult.CategoryNotFound -> {
-                                serverError = "Selected category does not exist"
-                            }
-                            is UpdateTransactionResult.InvalidPaymentMode -> {
-                                serverError = "Invalid payment mode selected"
-                            }
-                            is UpdateTransactionResult.NotFound -> {
-                                serverError = "Transaction not found"
-                            }
-                        }
-                    }
-                },
-                variant = AFButtonVariant.PRIMARY,
-                enabled = formState.isSaveEnabled,
-                modifier = Modifier.fillMaxWidth()
-            )
 
             AFButton(
                 text = formState.secondaryButtonText,

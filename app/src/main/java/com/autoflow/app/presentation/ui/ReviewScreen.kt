@@ -7,6 +7,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -306,6 +308,7 @@ private fun ReviewDayHeader(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReviewItemCard(
     tx: FinancialTransaction,
@@ -376,13 +379,11 @@ private fun ReviewItemCard(
                 modifier = Modifier.padding(vertical = AppSpacing.sm)
             )
 
-            // Category Chips Row: 3 top categories + Later button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically
+            // Category Chips: 3 top categories + Later button (wrapping rows)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.chipGap),
+                verticalArrangement = Arrangement.spacedBy(AppSpacing.chipGap)
             ) {
                 suggestedCategories.forEach { category ->
                     val iconRes = AFCategoryIcons.getDrawableRes(category)
@@ -405,7 +406,7 @@ private fun ReviewItemCard(
                     text = if (isLater) "Pending" else "Later",
                     onClick = onLater,
                     variant = AFButtonVariant.SECONDARY,
-                    modifier = Modifier.defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                    modifier = Modifier.defaultMinSize(minHeight = AppSpacing.chipVisualHeight)
                 )
             }
         }

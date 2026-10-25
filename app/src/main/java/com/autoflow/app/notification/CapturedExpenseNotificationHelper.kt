@@ -72,9 +72,16 @@ object CapturedExpenseNotificationHelper {
                 BUILT_IN_CATEGORIES
             }
 
-            val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, categories)
+            val hasSavedRule = app.transactionRepository.hasMerchantRule(tx.merchantName)
+            val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, categories, hasSavedRule)
             postNotification(context, content, tx.id)
         }
+    }
+
+    fun getActionRequestCode(transactionId: Long, actionKey: String): Int {
+        var result = (transactionId xor (transactionId ushr 32)).toInt()
+        result = 31 * result + actionKey.hashCode()
+        return result and 0x7FFFFFFF
     }
 
     fun postNotification(
@@ -101,7 +108,7 @@ object CapturedExpenseNotificationHelper {
         }
         val contentPendingIntent = PendingIntent.getActivity(
             context,
-            (transactionId * 10).toInt(),
+            getActionRequestCode(transactionId, CapturedExpenseNotificationBuilder.ACTION_EDIT_TRANSACTION),
             contentIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -118,6 +125,12 @@ object CapturedExpenseNotificationHelper {
 
         // Action buttons
         content.actions.forEachIndexed { index, action ->
+            val actionKey = if (action.category != null) {
+                "${action.actionType}_${action.category}"
+            } else {
+                "${action.actionType}_${action.title}"
+            }
+            val requestCode = getActionRequestCode(transactionId, actionKey)
             val pendingIntent = if (action.isActivity) {
                 val targetClass = if (action.actionType == CapturedExpenseNotificationBuilder.ACTION_CATEGORY_POPUP) {
                     com.autoflow.app.presentation.ui.CategoryPopupActivity::class.java
@@ -131,7 +144,7 @@ object CapturedExpenseNotificationHelper {
                 }
                 PendingIntent.getActivity(
                     context,
-                    (transactionId * 10 + index + 1).toInt(),
+                    requestCode,
                     actIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
@@ -153,7 +166,7 @@ object CapturedExpenseNotificationHelper {
                 }
                 PendingIntent.getBroadcast(
                     context,
-                    (transactionId * 10 + index + 1).toInt(),
+                    requestCode,
                     bcastIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )

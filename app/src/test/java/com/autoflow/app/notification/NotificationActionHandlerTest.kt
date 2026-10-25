@@ -13,8 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -190,6 +192,43 @@ class NotificationActionHandlerTest {
         insertSampleTx(id = 50L, isDeleted = 1)
         val snapshot = repository.assignCategory(id = 50L, category = "Food")
         assertNull(snapshot)
+    }
+
+    @Test
+    fun testUndoMerchantRule_subsequentSpendNeedsCategory() = runBlocking {
+        // First spend at new merchant "Chai Stall"
+        insertSampleTx(id = 60L, merchant = "Chai Stall", category = "Others", reviewStatus = ReviewStatus.NEEDS_REVIEW)
+
+        // Initially no rule exists
+        assertFalse(repository.hasMerchantRule("Chai Stall"))
+
+        // Assign category from notification -> creates rule
+        val snapshot = repository.assignCategory(id = 60L, category = "Food")
+        assertNotNull(snapshot)
+        assertTrue(repository.hasMerchantRule("Chai Stall"))
+
+        // Tap Undo on the new rule
+        repository.undoAssignCategory(snapshot!!)
+
+        // Rule is removed
+        assertFalse(repository.hasMerchantRule("Chai Stall"))
+
+        // Subsequent spend at Chai Stall
+        val nextTxEntity = insertSampleTx(id = 61L, merchant = "Chai Stall", category = "Others", reviewStatus = ReviewStatus.NEEDS_REVIEW)
+        val hasRule = repository.hasMerchantRule(nextTxEntity.merchantName)
+        assertFalse(hasRule)
+
+        val nextTx = repository.getTransactionById(nextTxEntity.id)!!
+        val nextContent = CapturedExpenseNotificationBuilder.buildInitialContent(
+            nextTx,
+            com.autoflow.app.domain.category.BUILT_IN_CATEGORIES,
+            hasSavedRule = hasRule
+        )
+
+        // Falls back to "needs category" (shows 3 buttons: 2 likeliest + "More…")
+        assertEquals(3, nextContent.actions.size)
+        assertEquals("More…", nextContent.actions[2].title)
+        assertEquals("Pick a category so it is counted correctly", nextContent.text)
     }
 
     // Fakes

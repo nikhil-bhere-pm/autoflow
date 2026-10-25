@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -89,13 +91,51 @@ fun AddSavedScreen(
                 },
                 showDivider = true
             )
+        },
+        bottomBar = {
+            Surface(
+                color = colors.bg,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+                ) {
+                    AFButton(
+                        text = stringResource(R.string.saved_screen_save_button),
+                        onClick = {
+                            if (isSaveEnabled) {
+                                if (onSaveWithGoal != null) {
+                                    onSaveWithGoal(selectedGoalId, amountPaise, noteInput.trim())
+                                } else {
+                                    onSave(amountPaise, noteInput.trim())
+                                }
+                            }
+                        },
+                        enabled = isSaveEnabled,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        text = stringResource(R.string.saved_screen_helper_hint),
+                        style = AutoFlowTheme.typography.bodySmall,
+                        color = colors.muted,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = AppSpacing.md)
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding()
                 .verticalScroll(scrollState)
                 .padding(AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
@@ -128,8 +168,8 @@ fun AddSavedScreen(
 
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                        verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.chipGap),
+                        verticalArrangement = Arrangement.spacedBy(AppSpacing.chipGap)
                     ) {
                         availableGoals.forEach { goal ->
                             val isSelected = goal.id == selectedGoalId
@@ -175,35 +215,6 @@ fun AddSavedScreen(
                         amountInput = amountInput.dropLast(1)
                     }
                 }
-            )
-
-            Spacer(modifier = Modifier.height(AppSpacing.xs))
-
-            // Save button
-            AFButton(
-                text = stringResource(R.string.saved_screen_save_button),
-                onClick = {
-                    if (isSaveEnabled) {
-                        if (onSaveWithGoal != null) {
-                            onSaveWithGoal(selectedGoalId, amountPaise, noteInput.trim())
-                        } else {
-                            onSave(amountPaise, noteInput.trim())
-                        }
-                    }
-                },
-                enabled = isSaveEnabled,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Helper hint
-            Text(
-                text = stringResource(R.string.saved_screen_helper_hint),
-                style = AutoFlowTheme.typography.bodySmall,
-                color = colors.muted,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppSpacing.md)
             )
         }
     }

@@ -46,17 +46,32 @@ object CapturedExpenseNotificationBuilder {
 
     fun getNotificationId(txId: Long): Int = ((txId % 100000L).toInt() + 10000)
 
-    fun needsCategory(tx: FinancialTransaction): Boolean {
-        return tx.reviewStatus == com.autoflow.app.data.model.ReviewStatus.NEEDS_REVIEW ||
-                tx.merchantName.isBlank() ||
+    fun needsCategory(
+        tx: FinancialTransaction,
+        hasSavedRule: Boolean = false
+    ): Boolean {
+        val isBlankOrUnknownMerchant = tx.merchantName.isBlank() ||
                 tx.merchantName.equals("Unknown Merchant", ignoreCase = true)
+        if (isBlankOrUnknownMerchant) return true
+
+        if (hasSavedRule) {
+            return false
+        }
+
+        val isOthersOrUnknown = tx.category.equals("Others", ignoreCase = true) ||
+                tx.category.equals("Unknown", ignoreCase = true) ||
+                tx.category.isBlank()
+        val isInReview = tx.reviewStatus == com.autoflow.app.data.model.ReviewStatus.NEEDS_REVIEW
+
+        return isOthersOrUnknown || isInReview
     }
 
     fun buildInitialContent(
         tx: FinancialTransaction,
-        allCategories: List<String> = BUILT_IN_CATEGORIES
+        allCategories: List<String> = BUILT_IN_CATEGORIES,
+        hasSavedRule: Boolean = false
     ): NotificationContent {
-        return if (needsCategory(tx)) {
+        return if (needsCategory(tx, hasSavedRule)) {
             buildNeedsCategoryContent(tx, allCategories)
         } else {
             buildKnownMerchantContent(tx)

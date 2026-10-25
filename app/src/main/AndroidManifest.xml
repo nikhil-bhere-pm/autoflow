@@ -27,10 +27,8 @@
             android:name=".presentation.ui.CategoryPopupActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:noHistory="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.AutoFlow.TranslucentPopup"
-            android:launchMode="singleTask" />
+            android:theme="@style/Theme.AutoFlow.TranslucentPopup" />
 
         <receiver
             android:name=".widget.AutoFlowWidgetProvider"

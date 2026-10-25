@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -167,13 +168,39 @@ fun AddCashExpenseScreen(
                 },
                 showDivider = true
             )
+        },
+        bottomBar = {
+            Surface(
+                color = colors.bg,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)
+                ) {
+                    AFButton(
+                        text = "Save",
+                        onClick = {
+                            val amountPaise = formState.parsedAmountPaise ?: return@AFButton
+                            val finalMerchant = merchantInput.trim().ifBlank { "Cash Expense" }
+                            val finalTimestamp = formState.effectiveDateTime
+                            onSave(amountPaise, finalMerchant, selectedCategory, finalTimestamp, selectedMode)
+                            onNavigateBack()
+                        },
+                        variant = AFButtonVariant.PRIMARY,
+                        enabled = formState.isSaveEnabled,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding()
                 .verticalScroll(scrollState)
                 .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
@@ -227,8 +254,8 @@ fun AddCashExpenseScreen(
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.chipGap)
                 ) {
                     categories.forEach { categoryName ->
                         val isSelected = categoryName.equals(selectedCategory, ignoreCase = true)
@@ -324,23 +351,6 @@ fun AddCashExpenseScreen(
                     )
                 }
             }
-
-            // 6. SAVE BUTTON
-            Spacer(modifier = Modifier.height(AppSpacing.md))
-
-            AFButton(
-                text = "Save",
-                onClick = {
-                    val amountPaise = formState.parsedAmountPaise ?: return@AFButton
-                    val finalMerchant = merchantInput.trim().ifBlank { "Cash Expense" }
-                    val finalTimestamp = formState.effectiveDateTime
-                    onSave(amountPaise, finalMerchant, selectedCategory, finalTimestamp, selectedMode)
-                    onNavigateBack()
-                },
-                variant = AFButtonVariant.PRIMARY,
-                enabled = formState.isSaveEnabled,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

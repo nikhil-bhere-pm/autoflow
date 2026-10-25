@@ -828,3 +828,23 @@
   - Verified on physical phone using isolated QA package `com.autoflow.app.qa` (production app `com.autoflow.app` left untouched).
   - Tested all notification states, undo flows, background execution with force-stopped app, lock screen rendering, and Home screen balance updates.
 
+## 26. Category Popup Fix, New-Shop Rule & Compact Forms — Task N3 (October 25, 2026)
+
+- **Part 1: Category Popup Activity Fix (`CategoryPopupActivity`):**
+  - **Phone Diagnosis & Root Cause:** Diagnosis via 8 adb commands revealed `CategoryPopupActivity` was configured with `android:noHistory="true"` and `android:launchMode="singleTask"` in `AndroidManifest.xml`. When launched from the notification shade, Android's window manager collapsed the shade and immediately destroyed the translucent activity within 19ms (`OplusScrollToTopManager: window dying`), falling back to `MainActivity`.
+  - **Fix:** Removed `android:noHistory="true"` and `android:launchMode="singleTask"`. Updated `CapturedExpenseNotificationHelper` to use deterministic unique `requestCode`s derived from `(transactionId, actionKey)` for all notification PendingIntents, preventing intent collision.
+  - **Unit Test & Mutation Proof:** Tested in `CapturedExpenseNotificationContentTest.testActionRequestCode_uniqueAndDeterministic`.
+- **Part 2: New-Shop Rule (First Spend Needs Category):**
+  - Added `TransactionRepository.hasMerchantRule(merchantName)`.
+  - In `CapturedExpenseNotificationBuilder.buildInitialContent`, any first-time merchant (`hasSavedRule == false`) or row in `NEEDS_REVIEW` or categorized as "Others"/"Unknown" triggers `needsCategory = true`, presenting the top 2 likeliest categories + "More…".
+  - Known-merchant state ("Change" + "Not an expense") is shown only when a saved rule exists.
+  - Tapping Undo removes the merchant rule; subsequent spends at that merchant fall back to "needs category".
+  - Tested in `CapturedExpenseNotificationContentTest.testNewShopRule_firstTimeMerchant_needsCategory`, `testNewShopRule_merchantWithSavedRule_knownMerchantState`, and `NotificationActionHandlerTest.testUndoMerchantRule_subsequentSpendNeedsCategory`.
+- **Part 3: Compact Forms & Centralized Chip Tokens:**
+  - Defined `AFChipTokens` (`visualHeight = 36.dp`, `minTouchTarget = 40.dp`, `horizontalPadding = 12.dp`, `gap = 6.dp`, `fontSize = 13.sp`, `lineHeight = 18.sp`) in `AFCategoryChip.kt` and `Theme.kt`.
+  - Reused across `AFCategoryChip` and `AFSegmented`, removing oversized 48dp/44dp min heights.
+  - Category lists wrap naturally using `FlowRow` with `chipGap` (6dp), eliminating horizontal category scrolling in `ReviewScreen`.
+  - Pinned primary action buttons in `Scaffold`'s `bottomBar` with `navigationBarsPadding()` and `imePadding()` across `AddCashExpenseScreen`, `QuickExpenseScreen`, `EditTransactionScreen`, and `AddSavedScreen`.
+  - In `EditTransactionScreen`, secondary button ("Not an expense" / "Count this expense") stays inside the scrollable content area.
+  - Fluid sizing accommodates large font scale and display settings without clipping.
+

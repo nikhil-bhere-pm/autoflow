@@ -230,6 +230,12 @@ class TransactionRepository(
         transactionDao.undelete(id, now)
     }
 
+    suspend fun hasMerchantRule(merchantName: String): Boolean {
+        if (!CategoryEngine.shouldStoreRule(merchantName) || merchantCategoryDao == null) return false
+        val normalizedKey = CategoryEngine.normalizeKey(merchantName)
+        return merchantCategoryDao.getByKey(normalizedKey) != null
+    }
+
     suspend fun assignCategory(
         id: Long,
         category: String,

@@ -84,7 +84,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     BUILT_IN_CATEGORIES
                 }
-                val content = CapturedExpenseNotificationBuilder.buildNeedsCategoryContent(restoredTx, categories)
+                val hasSavedRule = app.transactionRepository.hasMerchantRule(restoredTx.merchantName)
+                val content = CapturedExpenseNotificationBuilder.buildInitialContent(restoredTx, categories, hasSavedRule)
                 CapturedExpenseNotificationHelper.postNotification(context, content, txId)
             }
 
@@ -106,7 +107,13 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 app.transactionRepository.undoMarkNotAnExpense(snapshot)
 
                 val restoredTx = app.transactionRepository.getTransactionById(txId) ?: return
-                val content = CapturedExpenseNotificationBuilder.buildKnownMerchantContent(restoredTx)
+                val categories = try {
+                    app.categoryRepository.getAllCategories().first().map { it.name }
+                } catch (e: Exception) {
+                    BUILT_IN_CATEGORIES
+                }
+                val hasSavedRule = app.transactionRepository.hasMerchantRule(restoredTx.merchantName)
+                val content = CapturedExpenseNotificationBuilder.buildInitialContent(restoredTx, categories, hasSavedRule)
                 CapturedExpenseNotificationHelper.postNotification(context, content, txId)
             }
 

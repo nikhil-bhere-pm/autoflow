@@ -1,5 +1,7 @@
 package com.autoflow.app.notification
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.autoflow.app.data.model.ReviewStatus
 import com.autoflow.app.data.model.TransactionSource
 import com.autoflow.app.domain.category.BUILT_IN_CATEGORIES
@@ -169,5 +171,71 @@ class CapturedExpenseNotificationContentTest {
 
         assertEquals(id1, id2)
         assertTrue(id1 != id3)
+    }
+
+    @Test
+    fun testActionRequestCode_uniqueAndDeterministic() {
+        val txId = 42L
+        val codeChange = CapturedExpenseNotificationHelper.getActionRequestCode(txId, "CHANGE")
+        val codeNotExpense = CapturedExpenseNotificationHelper.getActionRequestCode(txId, "NOT_EXPENSE")
+        val codeMore = CapturedExpenseNotificationHelper.getActionRequestCode(txId, "MORE")
+        val codeCatFood = CapturedExpenseNotificationHelper.getActionRequestCode(txId, "CAT_Food")
+        val codeCatTravel = CapturedExpenseNotificationHelper.getActionRequestCode(txId, "CAT_Travel")
+        val otherTxCodeChange = CapturedExpenseNotificationHelper.getActionRequestCode(43L, "CHANGE")
+
+        // Deterministic
+        assertEquals(codeChange, CapturedExpenseNotificationHelper.getActionRequestCode(txId, "CHANGE"))
+
+        // Distinct across different actions on same tx
+        val set = setOf(codeChange, codeNotExpense, codeMore, codeCatFood, codeCatTravel, otherTxCodeChange)
+        assertEquals(6, set.size)
+    }
+
+    @Test
+    fun testNewShopRule_firstTimeMerchant_needsCategory() {
+        val tx = createTx(
+            id = 55L,
+            amountPaise = 25000L,
+            merchant = "Fresh Mart",
+            category = "Others",
+            reviewStatus = ReviewStatus.CONFIRMED
+        )
+
+        // First spend (hasSavedRule = false) -> MUST trigger needsCategory
+        val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = false)
+
+        assertEquals("₹250.00 spent at Fresh Mart", content.title)
+        assertEquals("Pick a category so it is counted correctly", content.text)
+        assertEquals(3, content.actions.size)
+        assertEquals("More…", content.actions[2].title)
+    }
+
+    @Test
+    fun testNewShopRule_merchantWithSavedRule_knownMerchantState() {
+        val tx = createTx(
+            id = 56L,
+            amountPaise = 25000L,
+            merchant = "Fresh Mart",
+            category = "Groceries",
+            reviewStatus = ReviewStatus.CONFIRMED
+        )
+
+        // Merchant with saved rule (hasSavedRule = true) -> known-merchant state
+        val content = CapturedExpenseNotificationBuilder.buildInitialContent(tx, BUILT_IN_CATEGORIES, hasSavedRule = true)
+
+        assertEquals("₹250.00 spent at Fresh Mart", content.title)
+        assertEquals("Groceries · counted in today's total", content.text)
+        assertEquals(2, content.actions.size)
+        assertEquals("Change", content.actions[0].title)
+        assertEquals("Not an expense", content.actions[1].title)
+    }
+
+    @Test
+    fun testCompactChipTokens() {
+        assertEquals(36.dp, com.autoflow.app.presentation.ui.components.AFChipTokens.visualHeight)
+        assertEquals(40.dp, com.autoflow.app.presentation.ui.components.AFChipTokens.minTouchTarget)
+        assertEquals(12.dp, com.autoflow.app.presentation.ui.components.AFChipTokens.horizontalPadding)
+        assertEquals(6.dp, com.autoflow.app.presentation.ui.components.AFChipTokens.gap)
+        assertEquals(13.sp, com.autoflow.app.presentation.ui.components.AFChipTokens.fontSize)
     }
 }

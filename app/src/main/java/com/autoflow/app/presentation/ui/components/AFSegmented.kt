@@ -40,11 +40,11 @@ fun AFSegmented(
         border = BorderStroke(1.dp, colors.line),
         modifier = modifier
             .fillMaxWidth()
-            .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+            .defaultMinSize(minHeight = AFChipTokens.minTouchTarget)
     ) {
         Row(
             modifier = Modifier
-                .padding(AppSpacing.xs)
+                .padding(2.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -60,17 +60,22 @@ fun AFSegmented(
                     border = border,
                     modifier = Modifier
                         .weight(1f)
-                        .defaultMinSize(minHeight = 40.dp)
+                        .defaultMinSize(minHeight = AFChipTokens.visualHeight)
                         .clip(itemShape)
                         .clickable { onSelect(index) }
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.padding(horizontal = AppSpacing.sm, vertical = AppSpacing.xs)
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = AFChipTokens.visualHeight)
+                            .padding(horizontal = AFChipTokens.horizontalPadding, vertical = 2.dp)
                     ) {
                         Text(
                             text = title,
-                            style = AutoFlowTheme.typography.labelLarge,
+                            style = AutoFlowTheme.typography.labelLarge.copy(
+                                fontSize = AFChipTokens.fontSize,
+                                lineHeight = AFChipTokens.lineHeight
+                            ),
                             color = textColor
                         )
                     }
