@@ -117,4 +117,21 @@
     <string name="settings_notify_captured_title">Notify me when an expense is captured</string>
     <string name="settings_notify_captured_subtitle">Shows amount and merchant</string>
     <string name="settings_notify_permission_missing">Allow notifications in Android settings</string>
+
+    <!-- Autopay Feature (Task P2) -->
+    <string name="categories_title">Categories</string>
+    <string name="autopay_title">Autopay</string>
+    <string name="autopay_content_desc">Autopay</string>
+    <string name="autopay_summary_label">Autopay this month</string>
+    <string name="autopay_summary_empty_line">No autopay payments found yet.</string>
+    <string name="autopay_how_it_works_section">How it will work</string>
+    <string name="autopay_tag_title">Autopay tag</string>
+    <string name="autopay_tag_text">When a bank message says a payment was an automatic debit, it will appear here with an Autopay tag.</string>
+    <string name="autopay_repeats_title">Repeats tag</string>
+    <string name="autopay_repeats_text">When the same merchant charges a similar amount in earlier months, it will appear here with a Repeats tag.</string>
+    <string name="autopay_next_expected_title">Next expected</string>
+    <string name="autopay_next_expected_text">For each one we will show when the next payment is likely, for example Next expected 5 Nov.</string>
+    <string name="autopay_note_text">Autopay payments are normal expenses. They already count in your spending and in their own category. This page changes no totals.</string>
+    <string name="autopay_empty_title">Nothing here yet</string>
+    <string name="autopay_empty_text">Autopay payments will show up here once they are detected. There is nothing to set up.</string>
 </resources>

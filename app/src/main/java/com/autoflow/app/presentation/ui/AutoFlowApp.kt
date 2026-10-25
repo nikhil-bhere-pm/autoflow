@@ -57,6 +57,7 @@ sealed class Screen {
     data object MyCategories : Screen()
     data object AddCategory : Screen()
     data class EditCategory(val categoryName: String) : Screen()
+    data object Autopay : Screen()
 }
 
 @Composable
@@ -204,6 +205,7 @@ fun AutoFlowApp(
             is Screen.MyCategories -> Screen.Settings
             is Screen.AddCategory -> Screen.MyCategories
             is Screen.EditCategory -> Screen.MyCategories
+            is Screen.Autopay -> Screen.Categories
             Screen.Home -> Screen.Home
         }
     }
@@ -469,7 +471,14 @@ fun AutoFlowApp(
                 onNavigateToReview = { currentScreen = Screen.Review },
                 onNavigateToAddCash = { currentScreen = Screen.AddCash },
                 onNavigateToEdit = { id -> currentScreen = Screen.Edit(id, fromCategories = true) },
+                onNavigateToAutopay = { currentScreen = Screen.Autopay },
                 snackbarHostState = appSnackbarHostState
+            )
+        }
+
+        is Screen.Autopay -> {
+            AutopayScreen(
+                onNavigateBack = { currentScreen = Screen.Categories }
             )
         }
 

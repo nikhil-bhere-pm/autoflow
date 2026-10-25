@@ -38,12 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.autoflow.app.R
 import com.autoflow.app.data.model.RecordType
 import com.autoflow.app.domain.model.FinancialTransaction
@@ -84,6 +86,7 @@ fun CategoriesScreen(
     onNavigateToEdit: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToGoals: () -> Unit = {},
+    onNavigateToAutopay: () -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 ) {
     val colors = AutoFlowTheme.colors
@@ -109,12 +112,6 @@ fun CategoriesScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = colors.bg,
         snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            AFTopBar(
-                title = "Categories",
-                showDivider = true
-            )
-        },
         bottomBar = {
             AFBottomNav(
                 items = com.autoflow.app.presentation.ui.components.createStandardNavItems(unreviewedCount = unreviewedCount),
@@ -155,7 +152,10 @@ fun CategoriesScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding()
+                ),
             contentPadding = PaddingValues(
                 start = AppSpacing.md,
                 end = AppSpacing.md,
@@ -164,17 +164,56 @@ fun CategoriesScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
-            // Period selector pill row
+            // Combined Header Row: Title "Categories" at left, Autopay button + 8dp + Period Pill at right
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = AppSpacing.xs),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AFPeriodPill(
-                        pillLabel = uiState.pillLabel,
-                        onSelectPeriod = onSelectPeriod,
-                        onSelectMonth = onSelectMonth
+                    Text(
+                        text = stringResource(R.string.categories_title),
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp,
+                        color = colors.ink
                     )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val autopayDesc = stringResource(R.string.autopay_content_desc)
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.sheet,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.line),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clickable(onClick = onNavigateToAutopay)
+                                .semantics { contentDescription = autopayDesc }
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_repeat),
+                                    contentDescription = null,
+                                    tint = colors.ink,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        AFPeriodPill(
+                            pillLabel = uiState.pillLabel,
+                            onSelectPeriod = onSelectPeriod,
+                            onSelectMonth = onSelectMonth
+                        )
+                    }
                 }
             }
 
