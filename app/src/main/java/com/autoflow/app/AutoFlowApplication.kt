@@ -45,5 +45,7 @@ class AutoFlowApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         com.autoflow.app.notification.CapturedExpenseNotificationHelper.ensureChannel(this)
+        com.autoflow.app.notification.recap.DailyRecapNotificationHelper.ensureChannel(this)
+        com.autoflow.app.notification.recap.DailyRecapScheduler.scheduleNextRun(this)
     }
 }

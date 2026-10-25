@@ -74,6 +74,18 @@ fun SettingsScreen(
         mutableStateOf(notificationPrefs.isCapturedExpenseNotificationEnabled())
     }
 
+    var isDailyRecapEnabled by remember {
+        mutableStateOf(notificationPrefs.isDailyRecapEnabled())
+    }
+
+    var recapHour by remember {
+        mutableStateOf(notificationPrefs.getDailyRecapTimeHour())
+    }
+
+    var recapMinute by remember {
+        mutableStateOf(notificationPrefs.getDailyRecapTimeMinute())
+    }
+
     var hasNotificationPermission by remember {
         mutableStateOf(
             androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -277,6 +289,26 @@ fun SettingsScreen(
             }
 
             // Notifications Section
+            val handleNotificationPermissionRequest: () -> Unit = {
+                val activity = context as? android.app.Activity
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                    activity != null &&
+                    androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+                        activity,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    )
+                ) {
+                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+                    !notificationPrefs.hasRequestedNotificationPermission()
+                ) {
+                    notificationPrefs.setHasRequestedNotificationPermission(true)
+                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    openAppNotificationSettings(context)
+                }
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
                 Text(
                     text = "Notifications",
@@ -289,91 +321,174 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(AppRadius.md))
-                        .clickable {
-                            if (!hasNotificationPermission) {
-                                val activity = context as? android.app.Activity
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-                                    activity != null &&
-                                    androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
-                                        activity,
-                                        Manifest.permission.POST_NOTIFICATIONS
-                                    )
-                                ) {
-                                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-                                    !notificationPrefs.hasRequestedNotificationPermission()
-                                ) {
-                                    notificationPrefs.setHasRequestedNotificationPermission(true)
-                                    postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                } else {
-                                    openAppNotificationSettings(context)
-                                }
-                            } else {
-                                val newEnabled = !isNotificationEnabled
-                                isNotificationEnabled = newEnabled
-                                notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
-                            }
-                        }
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = AppSpacing.minTapTarget)
-                            .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Notify me when an expense is captured",
-                                style = AutoFlowTheme.typography.bodyLarge,
-                                color = colors.ink
-                            )
-                            Spacer(modifier = Modifier.height(AppSpacing.xxs))
-                            Text(
-                                text = if (!hasNotificationPermission) {
-                                    "Allow notifications in Android settings"
-                                } else {
-                                    "Shows amount and merchant"
+                    Column {
+                        // 1. Captured expense notification
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                                .clickable {
+                                    if (!hasNotificationPermission) {
+                                        handleNotificationPermissionRequest()
+                                    } else {
+                                        val newEnabled = !isNotificationEnabled
+                                        isNotificationEnabled = newEnabled
+                                        notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
+                                    }
+                                }
+                                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Notify me when an expense is captured",
+                                    style = AutoFlowTheme.typography.bodyLarge,
+                                    color = colors.ink
+                                )
+                                Spacer(modifier = Modifier.height(AppSpacing.xxs))
+                                Text(
+                                    text = if (!hasNotificationPermission) {
+                                        "Allow notifications in Android settings"
+                                    } else {
+                                        "Shows amount and merchant"
+                                    },
+                                    style = AutoFlowTheme.typography.bodySmall,
+                                    color = if (!hasNotificationPermission) colors.amberFg else colors.muted
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(AppSpacing.sm))
+                            androidx.compose.material3.Switch(
+                                checked = hasNotificationPermission && isNotificationEnabled,
+                                onCheckedChange = { _ ->
+                                    if (!hasNotificationPermission) {
+                                        handleNotificationPermissionRequest()
+                                    } else {
+                                        val newEnabled = !isNotificationEnabled
+                                        isNotificationEnabled = newEnabled
+                                        notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
+                                    }
                                 },
-                                style = AutoFlowTheme.typography.bodySmall,
-                                color = if (!hasNotificationPermission) colors.amberFg else colors.muted
+                                colors = androidx.compose.material3.SwitchDefaults.colors(
+                                    checkedThumbColor = colors.buttonText,
+                                    checkedTrackColor = colors.button,
+                                    uncheckedThumbColor = colors.muted,
+                                    uncheckedTrackColor = colors.track
+                                )
                             )
                         }
-                        Spacer(modifier = Modifier.width(AppSpacing.sm))
-                        androidx.compose.material3.Switch(
-                            checked = hasNotificationPermission && isNotificationEnabled,
-                            onCheckedChange = { _ ->
-                                if (!hasNotificationPermission) {
-                                    val activity = context as? android.app.Activity
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-                                        activity != null &&
-                                        androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
-                                            activity,
-                                            Manifest.permission.POST_NOTIFICATIONS
-                                        )
-                                    ) {
-                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                    } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
-                                        !notificationPrefs.hasRequestedNotificationPermission()
-                                    ) {
-                                        notificationPrefs.setHasRequestedNotificationPermission(true)
-                                        postNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                    } else {
-                                        openAppNotificationSettings(context)
-                                    }
-                                } else {
-                                    val newEnabled = !isNotificationEnabled
-                                    isNotificationEnabled = newEnabled
-                                    notificationPrefs.setCapturedExpenseNotificationEnabled(newEnabled)
-                                }
-                            },
-                            colors = androidx.compose.material3.SwitchDefaults.colors(
-                                checkedThumbColor = colors.buttonText,
-                                checkedTrackColor = colors.button,
-                                uncheckedThumbColor = colors.muted,
-                                uncheckedTrackColor = colors.track
-                            )
+
+                        androidx.compose.material3.HorizontalDivider(
+                            color = colors.line,
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(horizontal = AppSpacing.md)
                         )
+
+                        // 2. Daily recap switch
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                                .clickable {
+                                    if (!hasNotificationPermission) {
+                                        handleNotificationPermissionRequest()
+                                    } else {
+                                        val newEnabled = !isDailyRecapEnabled
+                                        isDailyRecapEnabled = newEnabled
+                                        notificationPrefs.setDailyRecapEnabled(newEnabled)
+                                        com.autoflow.app.notification.recap.DailyRecapScheduler.scheduleNextRun(context, replaceExisting = true)
+                                    }
+                                }
+                                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Daily recap",
+                                    style = AutoFlowTheme.typography.bodyLarge,
+                                    color = colors.ink
+                                )
+                                Spacer(modifier = Modifier.height(AppSpacing.xxs))
+                                Text(
+                                    text = if (!hasNotificationPermission) {
+                                        "Allow notifications in Android settings"
+                                    } else {
+                                        "A summary of the day's spending"
+                                    },
+                                    style = AutoFlowTheme.typography.bodySmall,
+                                    color = if (!hasNotificationPermission) colors.amberFg else colors.muted
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(AppSpacing.sm))
+                            androidx.compose.material3.Switch(
+                                checked = hasNotificationPermission && isDailyRecapEnabled,
+                                onCheckedChange = { _ ->
+                                    if (!hasNotificationPermission) {
+                                        handleNotificationPermissionRequest()
+                                    } else {
+                                        val newEnabled = !isDailyRecapEnabled
+                                        isDailyRecapEnabled = newEnabled
+                                        notificationPrefs.setDailyRecapEnabled(newEnabled)
+                                        com.autoflow.app.notification.recap.DailyRecapScheduler.scheduleNextRun(context, replaceExisting = true)
+                                    }
+                                },
+                                colors = androidx.compose.material3.SwitchDefaults.colors(
+                                    checkedThumbColor = colors.buttonText,
+                                    checkedTrackColor = colors.button,
+                                    uncheckedThumbColor = colors.muted,
+                                    uncheckedTrackColor = colors.track
+                                )
+                            )
+                        }
+
+                        androidx.compose.material3.HorizontalDivider(
+                            color = colors.line,
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(horizontal = AppSpacing.md)
+                        )
+
+                        // 3. Recap time row
+                        val recapTimeEnabled = hasNotificationPermission && isDailyRecapEnabled
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = AppSpacing.minTapTarget)
+                                .clickable(enabled = recapTimeEnabled) {
+                                    android.app.TimePickerDialog(
+                                        context,
+                                        { _, h, m ->
+                                            recapHour = h
+                                            recapMinute = m
+                                            notificationPrefs.setDailyRecapTime(h, m)
+                                            com.autoflow.app.notification.recap.DailyRecapScheduler.scheduleNextRun(context, replaceExisting = true)
+                                        },
+                                        recapHour,
+                                        recapMinute,
+                                        false
+                                    ).show()
+                                }
+                                .padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Recap time",
+                                    style = AutoFlowTheme.typography.bodyLarge,
+                                    color = if (recapTimeEnabled) colors.ink else colors.muted
+                                )
+                                Spacer(modifier = Modifier.height(AppSpacing.xxs))
+                                Text(
+                                    text = formatRecapTime(recapHour, recapMinute),
+                                    style = AutoFlowTheme.typography.bodySmall,
+                                    color = if (recapTimeEnabled) colors.muted else colors.muted.copy(alpha = 0.5f)
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Edit recap time",
+                                tint = if (recapTimeEnabled) colors.muted else colors.muted.copy(alpha = 0.5f)
+                            )
+                        }
                     }
                 }
             }
@@ -427,4 +542,11 @@ private fun openAppNotificationSettings(context: Context) {
     }
     context.startActivity(intent)
 }
+
+private fun formatRecapTime(hour: Int, minute: Int): String {
+    val h = if (hour % 12 == 0) 12 else hour % 12
+    val amPm = if (hour >= 12) "PM" else "AM"
+    return String.format(java.util.Locale.getDefault(), "%d:%02d %s", h, minute, amPm)
+}
+
 
