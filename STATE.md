@@ -980,6 +980,43 @@
   - Zero hardcoded colors outside `Theme.kt`. Zero prohibited permissions (`READ_SMS` absent).
   - Built `assembleQa` and installed over `com.autoflow.app.qa` on device `dfa4dd90`.
 
+## 32. Autopay Button & Design-Only Autopay Empty State Screen — Task P2 (October 25, 2026)
+
+- **Worktree & Scope:**
+  - Continued work in worktree `..\autoflow-p1` on branch `polish1` (from commit `26e9053`).
+  - No merge, no push, no phone tapping, no screenshots.
+  - No hardcoded colors in Kotlin outside `Theme.kt`. All strings in `strings.xml`.
+  - Zero permissions added; `parser-core` untouched; zero raw SMS logged.
+
+- **Part A: Categories Header + Autopay Button (Commit `581899a`):**
+  - Replaced the two separate header rows on `CategoriesScreen` with a single unified row:
+    - Title "Categories" at left: 26sp extra-bold, letter-spacing -0.5sp.
+    - Right section with 8dp gap:
+      - Autopay icon button: 40dp circle, 1dp outline (`colors.line`), surface fill (`colors.sheet`), 18dp repeat icon in `colors.ink`, content description `"Autopay"`.
+      - Period pill (`AFPeriodPill`) with selected period and month selection.
+  - Created vector drawable `res/drawable/ic_repeat.xml` (24dp viewport, strokeWidth 1.75, round caps/joins) matching specified paths.
+  - Tapping Autopay button opens `Screen.Autopay`. Back returns to `Screen.Categories` with selected period preserved.
+  - Unit tests in `RepeatIconResourceTest.kt` verifying XML vector paths, viewport, and stroke width.
+
+- **Part B: Design-Only Autopay Empty State Screen (Commit `af20228`):**
+  - Built pushed screen `AutopayScreen` (no bottom bar, normal app background `colors.bg`):
+    - Top bar: back arrow at left (48dp touch area), centered title "Autopay" (17sp extra-bold), balanced 48dp spacer at right.
+    - Summary card: surface fill (`colors.sheet`), 20dp radius, 16dp padding, 2dp soft shadow, small label "Autopay this month" (12.5sp bold muted), amount `"₹0.00"` (28sp extra-bold, tabular figures, formatted via `CurrencyFormatter.formatPaiseToInr(0L)`), line "No autopay payments found yet." (12.5sp muted).
+    - Section "How it will work": 12.5sp bold muted label, single card (surface fill, 1dp outline, 20dp radius) with 3 rows separated by thin dividers:
+      - "Autopay tag": 44dp tinted tile (`colors.tint`, `colors.onTint`), 15sp bold title, 12.5sp muted explanation.
+      - "Repeats tag": 44dp tinted tile, 15sp bold title, 12.5sp muted explanation.
+      - "Next expected": 44dp tinted tile, 15sp bold title, 12.5sp muted explanation.
+    - Note row: info icon + 12.5sp muted text explaining Autopay payments are normal expenses and page changes no totals.
+    - Centered empty block: 56dp circle in chip color (`colors.chip`) with repeat icon, 15sp bold title "Nothing here yet", 13sp muted centered text with 280dp max width.
+    - Vertical scrolling enabled for small screens, large fonts wrapped without clipping.
+  - Added sealed interface `AutopayUiState` with `data object Empty`.
+  - Added unit test suite `AutopayScreenTest.kt` (4 tests) covering navigation resolution, default empty state, zero-paise currency formatting, and complete strings validation.
+
+- **Verification & QA Installation:**
+  - `scripts/verify.ps1`: All 7 checks passed (2666 unit tests: 1962 parser-core, 352 app debug, 352 app release).
+  - Built `assembleQa` and installed over `com.autoflow.app.qa` on device `dfa4dd90`.
+
+
 
 
 
