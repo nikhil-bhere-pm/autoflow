@@ -81,6 +81,9 @@
     <string name="widget_square_description">Quick expense and saved shortcuts in a square layout</string>
     <string name="widget_btn_expense">+ Expense</string>
     <string name="widget_btn_saved">+ Saved</string>
+    <string name="widget_spend_name">AutoFlow this month</string>
+    <string name="widget_spend_description">Shows spending this month</string>
+    <string name="widget_spend_title">This month</string>
 
     <!-- Quick Expense -->
     <string name="quick_expense_title">Quick expense</string>

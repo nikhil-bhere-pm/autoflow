@@ -37,10 +37,17 @@ class TransactionRepository(
     private val transactionDao: TransactionDao,
     private val merchantCategoryDao: MerchantCategoryDao? = null,
     private val customCategoryDao: CustomCategoryDao? = null,
-    private val runInTransaction: suspend (suspend () -> Unit) -> Unit = { block -> block() }
+    private val runInTransaction: suspend (suspend () -> Unit) -> Unit = { block -> block() },
+    var onTransactionWritten: (() -> Unit)? = null
 ) {
+    private fun notifyTransactionWritten() {
+        onTransactionWritten?.invoke()
+    }
+
     suspend fun insertTransaction(transaction: TransactionEntity): Long {
-        return transactionDao.insert(transaction)
+        val id = transactionDao.insert(transaction)
+        notifyTransactionWritten()
+        return id
     }
 
     suspend fun getTransactionById(id: Long): FinancialTransaction? {
@@ -115,6 +122,7 @@ class TransactionRepository(
 
     suspend fun updateTransaction(transaction: TransactionEntity) {
         transactionDao.update(transaction)
+        notifyTransactionWritten()
     }
 
     suspend fun updateTransaction(
@@ -216,6 +224,7 @@ class TransactionRepository(
             }
         }
 
+        notifyTransactionWritten()
         return UpdateTransactionResult.Success(resultEntity.toDomain())
     }
 
@@ -240,10 +249,12 @@ class TransactionRepository(
 
     suspend fun softDelete(id: Long) {
         transactionDao.softDelete(id)
+        notifyTransactionWritten()
     }
 
     suspend fun undelete(id: Long, now: Long = System.currentTimeMillis()) {
         transactionDao.undelete(id, now)
+        notifyTransactionWritten()
     }
 
     suspend fun hasMerchantRule(merchantName: String): Boolean {
@@ -346,6 +357,7 @@ class TransactionRepository(
                 }
             }
         }
+        notifyTransactionWritten()
     }
 
     suspend fun markNotAnExpense(
@@ -364,6 +376,7 @@ class TransactionRepository(
                 updatedAt = now
             )
         )
+        notifyTransactionWritten()
         return snapshot
     }
 
@@ -378,6 +391,7 @@ class TransactionRepository(
                 updatedAt = now
             )
         )
+        notifyTransactionWritten()
     }
 
     private fun TransactionEntity.toDomain(): FinancialTransaction {

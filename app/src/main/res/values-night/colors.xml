@@ -8,4 +8,6 @@
     <color name="widget_bg">#00000000</color>
     <color name="widget_container_bg">#FF12201C</color>
     <color name="widget_container_stroke">#22332F</color>
+    <color name="widget_spend_title">#94A3B8</color>
+    <color name="widget_spend_amount">#F1F5F9</color>
 </resources>

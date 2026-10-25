@@ -19,7 +19,8 @@ class AutoFlowApplication : Application() {
             transactionDao = database.transactionDao(),
             merchantCategoryDao = database.merchantCategoryDao(),
             customCategoryDao = database.customCategoryDao(),
-            runInTransaction = { block -> database.withTransaction { block() } }
+            runInTransaction = { block -> database.withTransaction { block() } },
+            onTransactionWritten = { com.autoflow.app.widget.SpendWidgetUpdater.notifyDataChanged(this) }
         )
     }
 

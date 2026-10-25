@@ -15,4 +15,6 @@
     <color name="widget_bg">#00000000</color>
     <color name="widget_container_bg">#F0FFFFFF</color>
     <color name="widget_container_stroke">#E5E7EB</color>
+    <color name="widget_spend_title">#64748B</color>
+    <color name="widget_spend_amount">#0F172A</color>
 </resources>
