@@ -336,12 +336,18 @@ p { margin: 0; }
 /* hero video */
 .hero-video { justify-self: center; width: min(100%, 380px); margin: 0; position: relative; display: flex; flex-direction: column; gap: 12px; }
 .hero-video video { display: block; width: 100%; height: auto; aspect-ratio: 9 / 16; border-radius: 28px; background: #0F2A22; box-shadow: var(--shadow); }
-.vsound { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 15px; font-weight: 700; color: #fff; background: rgba(15, 42, 34, 0.92); border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 999px; padding: 10px 18px; min-height: 44px; cursor: pointer; white-space: nowrap; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
-.vsound svg { width: 20px; height: 20px; flex: none; }
-.vsound.attn { animation: vpulse 2.4s ease-in-out 3; }
-@keyframes vpulse { 0%, 100% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 0 rgba(74, 222, 128, 0.55); } 50% { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28), 0 0 0 10px rgba(74, 222, 128, 0); } }
-.vsound:focus-visible { outline: 3px solid #4ADE80; outline-offset: 3px; }
-@media (prefers-reduced-motion: reduce) { .vsound.attn { animation: none; } }
+.vctl { position: absolute; bottom: 26px; width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: rgba(15, 42, 34, 0.78); border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 50%; cursor: pointer; }
+.vctl svg { width: 19px; height: 19px; }
+.vctl:focus-visible { outline: 3px solid #4ADE80; outline-offset: 2px; }
+.vsound { left: 14px; }
+.vreplay { right: 14px; }
+.vseek { position: absolute; left: 14px; right: 14px; bottom: 10px; width: calc(100% - 28px); height: 14px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; --p: 0%; }
+.vseek::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(to right, #4ADE80 var(--p), rgba(255, 255, 255, 0.35) var(--p)); }
+.vseek::-moz-range-track { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.35); }
+.vseek::-moz-range-progress { height: 4px; border-radius: 4px; background: #4ADE80; }
+.vseek::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: #fff; border: 0; }
+.vseek::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 0; }
+.vseek:focus-visible { outline: 3px solid #4ADE80; outline-offset: 2px; }
 .vbtn { position: absolute; right: 12px; top: 12px; font: inherit; font-size: 13px; font-weight: 700; color: #0F2A1E; background: rgba(255, 255, 255, 0.9); border: 0; border-radius: 999px; padding: 8px 14px; min-height: 36px; cursor: pointer; }
 .vbtn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .hero-video .caption { text-align: center; margin: 0; }
@@ -406,10 +412,13 @@ footer .wrap { display: flex; flex-direction: column; gap: 10px; }
         <source src="demo.webm" type="video/webm">
       </video>
       <button type="button" class="vbtn" id="demo-btn" aria-label="Pause the demo video">Pause</button>
-      <button type="button" class="vsound attn" id="demo-sound" aria-pressed="false" aria-label="Turn on sound and play the demo from the start">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path id="snd-waves" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-        <span id="snd-label">Tap for sound</span>
+      <button type="button" class="vctl vsound" id="demo-sound" aria-pressed="false" aria-label="Turn sound on" title="Sound">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z"/><g id="snd-waves"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></g><g id="snd-x"><path d="m16 9 5 6"/><path d="m21 9-5 6"/></g></svg>
       </button>
+      <button type="button" class="vctl vreplay" id="demo-replay" aria-label="Replay the demo from the start" title="Replay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+      <input type="range" class="vseek" id="demo-seek" min="0" max="1000" step="1" value="0" aria-label="Video position">
     </figure>
   </section>
 
@@ -771,30 +780,42 @@ footer .wrap { display: flex; flex-direction: column; gap: 10px; }
 </footer>
 <script>
 (function () {
-  var v = document.getElementById('demo'), b = document.getElementById('demo-btn'), s = document.getElementById('demo-sound');
+  var v = document.getElementById('demo'), b = document.getElementById('demo-btn'), s = document.getElementById('demo-sound'), r = document.getElementById('demo-replay'), k = document.getElementById('demo-seek');
   if (!v || !b) return;
-  var lab = document.getElementById('snd-label'), waves = document.getElementById('snd-waves');
+  var waves = document.getElementById('snd-waves'), xmark = document.getElementById('snd-x'), dragging = false;
   function setBtn() { var playing = !v.paused; b.textContent = playing ? 'Pause' : 'Play'; b.setAttribute('aria-label', playing ? 'Pause the demo video' : 'Play the demo video'); }
   function setSnd() {
     if (!s) return;
     var on = !v.muted;
-    lab.textContent = on ? 'Sound on · tap to mute' : 'Tap for sound';
     if (waves) waves.style.display = on ? '' : 'none';
+    if (xmark) xmark.style.display = on ? 'none' : '';
     s.setAttribute('aria-pressed', on ? 'true' : 'false');
-    s.setAttribute('aria-label', on ? 'Mute the demo video' : 'Turn on sound and play the demo from the start');
+    s.setAttribute('aria-label', on ? 'Mute the demo video' : 'Turn sound on');
+  }
+  function setSeek() {
+    if (!k || dragging || !v.duration) return;
+    var f = v.currentTime / v.duration;
+    k.value = Math.round(f * 1000);
+    k.style.setProperty('--p', (f * 100).toFixed(1) + '%');
   }
   b.addEventListener('click', function () { if (v.paused) { v.play(); } else { v.pause(); } });
-  if (s) s.addEventListener('click', function () {
-    s.classList.remove('attn');
-    if (v.muted) { v.muted = false; v.currentTime = 0; var pr2 = v.play(); if (pr2 && pr2.catch) pr2.catch(function () {}); }
-    else { v.muted = true; }
-    setSnd();
-  });
+  if (s) s.addEventListener('click', function () { v.muted = !v.muted; setSnd(); });
+  if (r) r.addEventListener('click', function () { v.currentTime = 0; var pr3 = v.play(); if (pr3 && pr3.catch) pr3.catch(function () {}); });
+  if (k) {
+    k.addEventListener('input', function () {
+      dragging = true;
+      if (v.duration) { v.currentTime = (k.value / 1000) * v.duration; }
+      k.style.setProperty('--p', (k.value / 10) + '%');
+    });
+    k.addEventListener('change', function () { dragging = false; });
+    k.addEventListener('pointerup', function () { dragging = false; });
+  }
   v.addEventListener('play', setBtn); v.addEventListener('pause', setBtn); v.addEventListener('volumechange', setSnd);
+  v.addEventListener('timeupdate', setSeek); v.addEventListener('loadedmetadata', setSeek);
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduce) { v.removeAttribute('autoplay'); v.pause(); }
   else { var pr = v.play(); if (pr && pr.catch) pr.catch(function () { setBtn(); }); }
-  setBtn(); setSnd();
+  setBtn(); setSnd(); setSeek();
 })();
 </script>
 
